@@ -1,5 +1,6 @@
 import type { ExecutionResult, ExecutionTask } from '@ahe/agent-core';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { config } from 'dotenv';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createComputerUseProvider } from '../../create-computer-use-provider';
@@ -14,10 +15,7 @@ import { FixtureServer } from './fixtures/fixture-server';
  * and are skipped without ANTHROPIC_API_KEY. Run `pnpm check:desktop` once first for the macOS permissions.
  */
 
-const ROOT_ENV_FILE = join(__dirname, '../../../../../.env');
-if (existsSync(ROOT_ENV_FILE)) {
-  process.loadEnvFile(ROOT_ENV_FILE);
-}
+config({ path: join(__dirname, '../../../../../.env'), quiet: true });
 
 const API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
 const MODEL_ID = process.env.EXECUTION_MODEL_ID ?? 'claude-sonnet-5-5';
