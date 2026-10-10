@@ -1,10 +1,10 @@
 import sharp from 'sharp';
-import type { ImageProcessor } from '../../driver/image-processor';
-import type { CapturedImage } from '../../driver/types/captured-image';
-import type { Size } from '../../driver/types/size';
+import type { ImageProcessor } from '../image-processor';
+import type { CapturedImage } from '../types/captured-image';
+import type { Size } from '../types/size';
 
 /**
- * ImageProcessor backed by sharp (libvips). Cross-platform, so it isn't tied to the macOS adapters.
+ * ImageProcessor backed by sharp (libvips). Cross-platform, so it isn't tied to the macOS drivers.
  */
 export class SharpImageProcessor implements ImageProcessor {
   async getSize(image: CapturedImage): Promise<Size> {

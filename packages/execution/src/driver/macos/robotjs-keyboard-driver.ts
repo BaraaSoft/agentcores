@@ -1,6 +1,6 @@
 import * as robot from 'robotjs';
-import type { KeyboardDriver } from '../../driver/keyboard-driver';
-import type { KeyCombo } from '../../driver/types/key-combo';
+import type { KeyboardDriver } from '../keyboard-driver';
+import type { KeyCombo } from '../types/key-combo';
 import { sleep } from '../../utils/sleep';
 import type { MacosClipboard } from './macos-clipboard';
 

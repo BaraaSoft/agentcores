@@ -4,7 +4,7 @@ import { ActionExecutor } from '../../actions/action-executor';
 import type { ActionGuard } from '../../actions/action-guard';
 import { PermissiveActionGuard } from '../../actions/permissive-action-guard';
 import { DisplayGeometry } from '../../geometry/display-geometry';
-import { FakeDesktopDriver } from '../../testing/fake-desktop-driver';
+import { FakeDesktopDriver } from '../../driver/testing/fake-desktop-driver';
 import { AnthropicComputerToolset } from '../anthropic-computer-toolset';
 
 const toolUse = (name: string, input: Record<string, unknown> = {}): BetaToolUseBlock => ({

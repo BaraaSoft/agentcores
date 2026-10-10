@@ -1,6 +1,6 @@
 import * as robot from 'robotjs';
-import type { DesktopDriver } from '../../driver/desktop-driver';
-import type { DesktopPermissions } from '../../driver/types/desktop-permissions';
+import type { DesktopDriver } from '../desktop-driver';
+import type { DesktopPermissions } from '../types/desktop-permissions';
 import { SharpImageProcessor } from '../sharp/sharp-image-processor';
 import { MacosClipboard } from './macos-clipboard';
 import { RobotjsKeyboardDriver } from './robotjs-keyboard-driver';

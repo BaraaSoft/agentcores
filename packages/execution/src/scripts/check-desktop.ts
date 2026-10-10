@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MacosDesktopDriver } from '../adapters/macos/macos-desktop-driver';
+import { MacosDesktopDriver } from '../driver/macos/macos-desktop-driver';
 import { DisplayGeometry } from '../geometry/display-geometry';
 
 /**

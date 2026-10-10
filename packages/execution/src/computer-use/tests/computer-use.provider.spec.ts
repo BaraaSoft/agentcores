@@ -4,7 +4,7 @@ import type { BetaContentBlock, BetaMessage } from '@anthropic-ai/sdk/resources/
 import { PermissiveActionGuard } from '../../actions/permissive-action-guard';
 import type { TaskReport } from '../../task-report/task-report.schema';
 import { TaskReportParser } from '../../task-report/task-report-parser';
-import { FakeDesktopDriver } from '../../testing/fake-desktop-driver';
+import { FakeDesktopDriver } from '../../driver/testing/fake-desktop-driver';
 import { ComputerUseProvider } from '../computer-use.provider';
 
 const message = (stopReason: BetaMessage['stop_reason'], content: Partial<BetaContentBlock>[]): BetaMessage =>

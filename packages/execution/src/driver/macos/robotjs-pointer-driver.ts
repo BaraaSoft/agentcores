@@ -1,9 +1,9 @@
 import * as robot from 'robotjs';
-import type { PointerDriver } from '../../driver/pointer-driver';
-import type { MouseButton } from '../../driver/types/mouse-button';
-import type { Point } from '../../driver/types/point';
-import type { ScrollDirection } from '../../driver/types/scroll-direction';
-import type { Size } from '../../driver/types/size';
+import type { PointerDriver } from '../pointer-driver';
+import type { MouseButton } from '../types/mouse-button';
+import type { Point } from '../types/point';
+import type { ScrollDirection } from '../types/scroll-direction';
+import type { Size } from '../types/size';
 
 /**
  * PointerDriver backed by robotjs (native CoreGraphics events on macOS).

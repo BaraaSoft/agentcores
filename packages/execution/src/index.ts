@@ -12,4 +12,4 @@ export type { ScreenDriver } from './driver/screen-driver';
 export type { PointerDriver } from './driver/pointer-driver';
 export type { KeyboardDriver } from './driver/keyboard-driver';
 export type { ImageProcessor } from './driver/image-processor';
-export { MacosDesktopDriver } from './adapters/macos/macos-desktop-driver';
+export { MacosDesktopDriver } from './driver/macos/macos-desktop-driver';

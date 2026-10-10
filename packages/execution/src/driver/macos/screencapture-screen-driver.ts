@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ScreenDriver } from '../../driver/screen-driver';
-import type { CapturedImage } from '../../driver/types/captured-image';
-import type { Region } from '../../driver/types/region';
+import type { ScreenDriver } from '../screen-driver';
+import type { CapturedImage } from '../types/captured-image';
+import type { Region } from '../types/region';
 import { runCommand } from './run-command';
 
 /**
