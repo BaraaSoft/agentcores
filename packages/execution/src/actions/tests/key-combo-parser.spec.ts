@@ -19,6 +19,21 @@ describe('KeyComboParser', () => {
     expect(KeyComboParser.parse(text)).toEqual(expected);
   });
 
+  it.each([
+    ['cmd+equal', '='],
+    ['cmd+period', '.'],
+    ['ctrl+comma', ','],
+    ['super+slash', '/'],
+    ['backslash', '\\'],
+    ['semicolon', ';'],
+    ['apostrophe', "'"],
+    ['grave', '`'],
+    ['cmd+shift+bracketleft', '['],
+    ['cmd+shift+bracketright', ']'],
+  ])('reads the xdotool punctuation name in %s', (text, key) => {
+    expect(KeyComboParser.parse(text).key).toBe(key);
+  });
+
   it('refuses unknown key names instead of guessing', () => {
     expect(() => KeyComboParser.parse('Hyper_Q')).toThrow(ActionRefusedError);
   });

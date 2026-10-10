@@ -17,11 +17,8 @@ export class SharpImageProcessor implements ImageProcessor {
     return { data, mediaType: 'image/png' };
   }
 
-  async fitWithin(image: CapturedImage, box: Size): Promise<CapturedImage> {
-    const data = await sharp(image.data)
-      .resize(box.width, box.height, { fit: 'inside', withoutEnlargement: true })
-      .png()
-      .toBuffer();
+  async scaleToFit(image: CapturedImage, box: Size): Promise<CapturedImage> {
+    const data = await sharp(image.data).resize(box.width, box.height, { fit: 'inside' }).png().toBuffer();
     return { data, mediaType: 'image/png' };
   }
 }
