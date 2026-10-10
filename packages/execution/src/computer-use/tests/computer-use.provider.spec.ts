@@ -1,13 +1,21 @@
 import type { ExecutionTask } from '@ahe/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
-import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta';
+import type { BetaContentBlock, BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { PermissiveActionGuard } from '../../actions/permissive-action-guard';
-import { TaskReportParser } from '../../compression/task-report-parser';
+import type { TaskReport } from '../../task-report/task-report.schema';
+import { TaskReportParser } from '../../task-report/task-report-parser';
 import { FakeDesktopDriver } from '../../testing/fake-desktop-driver';
 import { ComputerUseProvider } from '../computer-use.provider';
 
-const message = (stopReason: BetaMessage['stop_reason'], text: string): BetaMessage =>
-  ({ role: 'assistant', stop_reason: stopReason, content: [{ type: 'text', text }] }) as unknown as BetaMessage;
+const message = (stopReason: BetaMessage['stop_reason'], content: Partial<BetaContentBlock>[]): BetaMessage =>
+  ({ role: 'assistant', stop_reason: stopReason, content }) as unknown as BetaMessage;
+
+const text = (value: string): Partial<BetaContentBlock> => ({ type: 'text', text: value });
+
+const toolUse = (name: string, input: unknown): Partial<BetaContentBlock> => ({ type: 'tool_use', id: name, name, input });
+
+const reportCall = (report: TaskReport, ...others: Partial<BetaContentBlock>[]): BetaMessage =>
+  message('tool_use', [text('Reporting.'), ...others, toolUse('submit_task_report', report)]);
 
 /** A client whose tool runner yields `messages` and records the request it was given. */
 const fakeClient = (messages: BetaMessage[], requests: unknown[]): Anthropic =>
@@ -33,6 +41,13 @@ describe('ComputerUseProvider', () => {
     credentials: null,
   };
   const options = { modelId: 'claude-sonnet-5-5', maxTokens: 1024, maxScreenshotSize: { width: 1280, height: 800 }, settleDelayMs: 0 };
+  const done: TaskReport = {
+    status: 'done',
+    summary: 'Top post upvoted.',
+    finalLocation: 'Chrome — reddit.com',
+    blocker: null,
+    metricReadings: [{ name: 'upvotes', value: 42 }],
+  };
 
   const createProvider = (desktop: FakeDesktopDriver, messages: BetaMessage[], requests: unknown[] = []) =>
     new ComputerUseProvider(
@@ -40,17 +55,11 @@ describe('ComputerUseProvider', () => {
       options,
     );
 
-  it('returns the compressed report and the number of model turns', async () => {
+  it('returns the submitted report and the number of model turns', async () => {
     const requests: unknown[] = [];
     const provider = createProvider(
       new FakeDesktopDriver(),
-      [
-        message('tool_use', 'Taking a screenshot.'),
-        message(
-          'end_turn',
-          '<task_report>{"status": "done", "summary": "Top post upvoted.", "finalLocation": "Chrome — reddit.com", "blocker": null, "metricReadings": {"upvotes": 42}}</task_report>',
-        ),
-      ],
+      [message('tool_use', [text('Taking a screenshot.'), toolUse('computer', {})]), reportCall(done)],
       requests,
     );
 
@@ -64,9 +73,26 @@ describe('ComputerUseProvider', () => {
       stepsTaken: 2,
       metricReadings: { upvotes: 42 },
     });
-    expect(requests[0]).toMatchObject({ model: 'claude-sonnet-5-5', max_iterations: 10 });
+    expect(requests[0]).toMatchObject({
+      model: 'claude-sonnet-5-5',
+      max_iterations: 10,
+      tools: [expect.anything(), { name: 'submit_task_report', strict: true }],
+    });
     expect(JSON.stringify(requests[0])).toContain('Upvote the top post.');
     expect(JSON.stringify(requests[0])).not.toContain('robot_credentials>\\nusername');
+  });
+
+  it('stops the loop at the report', async () => {
+    const provider = createProvider(new FakeDesktopDriver(), [reportCall(done), message('end_turn', [text('Anything else?')])]);
+    expect(await provider.runTask(task)).toMatchObject({ status: 'done', stepsTaken: 1 });
+  });
+
+  it('keeps going when the report comes with other actions in the same turn', async () => {
+    const provider = createProvider(new FakeDesktopDriver(), [
+      reportCall(done, toolUse('computer', {})),
+      reportCall({ ...done, summary: 'Confirmed after a screenshot.' }),
+    ]);
+    expect(await provider.runTask(task)).toMatchObject({ summary: 'Confirmed after a screenshot.', stepsTaken: 2 });
   });
 
   it('passes credentials to the model and redacts the password from the result', async () => {
@@ -74,10 +100,13 @@ describe('ComputerUseProvider', () => {
     const provider = createProvider(
       new FakeDesktopDriver(),
       [
-        message(
-          'end_turn',
-          '<task_report>{"status": "blocked", "summary": "Signed in with s3cret-pass, then a code was asked.", "blocker": {"kind": "verification_code", "detail": "Email code prompt."}}</task_report>',
-        ),
+        reportCall({
+          status: 'blocked',
+          summary: 'Signed in with s3cret-pass, then a code was asked.',
+          finalLocation: 'Chrome — reddit.com/login',
+          blocker: { kind: 'verification_code', detail: 'Email code prompt.' },
+          metricReadings: [],
+        }),
       ],
       requests,
     );
@@ -94,8 +123,13 @@ describe('ComputerUseProvider', () => {
   });
 
   it('reports failure when the step limit ends the loop', async () => {
-    const provider = createProvider(new FakeDesktopDriver(), [message('tool_use', 'Still scrolling.')]);
+    const provider = createProvider(new FakeDesktopDriver(), [message('tool_use', [text('Still scrolling.'), toolUse('computer', {})])]);
     expect(await provider.runTask(task)).toMatchObject({ status: 'failed', stepsTaken: 1 });
+  });
+
+  it('reports failure when the model ends its turn without a report', async () => {
+    const provider = createProvider(new FakeDesktopDriver(), [message('end_turn', [text('All done!')])]);
+    expect(await provider.runTask(task)).toMatchObject({ status: 'failed', summary: 'Finished without a task report: All done!' });
   });
 
   it('refuses to start without macOS permissions', async () => {

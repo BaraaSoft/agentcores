@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { ActionGuard } from '../actions/action-guard';
-import type { TaskReportParser } from '../compression/task-report-parser';
+import type { TaskReportParser } from '../task-report/task-report-parser';
 import type { DesktopDriver } from '../driver/desktop-driver';
 
 /**

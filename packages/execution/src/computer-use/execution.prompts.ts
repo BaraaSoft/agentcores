@@ -32,13 +32,9 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 </IMPORTANT>
 
 <TASK_REPORT>
-When the instruction is done, you're blocked, or you're certain it can't be done, stop calling tools and reply with only:
-<task_report>{"status": "done", "summary": "...", "finalLocation": "...", "blocker": null, "metricReadings": {}}</task_report>
-* status: "done", "blocked", or "failed".
-* summary: at most 100 words on the final state relevant to the instruction — what was done, what is visible now, anything surprising.
-* finalLocation: the app and page the screen ended on, e.g. "Chrome — reddit.com/r/AICompanion".
-* blocker: when status is "blocked", {"kind": "...", "detail": "..."} with kind one of captcha, verification_code, identity_check, login_required, rate_limited, account_restricted, other, and detail saying what the gate said and where. Otherwise null.
-* metricReadings: numbers visible in the final state that the instruction asks about (e.g. "upvotes", "replies", "views"), as snake_case keys with numeric values. Use {} when there are none.
+* End every task by calling submit_task_report: when the instruction is done, when you're blocked, or when you're certain it can't be done. A task that ends any other way counts as failed.
+* Call it alone, after a screenshot has confirmed the final state — never in the same turn as computer actions.
+* Describe the final state as you last saw it, and include the numbers the instruction asks about (e.g. upvotes, replies, views) as metric readings.
 </TASK_REPORT>`;
 }
 

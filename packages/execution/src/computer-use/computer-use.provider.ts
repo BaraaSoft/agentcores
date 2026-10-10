@@ -2,6 +2,7 @@ import type { ExecutionProvider, ExecutionResult, ExecutionTask } from '@ahe/age
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { ActionExecutor } from '../actions/action-executor';
 import { AnthropicComputerToolset } from '../anthropic/anthropic-computer-toolset';
+import { TASK_REPORT_TOOL } from '../task-report/task-report-tool';
 import { DisplayGeometry } from '../geometry/display-geometry';
 import type { ComputerUseComponents } from './computer-use-components';
 import type { ComputerUseOptions } from './computer-use-options';
@@ -20,7 +21,7 @@ export class ComputerUseProvider implements ExecutionProvider {
   ) {}
 
   /**
-   * Executes the instruction end to end. Stops when the model sends its task report (done, blocked, or failed),
+   * Executes the instruction end to end. Stops when the model calls `submit_task_report` (done, blocked, or failed),
    * `task.maxSteps` model turns have run, or `signal` aborts (which returns a failed result).
    * The account password, when supplied, is redacted from everything returned.
    * Missing macOS permissions and API errors are thrown, so the harness can retry or escalate.
@@ -31,13 +32,14 @@ export class ComputerUseProvider implements ExecutionProvider {
 
     let stepsTaken = 0;
     let lastMessage: BetaMessage | null = null;
+    let report: unknown = null;
     try {
       const runner = this.components.client.beta.messages.toolRunner(
         {
           model: this.options.modelId,
           max_tokens: this.options.maxTokens,
           system: buildSystemPrompt({ date: new Date(), maxSteps: task.maxSteps }),
-          tools: [toolset],
+          tools: [toolset, TASK_REPORT_TOOL],
           messages: [{ role: 'user', content: buildTaskPrompt(task) }],
           max_iterations: task.maxSteps,
         },
@@ -46,6 +48,10 @@ export class ComputerUseProvider implements ExecutionProvider {
       for await (const message of runner) {
         stepsTaken += 1;
         lastMessage = message;
+        report = this.reportOf(message);
+        if (report !== null) {
+          break;
+        }
       }
     } catch (error) {
       if (signal?.aborted) {
@@ -63,11 +69,12 @@ export class ComputerUseProvider implements ExecutionProvider {
       await toolset.close();
     }
 
-    const state = this.components.reportParser.parse(
-      lastMessage === null ? null : this.textOf(lastMessage),
-      lastMessage?.stop_reason === 'tool_use',
-      task.credentials === null ? [] : [task.credentials.password],
-    );
+    const state = this.components.reportParser.parse({
+      report,
+      finalText: lastMessage === null ? null : this.textOf(lastMessage),
+      isStoppedAtStepLimit: lastMessage?.stop_reason === 'tool_use',
+      secrets: task.credentials === null ? [] : [task.credentials.password],
+    });
     return { ...state, stepsTaken };
   }
 
@@ -88,6 +95,13 @@ export class ComputerUseProvider implements ExecutionProvider {
           'Grant them to the Node process, e.g. with `pnpm --filter @ahe/execution check:desktop`.',
       );
     }
+  }
+
+  /** The report input when the message's only tool call is `submit_task_report`; otherwise null. */
+  private reportOf(message: BetaMessage): unknown {
+    const toolUses = message.content.filter((block) => block.type === 'tool_use');
+    const [only] = toolUses;
+    return toolUses.length === 1 && only.name === TASK_REPORT_TOOL.name ? only.input : null;
   }
 
   private textOf(message: BetaMessage): string {
