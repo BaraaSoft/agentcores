@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { PermissiveActionGuard } from './actions/permissive-action-guard';
-import { MacosDesktopDriver } from './adapters/macos/macos-desktop-driver';
+import { MacosDesktopDriver } from './driver/macos/macos-desktop-driver';
 import { TaskReportParser } from './task-report/task-report-parser';
 import { ComputerUseProvider } from './computer-use/computer-use.provider';
 import type { ComputerUseProviderOptions } from './computer-use-provider-options';

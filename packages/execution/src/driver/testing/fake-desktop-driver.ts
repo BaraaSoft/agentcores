@@ -1,16 +1,16 @@
-import type { DesktopDriver } from '../driver/desktop-driver';
-import type { ImageProcessor } from '../driver/image-processor';
-import type { KeyboardDriver } from '../driver/keyboard-driver';
-import type { PointerDriver } from '../driver/pointer-driver';
-import type { ScreenDriver } from '../driver/screen-driver';
-import type { CapturedImage } from '../driver/types/captured-image';
-import type { DesktopPermissions } from '../driver/types/desktop-permissions';
-import type { KeyCombo } from '../driver/types/key-combo';
-import type { MouseButton } from '../driver/types/mouse-button';
-import type { Point } from '../driver/types/point';
-import type { Region } from '../driver/types/region';
-import type { ScrollDirection } from '../driver/types/scroll-direction';
-import type { Size } from '../driver/types/size';
+import type { DesktopDriver } from '../desktop-driver';
+import type { ImageProcessor } from '../image-processor';
+import type { KeyboardDriver } from '../keyboard-driver';
+import type { PointerDriver } from '../pointer-driver';
+import type { ScreenDriver } from '../screen-driver';
+import type { CapturedImage } from '../types/captured-image';
+import type { DesktopPermissions } from '../types/desktop-permissions';
+import type { KeyCombo } from '../types/key-combo';
+import type { MouseButton } from '../types/mouse-button';
+import type { Point } from '../types/point';
+import type { Region } from '../types/region';
+import type { ScrollDirection } from '../types/scroll-direction';
+import type { Size } from '../types/size';
 
 /**
  * An in-memory desktop for tests. Every driver call is appended to `calls` as a readable string,

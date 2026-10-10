@@ -1,5 +1,5 @@
 import { DisplayGeometry } from '../../geometry/display-geometry';
-import { FakeDesktopDriver } from '../../testing/fake-desktop-driver';
+import { FakeDesktopDriver } from '../../driver/testing/fake-desktop-driver';
 import { ActionExecutor } from '../action-executor';
 import { ActionRefusedError } from '../action-refused.error';
 
