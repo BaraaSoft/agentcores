@@ -1,4 +1,5 @@
 import type { Size } from '../driver/types/size';
+import type { ExecutionTurn } from './types/execution-turn';
 
 /**
  * Tuning for the computer-use loop.
@@ -15,4 +16,6 @@ export interface ComputerUseOptions {
   readonly maxScreenshotSize: Size;
   /** Pause after each input action so the UI can update before the next screenshot. */
   readonly settleDelayMs: number;
+  /** Called after every model turn, e.g. to keep a step log. Must not throw. */
+  readonly onTurn: ((turn: ExecutionTurn) => void) | null;
 }

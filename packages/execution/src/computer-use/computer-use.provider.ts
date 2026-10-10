@@ -4,9 +4,11 @@ import { ActionExecutor } from '../actions/action-executor';
 import { AnthropicComputerToolset } from '../anthropic/anthropic-computer-toolset';
 import { TASK_REPORT_TOOL } from '../task-report/task-report-tool';
 import { DisplayGeometry } from '../geometry/display-geometry';
+import { redactSecrets } from '../utils/redact-secrets';
 import type { ComputerUseComponents } from './computer-use-components';
 import type { ComputerUseOptions } from './computer-use-options';
 import { buildSystemPrompt, buildTaskPrompt } from './execution.prompts';
+import type { ExecutionTurn } from './types/execution-turn';
 
 /**
  * The execution layer. Runs one mechanical instruction through Anthropic's computer-use
@@ -30,6 +32,7 @@ export class ComputerUseProvider implements ExecutionProvider {
     await this.assertPermissions();
     const toolset = await this.createToolset();
 
+    const secrets = task.credentials === null ? [] : [task.credentials.password];
     let stepsTaken = 0;
     let lastMessage: BetaMessage | null = null;
     let report: unknown = null;
@@ -48,6 +51,7 @@ export class ComputerUseProvider implements ExecutionProvider {
       for await (const message of runner) {
         stepsTaken += 1;
         lastMessage = message;
+        this.options.onTurn?.(this.turnOf(stepsTaken, message, secrets));
         report = this.reportOf(message);
         if (report !== null) {
           break;
@@ -73,7 +77,7 @@ export class ComputerUseProvider implements ExecutionProvider {
       report,
       finalText: lastMessage === null ? null : this.textOf(lastMessage),
       isStoppedAtStepLimit: lastMessage?.stop_reason === 'tool_use',
-      secrets: task.credentials === null ? [] : [task.credentials.password],
+      secrets,
     });
     return { ...state, stepsTaken };
   }
@@ -102,6 +106,13 @@ export class ComputerUseProvider implements ExecutionProvider {
     const toolUses = message.content.filter((block) => block.type === 'tool_use');
     const [only] = toolUses;
     return toolUses.length === 1 && only.name === TASK_REPORT_TOOL.name ? only.input : null;
+  }
+
+  private turnOf(turn: number, message: BetaMessage, secrets: readonly string[]): ExecutionTurn {
+    const toolCalls = message.content.flatMap((block) =>
+      block.type === 'tool_use' ? [redactSecrets(`${block.name} ${JSON.stringify(block.input)}`, secrets)] : [],
+    );
+    return { turn, text: redactSecrets(this.textOf(message), secrets), toolCalls };
   }
 
   private textOf(message: BetaMessage): string {

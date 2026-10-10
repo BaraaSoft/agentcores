@@ -1,11 +1,11 @@
 import type { ExecutionBlocker, ExecutionResult } from '@ahe/agent-core';
+import { redactSecrets } from '../utils/redact-secrets';
 import { TASK_REPORT_SCHEMA } from './task-report.schema';
 import type { TaskReport } from './task-report.schema';
 import type { ParseTaskReportInput } from './types/parse-task-report-input';
 
 const MAX_SUMMARY_LENGTH = 900;
 const MAX_FIELD_LENGTH = 300;
-const REDACTED = '[redacted]';
 
 /** An ExecutionResult before the provider adds the step count. */
 type ReportedOutcome = Omit<ExecutionResult, 'stepsTaken'>;
@@ -21,7 +21,7 @@ type ReportedOutcome = Omit<ExecutionResult, 'stepsTaken'>;
 export class TaskReportParser {
   parse(input: ParseTaskReportInput): ReportedOutcome {
     const state = this.parseUnredacted(input);
-    return this.redact(state, input.secrets.filter((secret) => secret.length > 0));
+    return this.redact(state, input.secrets);
   }
 
   private parseUnredacted({ report, finalText, isStoppedAtStepLimit }: ParseTaskReportInput): ReportedOutcome {
@@ -60,10 +60,7 @@ export class TaskReportParser {
   }
 
   private redact(state: ReportedOutcome, secrets: readonly string[]): ReportedOutcome {
-    if (secrets.length === 0) {
-      return state;
-    }
-    const clean = (text: string): string => secrets.reduce((result, secret) => result.split(secret).join(REDACTED), text);
+    const clean = (text: string): string => redactSecrets(text, secrets);
     return {
       ...state,
       summary: clean(state.summary),

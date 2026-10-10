@@ -3,6 +3,7 @@ export type { ComputerUseProviderOptions } from './computer-use-provider-options
 export { ComputerUseProvider } from './computer-use/computer-use.provider';
 export type { ComputerUseComponents } from './computer-use/computer-use-components';
 export type { ComputerUseOptions } from './computer-use/computer-use-options';
+export type { ExecutionTurn } from './computer-use/types/execution-turn';
 
 export type { ActionGuard } from './actions/action-guard';
 export { PermissiveActionGuard } from './actions/permissive-action-guard';
