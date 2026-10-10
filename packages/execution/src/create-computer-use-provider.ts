@@ -22,6 +22,7 @@ export function createComputerUseProvider(options: ComputerUseProviderOptions): 
       maxTokens: options.maxTokens ?? 4096,
       maxScreenshotSize: { width: options.maxScreenshotWidth ?? 1280, height: options.maxScreenshotHeight ?? 800 },
       settleDelayMs: options.settleDelayMs ?? 300,
+      onTurn: options.onTurn ?? null,
     },
   );
 }

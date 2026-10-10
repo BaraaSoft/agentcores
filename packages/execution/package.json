@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit",
     "test": "jest --passWithNoTests",
+    "test:e2e": "jest --runInBand --testRegex '\\.e2e\\.spec\\.ts$' --testPathIgnorePatterns /node_modules/",
     "check:desktop": "tsc -p tsconfig.json && node dist/scripts/check-desktop.js",
     "clean": "rm -rf dist"
   },
@@ -33,6 +34,10 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "\\.e2e\\.spec\\.ts$"
+    ],
     "transform": {
       "^.+\\.ts$": [
         "ts-jest",

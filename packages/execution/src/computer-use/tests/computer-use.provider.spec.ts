@@ -6,6 +6,7 @@ import type { TaskReport } from '../../task-report/task-report.schema';
 import { TaskReportParser } from '../../task-report/task-report-parser';
 import { FakeDesktopDriver } from '../../driver/testing/fake-desktop-driver';
 import { ComputerUseProvider } from '../computer-use.provider';
+import type { ExecutionTurn } from '../types/execution-turn';
 
 const message = (stopReason: BetaMessage['stop_reason'], content: Partial<BetaContentBlock>[]): BetaMessage =>
   ({ role: 'assistant', stop_reason: stopReason, content }) as unknown as BetaMessage;
@@ -40,7 +41,13 @@ describe('ComputerUseProvider', () => {
     maxSteps: 10,
     credentials: null,
   };
-  const options = { modelId: 'claude-sonnet-5-5', maxTokens: 1024, maxScreenshotSize: { width: 1280, height: 800 }, settleDelayMs: 0 };
+  const options = {
+    modelId: 'claude-sonnet-5-5',
+    maxTokens: 1024,
+    maxScreenshotSize: { width: 1280, height: 800 },
+    settleDelayMs: 0,
+    onTurn: null,
+  };
   const done: TaskReport = {
     status: 'done',
     summary: 'Top post upvoted.',
@@ -120,6 +127,26 @@ describe('ComputerUseProvider', () => {
     expect(result.status).toBe('blocked');
     expect(result.blocker).toEqual({ kind: 'verification_code', detail: 'Email code prompt.' });
     expect(JSON.stringify(result)).not.toContain('s3cret-pass');
+  });
+
+  it('reports every turn as redacted text to onTurn', async () => {
+    const turns: ExecutionTurn[] = [];
+    const provider = new ComputerUseProvider(
+      {
+        client: fakeClient([message('tool_use', [text('Typing the password.'), toolUse('computer', { text: 's3cret-pass' })]), reportCall(done)], []),
+        desktop: new FakeDesktopDriver(),
+        guard: new PermissiveActionGuard(),
+        reportParser: new TaskReportParser(),
+      },
+      { ...options, onTurn: (turn) => turns.push(turn) },
+    );
+
+    await provider.runTask({ ...task, credentials: { platform: 'reddit.com', username: 'ahe_bot', password: 's3cret-pass' } });
+
+    expect(turns).toEqual([
+      { turn: 1, text: 'Typing the password.', toolCalls: ['computer {"text":"[redacted]"}'] },
+      { turn: 2, text: 'Reporting.', toolCalls: [expect.stringMatching(/^submit_task_report /)] },
+    ]);
   });
 
   it('reports failure when the step limit ends the loop', async () => {
