@@ -1,0 +1,20 @@
+# Local infrastructure for AHE. Ports are offset from cipher-monorepo
+# (5432 / 6379) so both stacks can run side by side.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ahe
+      POSTGRES_PASSWORD: ahe
+      POSTGRES_DB: ahe
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./.docker-data/postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./.docker-data/redis:/data

@@ -1,0 +1,17 @@
+{
+  "name": "cipher-ahe",
+  "private": true,
+  "packageManager": "pnpm@10.4.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "build:libs": "pnpm --filter @ahe/agent-core --filter @ahe/execution build",
+    "dev": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
+    "typecheck": "pnpm build:libs && pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "compose:up": "docker compose -f docker-compose-dev.yml up",
+    "compose:down": "docker compose -f docker-compose-dev.yml down",
+    "migrate": "pnpm --filter @ahe/migrations migrate",
+    "migration:generate": "pnpm --filter @ahe/migrations migration:generate:main",
+    "migration:revert": "pnpm --filter @ahe/migrations migration:revert:main"
+  }
+}

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Docker volumes
+.docker-data/
+
+# pnpm local store fallback
+.pnpm-store/
+docs/
+.cursor/

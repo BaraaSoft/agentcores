@@ -1,0 +1,25 @@
+{
+  "name": "@ahe/migrations",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "migrate": "ts-node --require reflect-metadata src/run.ts",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "typecheck": "tsc --noEmit",
+    "migration:generate:main": "pnpm typeorm migration:generate migrations/main/Migration -d src/data-source.ts",
+    "migration:run:main": "pnpm typeorm migration:run -d src/data-source.ts",
+    "migration:revert:main": "pnpm typeorm migration:revert -d src/data-source.ts"
+  },
+  "dependencies": {
+    "@ahe/agent-core": "workspace:*",
+    "dotenv": "^16.0.0",
+    "pg": "^8.18.0",
+    "reflect-metadata": "^0.2.2",
+    "ts-node": "^10.9.2",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7"
+  }
+}

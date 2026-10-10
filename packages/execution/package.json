@@ -1,0 +1,36 @@
+{
+  "name": "@ahe/execution",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test": "jest --passWithNoTests",
+    "check:desktop": "tsc -p tsconfig.json && node dist/scripts/check-desktop.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ahe/agent-core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.133.0",
+    "robotjs": "^0.9.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.7",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
+    },
+    "testEnvironment": "node"
+  }
+}
