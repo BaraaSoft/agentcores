@@ -207,8 +207,9 @@ flowchart TD
 ```
 
 Screenshots follow the same path and return an image: `ScreenDriver.capture()` at native resolution,
-then `ImageProcessor.resize()` straight to the task's screenshot size. `zoom` captures one region and fits it
-within the same size, so small text becomes readable.
+then `ImageProcessor.resize()` straight to the task's screenshot size. `zoom` captures one region at native
+resolution and `ImageProcessor.scaleToFit()` scales it up (or down) to fill the same size, as Anthropic's
+toolset expects, so small text becomes readable.
 
 ---
 

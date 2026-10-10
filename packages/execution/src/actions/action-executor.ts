@@ -131,12 +131,12 @@ export class ActionExecutor {
     return { kind: 'image', image: await this.desktop.images.resize(capture, this.geometry.screenshotSize) };
   }
 
-  /** Captures one region at native resolution, scaled down to fit the usual screenshot size. */
+  /** Captures one region at native resolution, scaled up or down to fill the usual screenshot size. */
   private async captureZoom(from: Point, to: Point): Promise<ActionOutcome> {
     this.checkOnScreen(from);
     this.checkOnScreen(to);
     const capture = await this.desktop.screen.capture(this.geometry.regionToDisplay(from, to));
-    return { kind: 'image', image: await this.desktop.images.fitWithin(capture, this.geometry.screenshotSize) };
+    return { kind: 'image', image: await this.desktop.images.scaleToFit(capture, this.geometry.screenshotSize) };
   }
 
   /** Moves the cursor to `point` when the model gave one; `null` means act at the cursor. */

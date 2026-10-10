@@ -20,7 +20,7 @@ describe('ActionExecutor', () => {
 
   it('zooms by capturing the display region and fitting it to the screenshot size', async () => {
     await executor.perform({ kind: 'zoom', from: { x: 0, y: 0 }, to: { x: 640, y: 400 } });
-    expect(desktop.calls).toEqual(['capture 0,0 720x450', 'fitWithin 1280x800']);
+    expect(desktop.calls).toEqual(['capture 0,0 720x450', 'scaleToFit 1280x800']);
   });
 
   it('scales the click point and holds modifiers around the click', async () => {

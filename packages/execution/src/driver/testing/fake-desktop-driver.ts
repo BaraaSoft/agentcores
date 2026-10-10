@@ -80,9 +80,9 @@ export class FakeDesktopDriver implements DesktopDriver {
         calls.push(`resize ${size.width}x${size.height}`);
         return image(`resized ${size.width}x${size.height}`);
       },
-      fitWithin: async (_image: CapturedImage, box: Size) => {
-        calls.push(`fitWithin ${box.width}x${box.height}`);
-        return image(`fitted ${box.width}x${box.height}`);
+      scaleToFit: async (_image: CapturedImage, box: Size) => {
+        calls.push(`scaleToFit ${box.width}x${box.height}`);
+        return image(`scaled ${box.width}x${box.height}`);
       },
     };
   }

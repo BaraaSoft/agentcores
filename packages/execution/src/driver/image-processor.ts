@@ -12,6 +12,9 @@ export interface ImageProcessor {
   /** Scales the image to exactly `size`. Used for full screenshots, whose size must never change mid-task. */
   resize(image: CapturedImage, size: Size): Promise<CapturedImage>;
 
-  /** Scales the image down, keeping its aspect ratio, until it fits inside `box`. Never scales up. */
-  fitWithin(image: CapturedImage, box: Size): Promise<CapturedImage>;
+  /**
+   * Scales the image up or down, keeping its aspect ratio, to the largest size that fits inside `box`.
+   * Used for zoom, whose small crops are enlarged so fine details become legible to the model.
+   */
+  scaleToFit(image: CapturedImage, box: Size): Promise<CapturedImage>;
 }
