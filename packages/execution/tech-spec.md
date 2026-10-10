@@ -360,11 +360,13 @@ The suite reads `ANTHROPIC_API_KEY` and `EXECUTION_MODEL_ID` from the environmen
 and is skipped without a key. `AHE_E2E_BROWSER` picks the browser (default Safari).
 
 A local `FixtureServer` (`computer-use/tests/fixtures/`) serves pages with random codes and records form
-posts, so each test checks what actually happened in the browser, not just what the model says:
+posts, so each test checks what actually happened in the browser, not just what the model says.
+The test never touches the desktop itself: each instruction names a URL, and the model gets there on its own
+(Spotlight, address bar) from wherever the previous task left the screen, as it would in production.
 
 | Test        | Page                                     | Passes when                                                   |
 | ----------- | ---------------------------------------- | ------------------------------------------------------------- |
-| `heading`   | Model opens the browser and the URL itself | Summary contains the heading's number                          |
+| `heading`   | Model opens the named browser, then the page | Summary contains the heading's number                        |
 | `scroll`    | Code word at the end of a long page      | Summary contains the code word (checks scroll direction)       |
 | `zoom`      | Reference number in 7px text             | Summary contains the number                                    |
 | `echo`      | Message box that posts to the server     | Server received exactly `Hello from AHE 🚀 café` (emoji paste)  |
