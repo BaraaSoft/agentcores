@@ -10,7 +10,7 @@ const DEFAULT_PORT = 3088;
 
 /**
  * Starts the AHE backend: the control API, the admin tools (Swagger + Bull Board),
- * and the BullMQ workers that run the harness, all in one process on the Mac Mini.
+ * and the BullMQ workers that plan and run Units, Jobs, and Tasks, all in one process on the Mac Mini.
  */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);

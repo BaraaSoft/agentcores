@@ -22,6 +22,8 @@ import { UnitOfWorkService } from './services/unit-of-work.service';
 /**
  * The operating system of AHE: Strategy → Unit of Work → Job → Task as data,
  * the autonomy rules over it, the metric roll-up, and the monthly review.
+ * Each level that runs work has its own folder and module under `processors/`
+ * (`job-execution/`, `task-execution/`).
  */
 @Module({
   imports: [

@@ -4,7 +4,7 @@ The execution layer of AHE. It takes one mechanical instruction ("upvote the top
 drives a real macOS desktop with Claude's computer-use tools until the instruction is done, blocked, or
 impossible, and returns a short **text-only** `ExecutionResult`. Screenshots never leave this package.
 
-It implements `ExecutionProvider` from `@ahe/agent-core`. The backend's harness is its only caller.
+It implements `ExecutionProvider` from `@ahe/agent-core`. The backend's `TaskExecutionProcessor` is its only caller.
 
 - [Where it sits](#where-it-sits)
 - [Usage](#usage)
@@ -30,19 +30,19 @@ The context window here is disposable: each task starts a fresh conversation.
 ```mermaid
 flowchart LR
     subgraph Backend["@ahe/backend"]
-        Reasoning["ReasoningService<br/>(Opus: plans, decides on blockers)"]
-        Harness["HarnessService"]
+        Reasoning["TaskReasoningService<br/>(Opus: plans steps, decides on blockers)"]
+        TaskExec["TaskExecutionProcessor<br/>(the Task loop)"]
     end
     subgraph Execution["@ahe/execution"]
         Provider["ComputerUseProvider<br/>(Sonnet: screenshots, clicks)"]
     end
     Desktop["Mac Mini desktop"]
 
-    Reasoning -- "PlannedStep" --> Harness
-    Harness -- "ExecutionTask<br/>instruction, context, credentials, maxSteps" --> Provider
+    Reasoning -- "PlannedStep" --> TaskExec
+    TaskExec -- "ExecutionTask<br/>instruction, context, credentials, maxSteps" --> Provider
     Provider <-- "screenshots / input" --> Desktop
-    Provider -- "ExecutionResult<br/>status, ~100-word summary, blocker, metrics" --> Harness
-    Harness -- "summary + blocker" --> Reasoning
+    Provider -- "ExecutionResult<br/>status, ~100-word summary, blocker, metrics" --> TaskExec
+    TaskExec -- "ExecutionResult in the step history" --> Reasoning
 ```
 
 The contract types (`ExecutionTask`, `ExecutionResult`, `ExecutionBlocker`, `ToolCall`, …) live in
@@ -85,7 +85,7 @@ const result = await provider.runTask(
 | `guard`               | `PermissiveActionGuard`  | Approves each action before it runs                           |
 | `onTurn`              | none                     | Called after each model turn with its text and tool calls (no images, secrets redacted) — a step log |
 
-`runTask` **throws** for missing macOS permissions and API errors, so the harness can retry or escalate.
+`runTask` **throws** for missing macOS permissions and API errors, so the backend's Task processor fails the Task (queue retries are off for Tasks, since a crashed run may already have acted).
 Everything else (model gave up, step limit, malformed report, cancellation) comes back as `status: 'failed'`.
 
 ---
@@ -146,7 +146,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     autonumber
-    participant H as Harness
+    participant H as TaskExecutionProcessor
     participant P as ComputerUseProvider
     participant D as DesktopDriver
     participant R as SDK toolRunner

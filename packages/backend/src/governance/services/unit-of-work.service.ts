@@ -1,7 +1,7 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { UnitReallocation } from '../../reasoning/types/unit-reallocation';
+import type { UnitReallocation } from '../../reasoning/strategy/types/unit-reallocation';
 import { UnitOfWorkEntity } from '../entities/unit-of-work.entity';
 import type { CreateUnitOfWorkInput } from '../types/create-unit-of-work-input';
 import type { FindMatchingUnitInput } from '../types/find-matching-unit-input';

@@ -26,7 +26,7 @@ export class ComputerUseProvider implements ExecutionProvider {
    * Executes the instruction end to end. Stops when the model calls `submit_task_report` (done, blocked, or failed),
    * `task.maxSteps` model turns have run, or `signal` aborts (which returns a failed result).
    * The account password, when supplied, is redacted from everything returned.
-   * Missing macOS permissions and API errors are thrown, so the harness can retry or escalate.
+   * Missing macOS permissions and API errors are thrown, so the backend's Task processor can fail or escalate the Task.
    */
   async runTask(task: ExecutionTask, signal?: AbortSignal): Promise<ExecutionResult> {
     await this.assertPermissions();

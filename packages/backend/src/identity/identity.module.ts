@@ -6,7 +6,7 @@ import { IdentityService } from './identity.service';
 
 /**
  * Platform accounts, their credentials, and the challenge history the agent learns pacing from.
- * A leaf module: only the harness uses it.
+ * A leaf module: only task execution uses it.
  */
 @Module({
   imports: [TypeOrmModule.forFeature([PlatformAccountEntity, AccountChallengeEntity])],
