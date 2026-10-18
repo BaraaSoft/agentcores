@@ -1,4 +1,4 @@
-/** How often the orchestrator looks for Tasks to schedule. */
+/** How often the orchestrator looks for Jobs to start. */
 export const SCHEDULING_INTERVAL_MS = 60_000;
 
 /** Daily report time (cron, Mac Mini local time). */

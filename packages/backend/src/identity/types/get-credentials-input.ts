@@ -1,5 +1,5 @@
 /**
- * Which account login the harness needs for a step.
+ * Which account login the Task processor needs for a step.
  */
 export interface GetCredentialsInput {
   readonly workflowId: string;

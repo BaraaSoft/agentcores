@@ -3,7 +3,7 @@ import type { ExecutionModel, ReasoningModel } from '@ahe/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsInt, IsNumber, Max, Min } from 'class-validator';
 
-const MAX_CONCURRENT_TASKS_LIMIT = 10;
+const MAX_CONCURRENT_JOBS_LIMIT = 10;
 
 /**
  * Resource envelope supplied when a Workflow is created.
@@ -17,11 +17,11 @@ export class WorkflowResourcesRequestDto {
   @IsIn(EXECUTION_MODELS)
   executionModel: ExecutionModel;
 
-  @ApiProperty({ minimum: 1, maximum: MAX_CONCURRENT_TASKS_LIMIT })
+  @ApiProperty({ minimum: 1, maximum: MAX_CONCURRENT_JOBS_LIMIT })
   @IsInt()
   @Min(1)
-  @Max(MAX_CONCURRENT_TASKS_LIMIT)
-  maxConcurrentTasks: number;
+  @Max(MAX_CONCURRENT_JOBS_LIMIT)
+  maxConcurrentJobs: number;
 
   @ApiProperty({ description: 'Monthly spend ceiling in USD', example: 500 })
   @IsNumber()

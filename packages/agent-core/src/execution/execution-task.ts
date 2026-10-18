@@ -1,7 +1,7 @@
 import type { AccountCredentials } from './account-credentials';
 
 /**
- * What the harness hands to the execution layer: one mechanical instruction
+ * What the backend's Task processor hands to the execution layer: one mechanical instruction
  * plus the minimum context needed to carry it out.
  * `context` must be built from the safe memory zone only — never sealed data.
  */

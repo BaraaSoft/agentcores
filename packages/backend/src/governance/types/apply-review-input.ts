@@ -1,4 +1,4 @@
-import type { StrategyReview } from '../../reasoning/types/strategy-review';
+import type { StrategyReview } from '../../reasoning/strategy/types/strategy-review';
 
 /**
  * A Strategy review whose decisions should now be carried out.

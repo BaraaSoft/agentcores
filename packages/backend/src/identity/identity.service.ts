@@ -40,8 +40,8 @@ export class IdentityService {
   }
 
   /**
-   * How many gates the account hit since `input.since`. The reasoning layer uses it to slow down
-   * or move effort to another channel before a platform escalates further.
+   * How many gates the account hit since `input.since`. Task reasoning uses it to slow down, and
+   * Unit of Work reviews use it to move effort to another channel, before a platform escalates further.
    */
   async countRecentChallenges(input: CountChallengesInput): Promise<number> {
     throw new NotImplementedException();

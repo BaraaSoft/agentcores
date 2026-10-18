@@ -2,7 +2,7 @@ import type { ExecutionBlocker } from './execution-blocker';
 import type { ExecutionStatus } from './execution-status';
 
 /**
- * What the execution layer returns to the harness after the loop ends.
+ * What the execution layer returns to the backend's Task processor after the loop ends.
  * Only this text is ever forwarded to the reasoning layer — screenshots never are.
  */
 export interface ExecutionResult {

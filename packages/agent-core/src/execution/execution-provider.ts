@@ -3,8 +3,8 @@ import type { ExecutionTask } from './execution-task';
 
 /**
  * Contract for anything that can carry out a mechanical instruction on a machine.
- * The backend harness depends only on this interface; `@ahe/execution` implements it.
- * Keeping it here lets the implementation move to another process later without touching the harness.
+ * The backend's Task processor depends only on this interface; `@ahe/execution` implements it.
+ * Keeping it here lets the implementation move to another process later without touching the backend.
  */
 export interface ExecutionProvider {
   /**

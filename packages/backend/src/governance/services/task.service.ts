@@ -4,12 +4,11 @@ import { Repository } from 'typeorm';
 import { TaskEntity } from '../entities/task.entity';
 import type { CompleteTaskInput } from '../types/complete-task-input';
 import type { CreateTasksInput } from '../types/create-tasks-input';
-import type { ListPendingTasksInput } from '../types/list-pending-tasks-input';
 import type { StopTaskInput } from '../types/stop-task-input';
 
 /**
  * Persistence and status transitions of Tasks:
- * pending → running → complete | failed | escalated.
+ * pending → running → complete | failed | escalated, and running → pending when deferred.
  */
 @Injectable()
 export class TaskService {
@@ -26,23 +25,17 @@ export class TaskService {
   }
 
   /**
-   * Loads a Task with its Job, Unit of Work, and Strategy — everything the harness needs.
+   * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs.
    */
   async findTaskWithLineage(taskId: string): Promise<TaskEntity | null> {
     throw new NotImplementedException();
   }
 
   /**
-   * Next pending Tasks for a Workflow, weighted by each Unit's allocation share.
+   * The Job's lowest-sequence pending Task, or null when none is left.
+   * Returns null while any Task of the Job is running or escalated, so a Job's Tasks run in order.
    */
-  async listPendingTasks(input: ListPendingTasksInput): Promise<TaskEntity[]> {
-    throw new NotImplementedException();
-  }
-
-  /**
-   * How many of the Workflow's Tasks are running right now.
-   */
-  async countRunningTasks(workflowId: string): Promise<number> {
+  async findNextPendingTask(jobId: string): Promise<TaskEntity | null> {
     throw new NotImplementedException();
   }
 
@@ -50,6 +43,13 @@ export class TaskService {
    * pending → running. Stamps `startedAt`.
    */
   async markTaskRunning(taskId: string): Promise<void> {
+    throw new NotImplementedException();
+  }
+
+  /**
+   * running → pending, for a Task deferred by a temporary gate. Clears `startedAt`.
+   */
+  async markTaskPending(taskId: string): Promise<void> {
     throw new NotImplementedException();
   }
 

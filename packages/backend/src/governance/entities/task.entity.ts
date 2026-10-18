@@ -3,7 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, Primary
 import { JobEntity } from './job.entity';
 
 /**
- * An atomic action run by the harness. `workflowId` is denormalised so the
+ * An atomic action run by the Task processor. `workflowId` is denormalised so the
  * orchestrator can find pending/running Tasks for a Workflow without joining up the tree.
  */
 @Entity('tasks')
