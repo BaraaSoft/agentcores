@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { JobEntity } from '../entities/job.entity';
 import type { CreateJobInput } from '../types/create-job-input';
 import type { ListStartableJobsInput } from '../types/list-startable-jobs-input';
+import type { PlaceJobInput } from '../types/place-job-input';
+import { UnitOfWorkService } from './unit-of-work.service';
 
 /**
  * Persistence of Jobs. A Job is active while a Task of it is running or escalated.
@@ -13,12 +15,21 @@ export class JobService {
   constructor(
     @InjectRepository(JobEntity)
     private readonly jobs: Repository<JobEntity>,
+    private readonly units: UnitOfWorkService,
   ) {}
 
   /**
    * Creates a Job under an existing Unit of Work.
    */
   async createJob(input: CreateJobInput): Promise<JobEntity> {
+    throw new NotImplementedException();
+  }
+
+  /**
+   * Files a proposed Job under the matching Unit (`findMatchingUnit`), or creates a new Unit
+   * only when none fits.
+   */
+  async placeJob(input: PlaceJobInput): Promise<JobEntity> {
     throw new NotImplementedException();
   }
 

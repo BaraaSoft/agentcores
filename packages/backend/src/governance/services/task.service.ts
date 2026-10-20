@@ -25,6 +25,13 @@ export class TaskService {
   }
 
   /**
+   * True once the Job has been broken into Tasks.
+   */
+  async hasTasks(jobId: string): Promise<boolean> {
+    throw new NotImplementedException();
+  }
+
+  /**
    * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs.
    */
   async findTaskWithLineage(taskId: string): Promise<TaskEntity | null> {

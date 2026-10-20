@@ -20,7 +20,8 @@ governance level** — Strategy, Unit of Work, Job, Task — that share a single
 ```mermaid
 flowchart TB
     subgraph Above["Layer above — callers"]
-        Planning["governance/PlanningService<br/>plans down the hierarchy<br/>(new Strategy, Job worker)"]
+        Orch["orchestrator/OrchestratorService<br/>plans each new Strategy"]
+        JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>breaks a Job into Tasks"]
         Evaluation["governance/StrategyEvaluationService<br/>rolls results up at cycle end"]
         TaskExec["governance/processors/task-execution/TaskExecutionProcessor<br/>the Task loop"]
     end
@@ -39,14 +40,15 @@ flowchart TB
         Execution["@ahe/execution — Sonnet/Haiku<br/>computer use (reached via the Task loop)"]
     end
 
-    Planning --> S & U & J
+    Orch --> S & U
+    JobExec --> J
     Evaluation --> J & U & S
     TaskExec --> T
     Client --> Anthropic
     TaskExec -. "ExecutionTask / ExecutionResult" .-> Execution
 ```
 
-- **Above:** governance and the Task processor call the reasoners. They load data, apply the
+- **Above:** the orchestrator, the governance processors, and the evaluation service call the reasoners. They load data, apply the
   [autonomy rules](../../../../docs/base/03-governance-model.md#autonomy-rules), and save the results; the reasoners
   only decide.
 - **Below:** the reasoners call only `ReasoningModelClient`, which calls Opus. The module is a **leaf**: it
@@ -59,9 +61,9 @@ flowchart TB
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
-| `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `PlanningService`, `StrategyEvaluationService` |
-| `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `PlanningService`, `StrategyEvaluationService` |
-| `JobReasoningService` | One objective | `breakDownJob`, `evaluateJob` | **Task outcomes** | `JobBreakdown` (Task actions), `JobEvaluation` | `PlanningService`, `StrategyEvaluationService` |
+| `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `OrchestratorService`, `StrategyEvaluationService` |
+| `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
+| `JobReasoningService` | One objective | `breakDownJob`, `evaluateJob` | **Task outcomes** | `JobBreakdown` (Task actions), `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
@@ -84,26 +86,26 @@ sequenceDiagram
     autonumber
     participant O as Orchestrator
     participant JW as Job worker
-    participant P as PlanningService
     participant S as StrategyReasoning
     participant U as UnitReasoning
     participant J as JobReasoning
-    participant DB as Governance rows
+    participant DB as Governance services
 
-    O->>P: planNewStrategy (cycle start)
-    P->>S: planStrategy(goldStandards, safeContext, previousEvaluations)
-    S-->>P: StrategyPlan { units + allocation }
-    P->>DB: create Strategy + Units
-    loop each Unit (planUnitJobs)
-        P->>U: planJobs(unit, existingJobObjectives, safeContext)
-        U-->>P: UnitJobPlan { jobs }
-        P->>DB: placeJob — file under a matching Unit, new Unit only if none fits
+    Note over O: new Workflow, or the last cycle was reviewed
+    O->>S: planStrategy(goldStandards, safeContext, previousEvaluations)
+    S-->>O: StrategyPlan { units + allocation }
+    O->>DB: createStrategy + createUnitOfWork per Unit
+    loop each Unit
+        O->>U: planJobs(unit, existingJobObjectives, safeContext)
+        U-->>O: UnitJobPlan { jobs }
+        O->>DB: JobService.placeJob — matching Unit, new Unit only if none fits
     end
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
-    JW->>P: planJobTasks (only the first time)
-    P->>J: breakDownJob(job, safeContext)
-    J-->>P: JobBreakdown { actions }
-    P->>DB: create pending Tasks
+    alt Job has no Tasks yet
+        JW->>J: breakDownJob(job, safeContext)
+        J-->>JW: JobBreakdown { actions }
+        JW->>DB: TaskService.createTasks
+    end
     JW->>JW: queue the Job's next pending Task → Task level, below
 ```
 
@@ -133,7 +135,7 @@ sequenceDiagram
     end
     E->>S: reviewStrategy(goldStandards, values, unitReviews)
     S-->>E: StrategyReview { evaluation, reallocations, deprecations, newJobs }
-    E->>DB: applyReview → next Strategy
+    E->>DB: applyReview → Workflow back to running; the orchestrator plans the next Strategy
 ```
 
 What crosses each boundary:
