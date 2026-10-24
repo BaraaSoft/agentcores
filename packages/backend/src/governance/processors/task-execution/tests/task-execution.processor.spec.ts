@@ -66,7 +66,7 @@ function setup() {
   const tasks = {
     findTaskWithLineage: jest.fn().mockResolvedValue(task),
     findNextPendingTask: jest.fn().mockResolvedValue(null),
-    markTaskRunning: jest.fn(),
+    markTaskRunning: jest.fn().mockResolvedValue(true),
     markTaskPending: jest.fn(),
     markTaskDeferred: jest.fn(),
     markTaskComplete: jest.fn(),
@@ -123,6 +123,15 @@ describe('TaskExecutionProcessor', () => {
       expect(t.reasoning.planNextStep).not.toHaveBeenCalled();
     },
   );
+
+  it('does not run a Task another worker claimed first', async () => {
+    const t = setup();
+    t.tasks.markTaskRunning.mockResolvedValue(false);
+
+    expect(await t.run()).toBeNull();
+    expect(t.reasoning.planNextStep).not.toHaveBeenCalled();
+    expect(t.tasks.markTaskFailed).not.toHaveBeenCalled();
+  });
 
   it('runs a deferred Task once its delay is up', async () => {
     const t = setup();

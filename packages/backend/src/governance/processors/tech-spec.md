@@ -130,7 +130,7 @@ stateDiagram-v2
 | → `pending` (created) | Job processor | `TaskService.createTasks` |
 | `pending` / `deferred` → `running` | Task processor | `markTaskRunning` |
 | `running` → `complete` | Task processor | `markTaskComplete` |
-| `running` → `failed` | Task processor | `markTaskFailed` |
+| `running` → `failed` | Task processor | `markTaskFailed` (also from `escalated`, when the owner rejects) |
 | `running` → `escalated` | Task processor, through reporting | `ReportingService.raiseEscalation` → `markTaskEscalated` |
 | `running` → `deferred` | Task processor | `markTaskDeferred` (+ delayed queue item) |
 | `deferred` → `pending` | Task processor, when the delay ends while paused | `markTaskPending` |
@@ -175,7 +175,9 @@ flowchart TD
     Status -- no --> Skip(["skip: already handled"])
     Status -- yes --> Running{"Workflow running?"}
     Running -- no --> Paused["deferred → pending<br/>(pending stays pending)"] --> Skip2(["skip: resumes with its Job"])
-    Running -- yes --> Loop["markTaskRunning<br/>plan → execute loop"]
+    Running -- yes --> Claim{"markTaskRunning<br/>claimed?"}
+    Claim -- no --> Skip3(["skip: another worker has it"])
+    Claim -- yes --> Loop["plan → execute loop"]
     Loop --> End{"how it ended"}
     End -- complete --> C["markTaskComplete + metric readings<br/>queue the Job's next Task"]
     End -- deferred --> D["markTaskDeferred<br/>queue this Task again after retryAfterMinutes"]
@@ -232,6 +234,9 @@ pending or deferred and skips. A Job queued twice is broken down once and queues
   the current Task.
 - **One Task on screen.** The Task processor runs with concurrency 1 across all Workflows.
 - **Never twice.** Tasks have no queue retries, and a Task runs only from `pending` or `deferred`.
+  `markTaskRunning` is a claim: it changes the status only if the Task is still pending or deferred,
+  and returns false otherwise, so two workers can never both run the same Task. Every other
+  `markTask*` method is guarded the same way, so a late or duplicate caller changes nothing.
 - **Safe to re-queue.** Queuing a Job again is always safe; it is how resume and approved escalations work.
 - **The database decides.** Queue items are hints to look at a Job or Task; the statuses decide.
 

@@ -1,0 +1,79 @@
+import type { GoldStandards, TaskStatus, WorkflowResources } from '@ahe/agent-core';
+import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
+import { JobEntity } from '../../entities/job.entity';
+import { MetricSnapshotEntity } from '../../entities/metric-snapshot.entity';
+import { StrategyEntity } from '../../entities/strategy.entity';
+import { TaskEntity } from '../../entities/task.entity';
+import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
+
+/** Every entity the governance services touch, including the Workflow they hang off. */
+export const GOVERNANCE_ENTITIES = [WorkflowEntity, StrategyEntity, UnitOfWorkEntity, JobEntity, TaskEntity, MetricSnapshotEntity];
+
+/**
+ * Seeds and clears governance rows for integration specs: a running Workflow whose active
+ * Strategy is created first, then Units, Jobs, and Tasks under it.
+ */
+@Injectable()
+export class GovernanceSeeder {
+  constructor(private readonly dataSource: DataSource) {}
+
+  /**
+   * Empties every table, so each test starts from nothing.
+   */
+  async clear(): Promise<void> {
+    const tables = this.dataSource.entityMetadatas.map((metadata) => `"${metadata.schema}"."${metadata.tableName}"`).join(', ');
+    await this.dataSource.query(`TRUNCATE ${tables} CASCADE`);
+  }
+
+  async workflowWithActiveStrategy(): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
+    const workflows = this.dataSource.getRepository(WorkflowEntity);
+    const workflow = await workflows.save(
+      workflows.create({ name: 'Distribution', owner: 'owner-1', resources: {} as WorkflowResources, state: 'running' }),
+    );
+    const strategy = await this.strategy(workflow.id);
+    await workflows.update(workflow.id, { activeStrategyId: strategy.id });
+    return { workflow: { ...workflow, activeStrategyId: strategy.id }, strategy };
+  }
+
+  async strategy(workflowId: string): Promise<StrategyEntity> {
+    return this.dataSource.getRepository(StrategyEntity).save({
+      workflowId,
+      name: 'October',
+      startDate: new Date('2026-10-01T00:00:00Z'),
+      endDate: new Date('2026-10-31T00:00:00Z'),
+      goldStandards: {} as GoldStandards,
+      evaluation: null,
+    });
+  }
+
+  async unit(strategyId: string, name: string, allocationPercentage = 50, isDeprecated = false): Promise<UnitOfWorkEntity> {
+    return this.dataSource
+      .getRepository(UnitOfWorkEntity)
+      .save({ strategyId, name, successCriteria: [], allocationPercentage, isDeprecated });
+  }
+
+  async job(unitOfWorkId: string, name = 'Engage r/AICompanion'): Promise<JobEntity> {
+    return this.dataSource.getRepository(JobEntity).save({ unitOfWorkId, name, objective: `Objective of ${name}` });
+  }
+
+  /**
+   * Adds Tasks to a Job with the given statuses, in sequence order.
+   */
+  async tasks(workflowId: string, jobId: string, statuses: readonly TaskStatus[]): Promise<TaskEntity[]> {
+    return this.dataSource.getRepository(TaskEntity).save(
+      statuses.map((status, index) => ({
+        workflowId,
+        jobId,
+        action: `Action ${index + 1}`,
+        sequence: index + 1,
+        status,
+        result: null,
+        failureReason: null,
+        startedAt: null,
+        completedAt: null,
+      })),
+    );
+  }
+}
