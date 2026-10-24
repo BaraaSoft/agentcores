@@ -21,14 +21,28 @@ export class UnitOfWorkService {
    * Creates a Unit. Callers should first try `findMatchingUnit` — new Units are a last resort.
    */
   async createUnitOfWork(input: CreateUnitOfWorkInput): Promise<UnitOfWorkEntity> {
-    throw new NotImplementedException();
+    return this.units.save(
+      this.units.create({
+        strategyId: input.strategyId,
+        name: input.name,
+        successCriteria: [...input.successCriteria],
+        allocationPercentage: input.allocationPercentage,
+      }),
+    );
   }
 
   /**
-   * Finds the active Unit a Job belongs to, or null when none fits.
+   * Finds the active Unit a Job belongs to, or null when none fits. Matches on the Unit name
+   * within the Strategy, ignoring case and surrounding spaces; `jobObjective` is not used yet.
    */
   async findMatchingUnit(input: FindMatchingUnitInput): Promise<UnitOfWorkEntity | null> {
-    throw new NotImplementedException();
+    return this.units
+      .createQueryBuilder('unit')
+      .where('unit.strategyId = :strategyId', { strategyId: input.strategyId })
+      .andWhere('unit.isDeprecated = false')
+      .andWhere('LOWER(TRIM(unit.name)) = LOWER(TRIM(:name))', { name: input.unitName })
+      .orderBy('unit.createdAt', 'ASC')
+      .getOne();
   }
 
   /**

@@ -8,6 +8,7 @@
     "dev": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
     "typecheck": "pnpm build:libs && pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:integration": "pnpm --filter @ahe/backend test:integration",
     "compose:up": "docker compose -f docker-compose-dev.yml up",
     "compose:down": "docker compose -f docker-compose-dev.yml down",
     "migrate": "pnpm --filter @ahe/migrations migrate",

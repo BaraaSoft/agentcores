@@ -35,8 +35,8 @@ export class JobExecutionProcessor extends WorkerHost {
    * Breaks the Job down if it has no Tasks yet and queues its next pending Task.
    * Does nothing while the Workflow is not `running`.
    */
-  async process(job: Job<JobExecutionJobData>): Promise<void> {
-    const { workflowId, jobId } = job.data;
+  async process(message: Job<JobExecutionJobData>): Promise<void> {
+    const { workflowId, jobId } = message.data;
     const workflow = await this.workflows.findWorkflowById(workflowId);
     if (workflow?.state !== 'running') return;
 

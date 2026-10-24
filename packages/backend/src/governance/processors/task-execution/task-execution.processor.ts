@@ -66,11 +66,11 @@ export class TaskExecutionProcessor extends WorkerHost {
   /**
    * Runs the queued Task and records how it ended. Runs a `pending` Task, or a `deferred` one whose
    * delay is up. Returns `null` without running when the Task is in any other state (delivered twice)
-   * or the Workflow is not `running`; a deferred Task that comes due while paused goes back to
-   * pending, so it runs when its Job is queued again on resume.
+   * or the Workflow is not `running`, or another worker claimed it first; a deferred Task that comes
+   * due while paused goes back to pending, so it runs when its Job is queued again on resume.
    */
-  async process(job: Job<TaskExecutionJobData>): Promise<TaskRunOutcome | null> {
-    const { workflowId, taskId } = job.data;
+  async process(message: Job<TaskExecutionJobData>): Promise<TaskRunOutcome | null> {
+    const { workflowId, taskId } = message.data;
     const task = await this.tasks.findTaskWithLineage(taskId);
     if (task?.status !== 'pending' && task?.status !== 'deferred') return null;
     const workflow = await this.workflows.findWorkflowById(workflowId);
@@ -79,7 +79,7 @@ export class TaskExecutionProcessor extends WorkerHost {
       return null;
     }
 
-    await this.tasks.markTaskRunning(taskId);
+    if (!(await this.tasks.markTaskRunning(taskId))) return null;
     try {
       const context = await this.memory.retrieveSafeContext({
         owner: workflow.owner,

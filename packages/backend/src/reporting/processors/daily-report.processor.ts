@@ -17,7 +17,7 @@ export class DailyReportProcessor extends WorkerHost {
   /**
    * Builds today's report for the Workflow.
    */
-  async process(job: Job<WorkflowJobData>): Promise<void> {
+  async process(message: Job<WorkflowJobData>): Promise<void> {
     throw new Error('Not implemented');
   }
 }
