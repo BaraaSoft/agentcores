@@ -106,7 +106,7 @@ sequenceDiagram
         J-->>JW: JobBreakdown { actions }
         JW->>DB: TaskService.createTasks
     end
-    JW->>JW: queue the Job's next pending Task → Task level, below
+    JW->>JW: queue the Job's current Task if pending → Task level, below
 ```
 
 ---

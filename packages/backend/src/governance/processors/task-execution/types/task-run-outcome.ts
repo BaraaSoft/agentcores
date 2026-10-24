@@ -3,7 +3,7 @@
  * - `complete`: the Task is done; the Job's next Task is queued.
  * - `failed`: it could not be done, hit the iteration limit, or was refused (sealed topic).
  * - `escalated`: it needs the owner; the Job waits until the owner answers.
- * - `deferred`: a temporary gate (e.g. a rate limit) stopped it; it was re-queued for later.
+ * - `deferred`: a temporary gate (e.g. a rate limit) stopped it; it is `deferred` and re-queued for later.
  */
 export interface TaskRunOutcome {
   readonly taskId: string;

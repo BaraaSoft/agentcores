@@ -2,7 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GovernanceModule } from '../governance/governance.module';
-import { DAILY_REPORT_QUEUE } from '../queue/queue.constants';
+import { DAILY_REPORT_QUEUE, JOB_EXECUTION_QUEUE } from '../queue/queue.constants';
 import { DailyReportEntity } from './entities/daily-report.entity';
 import { EscalationEntity } from './entities/escalation.entity';
 import { DailyReportProcessor } from './processors/daily-report.processor';
@@ -15,7 +15,7 @@ import { ReportingService } from './reporting.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([DailyReportEntity, EscalationEntity]),
-    BullModule.registerQueue({ name: DAILY_REPORT_QUEUE }),
+    BullModule.registerQueue({ name: DAILY_REPORT_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
     GovernanceModule,
   ],
   controllers: [ReportingController],
