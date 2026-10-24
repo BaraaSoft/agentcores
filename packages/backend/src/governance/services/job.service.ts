@@ -8,7 +8,9 @@ import type { PlaceJobInput } from '../types/place-job-input';
 import { UnitOfWorkService } from './unit-of-work.service';
 
 /**
- * Persistence of Jobs. A Job is active while a Task of it is running or escalated.
+ * Persistence of Jobs. A Job has no status of its own: its current Task (the lowest-sequence Task
+ * not yet complete) decides whether it is ready, running, deferred, escalated, failed, or done.
+ * A Job is active while its current Task is running, deferred, or escalated.
  */
 @Injectable()
 export class JobService {
@@ -48,8 +50,8 @@ export class JobService {
   }
 
   /**
-   * Jobs of the Workflow's active Strategy that have work left and nothing running: no Tasks yet,
-   * or a pending Task with none running or escalated. Weighted by each Unit's allocation share.
+   * Jobs of the Workflow's active Strategy that are ready: no Tasks yet, or a current Task (the
+   * lowest-sequence Task not yet complete) that is `pending`. Weighted by each Unit's allocation share.
    */
   async listStartableJobs(input: ListStartableJobsInput): Promise<JobEntity[]> {
     throw new NotImplementedException();

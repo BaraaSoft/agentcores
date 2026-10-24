@@ -12,10 +12,10 @@ import { TaskService } from '../../services/task.service';
 import { JOB_CONTEXT_RECORD_LIMIT } from './job-execution.constants';
 
 /**
- * Starts a Job: Job reasoning breaks it into Tasks the first time, then its next pending Task is queued.
- * Only one Task of a Job is queued at a time; the Task processor queues the next one when a Task
- * completes, so a failed, escalated, or deferred Task holds the rest of the Job.
- * Queuing the same Job again is safe, which is how a paused Workflow's Jobs resume.
+ * Starts a Job: Job reasoning breaks it into Tasks the first time, then the Job's current Task is
+ * queued if it is pending. Only one Task of a Job is queued at a time; the Task processor queues the
+ * next one when a Task completes, so a failed, escalated, or deferred Task holds the rest of the Job.
+ * Queuing the same Job again is safe, which is how paused Jobs and approved escalations resume.
  */
 @Processor(JOB_EXECUTION_QUEUE)
 export class JobExecutionProcessor extends WorkerHost {

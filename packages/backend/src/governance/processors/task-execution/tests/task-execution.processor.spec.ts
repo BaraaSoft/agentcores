@@ -68,6 +68,7 @@ function setup() {
     findNextPendingTask: jest.fn().mockResolvedValue(null),
     markTaskRunning: jest.fn(),
     markTaskPending: jest.fn(),
+    markTaskDeferred: jest.fn(),
     markTaskComplete: jest.fn(),
     markTaskFailed: jest.fn(),
   };
@@ -108,14 +109,40 @@ describe('TaskExecutionProcessor', () => {
 
     expect(await t.run()).toBeNull();
     expect(t.tasks.markTaskRunning).not.toHaveBeenCalled();
+    expect(t.tasks.markTaskPending).not.toHaveBeenCalled();
   });
 
-  it('skips a Task that is no longer pending, so a duplicate delivery never runs it twice', async () => {
+  it.each(['running', 'complete', 'failed', 'escalated'])(
+    'skips a %s Task, so a duplicate delivery never runs it twice',
+    async (status) => {
+      const t = setup();
+      t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, status });
+
+      expect(await t.run()).toBeNull();
+      expect(t.tasks.markTaskRunning).not.toHaveBeenCalled();
+      expect(t.reasoning.planNextStep).not.toHaveBeenCalled();
+    },
+  );
+
+  it('runs a deferred Task once its delay is up', async () => {
     const t = setup();
-    t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, status: 'running' });
+    t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, status: 'deferred' });
+    t.reasoning.planNextStep.mockResolvedValueOnce(step({ isTaskDone: true }));
+
+    const outcome = await t.run();
+
+    expect(t.tasks.markTaskRunning).toHaveBeenCalledWith(TASK_ID);
+    expect(outcome?.status).toBe('complete');
+  });
+
+  it('puts a deferred Task that comes due while the Workflow is paused back to pending, without running it', async () => {
+    const t = setup();
+    t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, status: 'deferred' });
+    t.workflows.findWorkflowById.mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'paused' });
 
     expect(await t.run()).toBeNull();
-    expect(t.reasoning.planNextStep).not.toHaveBeenCalled();
+    expect(t.tasks.markTaskPending).toHaveBeenCalledWith(TASK_ID);
+    expect(t.tasks.markTaskRunning).not.toHaveBeenCalled();
   });
 
   it('loops plan → execute until reasoning says done, then completes and queues the next Task', async () => {
@@ -213,7 +240,7 @@ describe('TaskExecutionProcessor', () => {
     expect(outcome).toEqual(expect.objectContaining({ status: 'deferred', retryAfterMinutes: 10 }));
     expect(t.identity.recordChallenge).toHaveBeenCalledWith({ workflowId: WORKFLOW_ID, platform: 'reddit.com', taskId: TASK_ID, blocker });
     expect(t.reasoning.decideOnBlocker).toHaveBeenCalledWith(expect.objectContaining({ recentChallengeCount: 3 }));
-    expect(t.tasks.markTaskPending).toHaveBeenCalledWith(TASK_ID);
+    expect(t.tasks.markTaskDeferred).toHaveBeenCalledWith(TASK_ID);
     expect(t.taskQueue.add).toHaveBeenCalledWith(TASK_ID, { workflowId: WORKFLOW_ID, taskId: TASK_ID }, { delay: 600_000 });
     expect(t.memory.recordLearning).toHaveBeenCalledWith({
       owner: 'owner-1',

@@ -8,7 +8,8 @@ import type { StopTaskInput } from '../types/stop-task-input';
 
 /**
  * Persistence and status transitions of Tasks:
- * pending → running → complete | failed | escalated, and running → pending when deferred.
+ * pending → running → complete | failed | escalated | deferred, then escalated | deferred → running
+ * or back to pending. A Job's current Task (its lowest-sequence Task not yet complete) decides the Job's state.
  */
 @Injectable()
 export class TaskService {
@@ -39,22 +40,31 @@ export class TaskService {
   }
 
   /**
-   * The Job's lowest-sequence pending Task, or null when none is left.
-   * Returns null while any Task of the Job is running or escalated, so a Job's Tasks run in order.
+   * The Job's current Task — its lowest-sequence Task that is not `complete` — when that Task is
+   * `pending`; otherwise null. A running, deferred, escalated, or failed current Task holds the Job,
+   * so a Job never skips past a stuck Task.
    */
   async findNextPendingTask(jobId: string): Promise<TaskEntity | null> {
     throw new NotImplementedException();
   }
 
   /**
-   * pending → running. Stamps `startedAt`.
+   * pending | deferred → running. Stamps `startedAt`.
    */
   async markTaskRunning(taskId: string): Promise<void> {
     throw new NotImplementedException();
   }
 
   /**
-   * running → pending, for a Task deferred by a temporary gate. Clears `startedAt`.
+   * running → deferred, for a Task stopped by a temporary gate. Clears `startedAt`.
+   */
+  async markTaskDeferred(taskId: string): Promise<void> {
+    throw new NotImplementedException();
+  }
+
+  /**
+   * escalated | deferred → pending: the owner approved an escalation, or a deferred Task came due
+   * while its Workflow was paused. The Task runs when its Job is next queued.
    */
   async markTaskPending(taskId: string): Promise<void> {
     throw new NotImplementedException();

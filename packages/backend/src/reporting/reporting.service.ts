@@ -1,8 +1,12 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
 import { MetricsService } from '../governance/services/metrics.service';
 import { TaskService } from '../governance/services/task.service';
+import { JOB_EXECUTION_QUEUE } from '../queue/queue.constants';
+import type { JobExecutionJobData } from '../queue/types/job-execution-job-data';
 import { DailyReportEntity } from './entities/daily-report.entity';
 import { EscalationEntity } from './entities/escalation.entity';
 import type { RaiseEscalationInput } from './types/raise-escalation-input';
@@ -21,6 +25,8 @@ export class ReportingService {
     private readonly escalations: Repository<EscalationEntity>,
     private readonly metrics: MetricsService,
     private readonly tasks: TaskService,
+    @InjectQueue(JOB_EXECUTION_QUEUE)
+    private readonly jobQueue: Queue<JobExecutionJobData>,
   ) {}
 
   /**
@@ -46,7 +52,8 @@ export class ReportingService {
   }
 
   /**
-   * Records the owner's answer: approved re-queues the Task, rejected fails it.
+   * Records the owner's answer. Approved: the Task goes back to pending and its Job is queued again,
+   * so the Job resumes from that Task. Rejected: the Task is failed and its Job stays held.
    */
   async resolveEscalation(input: ResolveEscalationInput): Promise<EscalationEntity> {
     throw new NotImplementedException();

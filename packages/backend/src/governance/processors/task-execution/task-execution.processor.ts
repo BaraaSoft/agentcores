@@ -64,16 +64,20 @@ export class TaskExecutionProcessor extends WorkerHost {
   }
 
   /**
-   * Runs the queued Task and records how it ended. Returns `null` without running when the
-   * Workflow is not `running` or the Task is no longer `pending` (paused, or delivered twice);
-   * a paused Task stays pending and is picked up again when its Job is next queued.
+   * Runs the queued Task and records how it ended. Runs a `pending` Task, or a `deferred` one whose
+   * delay is up. Returns `null` without running when the Task is in any other state (delivered twice)
+   * or the Workflow is not `running`; a deferred Task that comes due while paused goes back to
+   * pending, so it runs when its Job is queued again on resume.
    */
   async process(job: Job<TaskExecutionJobData>): Promise<TaskRunOutcome | null> {
     const { workflowId, taskId } = job.data;
-    const workflow = await this.workflows.findWorkflowById(workflowId);
-    if (workflow?.state !== 'running') return null;
     const task = await this.tasks.findTaskWithLineage(taskId);
-    if (task?.status !== 'pending') return null;
+    if (task?.status !== 'pending' && task?.status !== 'deferred') return null;
+    const workflow = await this.workflows.findWorkflowById(workflowId);
+    if (workflow?.state !== 'running') {
+      if (task.status === 'deferred') await this.tasks.markTaskPending(taskId);
+      return null;
+    }
 
     await this.tasks.markTaskRunning(taskId);
     try {
@@ -178,8 +182,8 @@ export class TaskExecutionProcessor extends WorkerHost {
   }
 
   /**
-   * Saves how the Task ended, stores its learnings, and moves the Job along:
-   * complete queues the next Task, deferred re-queues this one after the delay.
+   * Saves how the Task ended, stores its learnings, and moves the Job along: complete queues the
+   * next Task, deferred re-queues this one after the delay. Failed and escalated hold the Job.
    */
   private async finish(run: TaskRun, owner: string, end: StepsEnd): Promise<void> {
     const { workflowId, task } = run;
@@ -204,7 +208,7 @@ export class TaskExecutionProcessor extends WorkerHost {
         await this.reporting.raiseEscalation({ workflowId, taskId: task.id, question: end.summary });
         break;
       case 'deferred':
-        await this.tasks.markTaskPending(task.id);
+        await this.tasks.markTaskDeferred(task.id);
         await this.taskQueue.add(task.id, { workflowId, taskId: task.id }, { delay: (end.retryAfterMinutes ?? 0) * MS_PER_MINUTE });
         break;
     }
