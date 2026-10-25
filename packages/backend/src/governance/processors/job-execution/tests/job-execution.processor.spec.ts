@@ -5,7 +5,6 @@ import type { JobExecutionJobData } from '../../../../queue/types/job-execution-
 import type { TaskExecutionJobData } from '../../../../queue/types/task-execution-job-data';
 import type { JobReasoningService } from '../../../../reasoning/job/job-reasoning.service';
 import type { JobReview } from '../../../../reasoning/job/types/job-review';
-import type { ReasoningTool } from '../../../../reasoning/types/reasoning-tool';
 import type { WorkflowService } from '../../../../workflow/workflow.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
@@ -35,27 +34,11 @@ function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`)
   };
 }
 
-type ToolCall = [name: string, input: object];
-
-/** A fake planner: runs the given tool calls against the real toolset, then finishes the plan. */
-function planner(calls: ToolCall[] = []) {
-  return async (_input: unknown, tools: readonly ReasoningTool[]) => {
-    const run = (name: string, input: object) => tools.find((each) => each.name === name)!.run(input as never);
-    for (const [name, input] of calls) run(name, input);
-    run('finish_plan', { rationale: 'Done.' });
-  };
-}
-
 function setup() {
   const taskQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const jobReasoning = {
     reviewJob: jest.fn().mockResolvedValue(review()),
-    planTasks: jest.fn(
-      planner([
-        ['add_task', { action: 'Open r/AICompanion', position: null }],
-        ['add_task', { action: 'Reply', position: null }],
-      ]),
-    ),
+    planTasks: jest.fn().mockResolvedValue(['Open r/AICompanion', 'Reply']),
   };
   const workflows = { findWorkflowById: jest.fn().mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'running' }) };
   const jobs = {
@@ -104,7 +87,7 @@ function setup() {
 
 describe('JobExecutionProcessor', () => {
   describe('a new Job', () => {
-    it('plans it with the planning tools, saves the draft once, and queues its first Task', async () => {
+    it('plans it, saves the plan once, and queues its first Task', async () => {
       const t = setup();
 
       await t.run();
@@ -119,7 +102,6 @@ describe('JobExecutionProcessor', () => {
           remainingActions: [],
           maxTasks: MAX_TASKS_PER_JOB,
         }),
-        expect.any(Array),
       );
       expect(t.tasks.replaceRemainingTasks).toHaveBeenCalledTimes(1);
       expect(t.savedActions()).toEqual(['Open r/AICompanion', 'Reply']);
@@ -129,7 +111,7 @@ describe('JobExecutionProcessor', () => {
 
     it('closes it as failed when planning leaves no Tasks', async () => {
       const t = setup();
-      t.jobReasoning.planTasks.mockImplementation(planner());
+      t.jobReasoning.planTasks.mockResolvedValue([]);
 
       await t.run();
 
@@ -175,7 +157,7 @@ describe('JobExecutionProcessor', () => {
       t.jobReasoning.reviewJob.mockResolvedValue(
         review({ decision: 'revise', revisionNotes: 'Links are banned; post text only.' }),
       );
-      t.jobReasoning.planTasks.mockImplementation(planner([['add_task', { action: 'Post a text-only intro', position: 1 }]]));
+      t.jobReasoning.planTasks.mockResolvedValue(['Post a text-only intro', 'Reply']);
 
       await t.run();
 
@@ -186,7 +168,6 @@ describe('JobExecutionProcessor', () => {
           remainingActions: ['Reply'],
           maxTasks: 1 + MAX_TASKS_ADDED_PER_REVIEW,
         }),
-        expect.any(Array),
       );
       expect(t.savedActions()).toEqual(['Post a text-only intro', 'Reply']);
       expect(t.tasks.markTaskReviewed).toHaveBeenCalledWith('task-1');

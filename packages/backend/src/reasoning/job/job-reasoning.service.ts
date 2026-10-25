@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ReasoningTool } from '../types/reasoning-tool';
+import { ToolsetFactory } from '../tools/toolset.factory';
 import { JobReasoningModelClient } from './job-reasoning-model.client';
 import {
   EVALUATE_JOB_MAX_TOKENS,
@@ -19,12 +19,15 @@ import type { JobReviewInput } from './types/job-review-input';
 /**
  * Job-level reasoning: one objective, such as "Engage with r/AICompanion". Two separate jobs:
  * reviewing judges each finished Task (continue, revise, met, abandon) in one structured call, and
- * planning edits the remaining plan through tools the caller provides. It reads Task outcomes only —
+ * planning edits the remaining plan through the planning tools and returns it. It reads Task outcomes only —
  * never individual steps.
  */
 @Injectable()
 export class JobReasoningService {
-  constructor(private readonly model: JobReasoningModelClient) {}
+  constructor(
+    private readonly model: JobReasoningModelClient,
+    private readonly toolsets: ToolsetFactory,
+  ) {}
 
   /**
    * Judges the Task that just finished against the objective and the remaining plan.
@@ -39,17 +42,19 @@ export class JobReasoningService {
   }
 
   /**
-   * Edits the Job's remaining plan with `tools` until the model calls the tool that ends planning.
-   * The tools hold the result; this method returns nothing.
+   * Lets the model edit the Job's remaining plan with the planning tools until it calls `finish_plan`,
+   * then returns the edited plan. Saves nothing; the caller writes the result.
    */
-  async planTasks(input: JobPlanningInput, tools: readonly ReasoningTool[]): Promise<void> {
+  async planTasks(input: JobPlanningInput): Promise<readonly string[]> {
+    const toolset = this.toolsets.createJobPlanningToolset(input.remainingActions, input.maxTasks);
     await this.model.runToolLoop({
       systemPrompt: JOB_REASONING_PROMPTS.planTasks.system,
       userPrompt: JOB_REASONING_PROMPTS.planTasks.user(input),
       maxTokens: PLAN_TASKS_MAX_TOKENS,
       maxTurns: PLAN_TASKS_MAX_TURNS,
-      tools,
+      tools: toolset.tools,
     });
+    return toolset.actions;
   }
 
   /**
