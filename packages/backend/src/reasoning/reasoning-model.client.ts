@@ -1,21 +1,19 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { Injectable, NotImplementedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type Anthropic from '@anthropic-ai/sdk';
+import { NotImplementedException } from '@nestjs/common';
 import type { CompletionInput } from './types/completion-input';
+import type { ReasoningModelSettings } from './types/reasoning-model-settings';
 
 /**
- * Thin wrapper around the Anthropic API for the reasoning model (Opus).
- * Every call is text-in, structured-JSON-out; screenshots never reach this client.
+ * Thin wrapper around the Anthropic API for a reasoning model. Every call is text-in,
+ * structured-JSON-out; screenshots never reach this client. Strategy and Unit reasoning use it
+ * with the default model; levels with their own model get a subclass (`JobReasoningModelClient`,
+ * `TaskReasoningModelClient`). `ReasoningModule` builds each one from config.
  */
-@Injectable()
 export class ReasoningModelClient {
-  private readonly client: Anthropic;
-  private readonly modelId: string;
-
-  constructor(config: ConfigService) {
-    this.client = new Anthropic({ apiKey: config.getOrThrow<string>('ANTHROPIC_API_KEY') });
-    this.modelId = config.getOrThrow<string>('REASONING_MODEL_ID');
-  }
+  constructor(
+    private readonly anthropic: Anthropic,
+    private readonly settings: ReasoningModelSettings,
+  ) {}
 
   /**
    * Sends one prompt and parses the reply as JSON of the expected shape.

@@ -1,5 +1,5 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
-import { ReasoningModelClient } from '../reasoning-model.client';
+import { JobReasoningModelClient } from './job-reasoning-model.client';
 import type { EvaluateJobInput } from './types/evaluate-job-input';
 import type { JobEvaluation } from './types/job-evaluation';
 import type { JobPlan } from './types/job-plan';
@@ -12,7 +12,7 @@ import type { JobReasoningInput } from './types/job-reasoning-input';
  */
 @Injectable()
 export class JobReasoningService {
-  constructor(private readonly model: ReasoningModelClient) {}
+  constructor(private readonly model: JobReasoningModelClient) {}
 
   /**
    * The plan for every Task not started yet. First call (no outcomes): the full ordered plan.
