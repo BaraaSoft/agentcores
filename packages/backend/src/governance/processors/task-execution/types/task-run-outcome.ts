@@ -1,7 +1,7 @@
 /**
  * How one run of a Task ended.
- * - `complete`: the Task is done; the Job's next Task is queued.
- * - `failed`: it could not be done, hit the iteration limit, or was refused (sealed topic).
+ * - `complete`: the Task is done; its Job is queued for review.
+ * - `failed`: it could not be done, hit the iteration limit, or was refused (sealed topic); its Job is queued for review.
  * - `escalated`: it needs the owner; the Job waits until the owner answers.
  * - `deferred`: a temporary gate (e.g. a rate limit) stopped it; it is `deferred` and re-queued for later.
  */

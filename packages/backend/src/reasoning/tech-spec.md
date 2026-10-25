@@ -7,6 +7,7 @@ governance level** — Strategy, Unit of Work, Job, Task — that share a single
 - [Where it sits](#where-it-sits)
 - [The four reasoners](#the-four-reasoners)
 - [Planning flows down](#planning-flows-down)
+- [The Job plan](#the-job-plan)
 - [Results flow up](#results-flow-up)
 - [The Task level and the execution layer](#the-task-level-and-the-execution-layer)
 - [Rules every reasoner follows](#rules-every-reasoner-follows)
@@ -21,7 +22,7 @@ governance level** — Strategy, Unit of Work, Job, Task — that share a single
 flowchart TB
     subgraph Above["Layer above — callers"]
         Orch["orchestrator/OrchestratorService<br/>plans each new Strategy"]
-        JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>breaks a Job into Tasks"]
+        JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>plans a Job, reviews each finished Task"]
         Evaluation["governance/StrategyEvaluationService<br/>rolls results up at cycle end"]
         TaskExec["governance/processors/task-execution/TaskExecutionProcessor<br/>the Task loop"]
     end
@@ -63,7 +64,7 @@ flowchart TB
 | --- | --- | --- | --- | --- | --- |
 | `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `OrchestratorService`, `StrategyEvaluationService` |
 | `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
-| `JobReasoningService` | One objective | `breakDownJob`, `evaluateJob` | **Task outcomes** | `JobBreakdown` (Task actions), `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
+| `JobReasoningService` | One objective | `planTasks`, `evaluateJob` | **Task outcomes** | `JobPlan` (remaining Task actions, or met / abandoned), `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
@@ -71,7 +72,7 @@ directly below it.** The Strategy reasoner never sees a Task; the Task reasoner 
 
 | | Strategy | Unit | Job | Task |
 | --- | --- | --- | --- | --- |
-| Cadence | Once per cycle | When a Unit needs Jobs; cycle end | When a Job first starts; cycle end | Every step of a Task |
+| Cadence | Once per cycle | When a Unit needs Jobs; cycle end | When a Job starts, after every finished Task; cycle end (open Jobs) | Every step of a Task |
 | Volume | Very low | Low | Medium | High — the hot path |
 
 ---
@@ -79,7 +80,8 @@ directly below it.** The Strategy reasoner never sees a Task; the Task reasoner 
 ## Planning flows down
 
 Planning walks down the hierarchy one level at a time. A new Strategy plans its Units and then each
-Unit's Jobs in one pass; the orchestrator starts Jobs; a Job plans and starts its own Tasks.
+Unit's Jobs in one pass; the orchestrator starts Jobs; a Job plans its own Tasks and revises the plan
+after each one finishes.
 
 ```mermaid
 sequenceDiagram
@@ -101,19 +103,45 @@ sequenceDiagram
         O->>DB: JobService.placeJob — matching Unit, new Unit only if none fits
     end
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
-    alt Job has no Tasks yet
-        JW->>J: breakDownJob(job, safeContext)
-        J-->>JW: JobBreakdown { actions }
-        JW->>DB: TaskService.createTasks
+    alt no Tasks yet, or a finished Task awaits review
+        JW->>J: planTasks(job, safeContext, outcomes, remainingActions)
+        J-->>JW: JobPlan { rationale, remainingActions, isObjectiveMet, abandonReason, summary }
+        alt met, abandoned, or a guardrail hit
+            JW->>DB: JobService.closeJob (success · abandoned · failed)
+        else
+            JW->>DB: TaskService.replaceRemainingTasks
+        end
     end
     JW->>JW: queue the Job's current Task if pending → Task level, below
+    Note over JW: each finished Task sends the Job back here for review
 ```
+
+---
+
+## The Job plan
+
+`planTasks` is one method for the first plan and every revision. Its input (`JobReasoningInput`) is the
+objective, the Unit, safe context, the **outcomes** of finished Tasks in order (empty the first time), and
+the **remaining actions** still planned. Its output (`JobPlan`) says one of three things:
+
+| `JobPlan` | Meaning | What the Job processor does |
+| --- | --- | --- |
+| `remainingActions` (same or edited) | Keep going | Replaces the not-started Tasks, within the caps |
+| `isObjectiveMet: true` | The objective is achieved | Closes the Job as `success` |
+| `abandonReason` set | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` |
+
+`summary` becomes the Job's outcome summary when it closes. Job reasoning never declares `failed`:
+**failed means "we couldn't do it"** and is set by the system — too many failed Tasks in a row, an empty
+plan, or the Task cap (see the [processors spec](../governance/processors/tech-spec.md#how-a-job-ends)).
+The prompt tells the model not to abandon because Tasks keep failing, so the two outcomes stay distinct
+signals.
 
 ---
 
 ## Results flow up
 
-At the end of a cycle, `StrategyEvaluationService` rolls results up, compressing at every level.
+At the end of a cycle, `StrategyEvaluationService` rolls results up, compressing at every level. Closed
+Jobs already carry their outcome; only Jobs still open are evaluated.
 
 ```mermaid
 sequenceDiagram
@@ -126,10 +154,11 @@ sequenceDiagram
 
     E->>DB: load Units, Jobs, Task outcomes, Unit measurements
     loop each Unit
-        loop each Job in the Unit
+        loop each Job still open in the Unit
             E->>J: evaluateJob(objective, task outcomes)
-            J-->>E: JobEvaluation { isObjectiveMet, summary, followUpActions }
+            J-->>E: JobEvaluation { outcomeStatus: null, summary, followUpActions }
         end
+        Note over E: closed Jobs become JobEvaluations from their outcome fields
         E->>U: reviewUnit(measurement, jobEvaluations)
         U-->>E: UnitReview { isMeetingCriteria, summary, recommendation, proposedJobs }
     end
@@ -142,11 +171,16 @@ What crosses each boundary:
 
 ```mermaid
 flowchart BT
-    Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result"]
-    TaskOut --> JobEval["JobEvaluation<br/>objective met? · summary"]
+    Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason"]
+    TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed · open<br/>summary"]
     JobEval --> UnitRev["UnitReview<br/>criteria met? · summary · recommendation"]
     UnitRev --> StratRev["StrategyReview<br/>grade · reallocations · deprecations · new Jobs"]
 ```
+
+**Abandoned and failed read differently upward.** `reviewUnit` treats abandoned Jobs as a strategic
+signal about the Unit (wrong place, wrong audience — an argument to shrink or deprecate it) and failed
+Jobs as an execution signal (try different Jobs or approaches inside the Unit). `reviewStrategy` applies
+the same reading when it reallocates or deprecates Units.
 
 ---
 
@@ -232,7 +266,7 @@ reasoning/
 │                                      review-unit-input, unit-review, unit-recommendation
 ├── job/
 │   ├── job-reasoning.service.ts · job-reasoning.prompts.ts
-│   └── types/                      ← break-down-job-input, job-breakdown,
+│   └── types/                      ← job-reasoning-input, job-plan,
 │                                      evaluate-job-input, task-outcome, job-evaluation
 └── task/
     ├── task-reasoning.service.ts · task-reasoning.prompts.ts
@@ -259,6 +293,7 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
   each reasoner will receive its level's tools as an argument instead of importing governance, with every
   write tool enforcing the governance rules itself.
 
-All reasoner methods and the model client are currently stubs (`NotImplementedException`); the prompts are
-placeholders marked `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
+All reasoner methods and the model client are currently stubs (`NotImplementedException`). The
+`planTasks`, `decideOnBlocker`, `reviewUnit`, and `reviewStrategy` prompts have their rules written; every
+prompt still ends in `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
 against fakes.

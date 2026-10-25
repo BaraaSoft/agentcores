@@ -1,18 +1,25 @@
 import type { TaskStatus } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { TaskEntity } from '../entities/task.entity';
 import type { CompleteTaskInput } from '../types/complete-task-input';
-import type { CreateTasksInput } from '../types/create-tasks-input';
+import type { ReplaceRemainingTasksInput } from '../types/replace-remaining-tasks-input';
 import type { StopTaskInput } from '../types/stop-task-input';
+
+/** Statuses a Task never leaves. A `complete` or `failed` Task is reviewed by Job reasoning before the Job moves on. */
+export const FINISHED_TASK_STATUSES: readonly TaskStatus[] = ['complete', 'failed', 'cancelled'];
+
+/** Finished Tasks that Job reasoning reviews; cancelled Tasks never ran, so there is nothing to review. */
+export const REVIEWABLE_TASK_STATUSES: readonly TaskStatus[] = ['complete', 'failed'];
 
 /**
  * Persistence and status transitions of Tasks:
- * pending → running → complete | failed | escalated | deferred, then escalated | deferred → running
- * or back to pending. A Job's current Task (its lowest-sequence Task not yet complete) decides the Job's state.
+ * pending → running → complete | failed | escalated | deferred; escalated | deferred → running or
+ * back to pending; pending → cancelled when Job reasoning drops it from the plan.
  *
+ * A Job's current Task is its lowest-sequence Task that is not finished (complete, failed, cancelled).
  * Every `markTask*` method changes the status only from the states it lists and returns whether it
  * did, so a stale or duplicate caller changes nothing.
  */
@@ -24,29 +31,48 @@ export class TaskService {
   ) {}
 
   /**
-   * Adds ordered pending Tasks to a Job, after any it already has.
+   * Makes `actions` the Job's plan for every Task that has not started: cancels its pending Tasks and
+   * appends the actions after its last Task. Leaves the plan alone when it is unchanged. Also used for
+   * the first plan, when the Job has no Tasks. Returns the Job's pending Tasks afterwards, in order.
    */
-  async createTasks(input: CreateTasksInput): Promise<TaskEntity[]> {
-    if (input.actions.length === 0) return [];
-    const lastSequence = (await this.tasks.maximum('sequence', { jobId: input.jobId })) ?? 0;
-    return this.tasks.save(
-      input.actions.map((action, index) =>
-        this.tasks.create({
-          workflowId: input.workflowId,
-          jobId: input.jobId,
-          action,
-          sequence: lastSequence + index + 1,
-          status: 'pending',
-        }),
-      ),
-    );
+  async replaceRemainingTasks(input: ReplaceRemainingTasksInput): Promise<TaskEntity[]> {
+    return this.tasks.manager.transaction(async (manager) => {
+      const tasks = manager.getRepository(TaskEntity);
+      const pending = await tasks.find({ where: { jobId: input.jobId, status: 'pending' }, order: { sequence: 'ASC' } });
+      const isUnchanged =
+        pending.length === input.actions.length && pending.every((task, index) => task.action === input.actions[index]);
+      if (isUnchanged) return pending;
+
+      if (pending.length > 0) {
+        await tasks.update({ id: In(pending.map((task) => task.id)), status: 'pending' }, { status: 'cancelled' });
+      }
+      const lastSequence = (await tasks.maximum('sequence', { jobId: input.jobId })) ?? 0;
+      return tasks.save(
+        input.actions.map((action, index) =>
+          tasks.create({
+            workflowId: input.workflowId,
+            jobId: input.jobId,
+            action,
+            sequence: lastSequence + index + 1,
+            status: 'pending',
+          }),
+        ),
+      );
+    });
   }
 
   /**
-   * True once the Job has been broken into Tasks.
+   * True once the Job has been given a plan.
    */
   async hasTasks(jobId: string): Promise<boolean> {
     return this.tasks.exists({ where: { jobId } });
+  }
+
+  /**
+   * All of the Job's Tasks, in sequence order.
+   */
+  async listTasks(jobId: string): Promise<TaskEntity[]> {
+    return this.tasks.find({ where: { jobId }, order: { sequence: 'ASC' } });
   }
 
   /**
@@ -60,16 +86,39 @@ export class TaskService {
   }
 
   /**
-   * The Job's current Task — its lowest-sequence Task that is not `complete` — when that Task is
-   * `pending`; otherwise null. A running, deferred, escalated, or failed current Task holds the Job,
-   * so a Job never skips past a stuck Task.
+   * The Job's earliest complete or failed Task that Job reasoning has not reviewed yet, or null.
+   */
+  async findUnreviewedTask(jobId: string): Promise<TaskEntity | null> {
+    return this.tasks.findOne({
+      where: { jobId, status: In([...REVIEWABLE_TASK_STATUSES]), reviewedAt: IsNull() },
+      order: { sequence: 'ASC' },
+    });
+  }
+
+  /**
+   * The Job's current Task — its lowest-sequence Task that is not finished — when that Task is
+   * `pending` and every finished Task has been reviewed; otherwise null. A running, deferred, or
+   * escalated current Task holds the Job, and so does a finished Task awaiting review, so a Job
+   * never moves on before Job reasoning has seen the last result.
    */
   async findNextPendingTask(jobId: string): Promise<TaskEntity | null> {
+    if ((await this.findUnreviewedTask(jobId)) !== null) return null;
     const current = await this.tasks.findOne({
-      where: { jobId, status: Not<TaskStatus>('complete') },
+      where: { jobId, status: In(['pending', 'running', 'deferred', 'escalated'] satisfies TaskStatus[]) },
       order: { sequence: 'ASC' },
     });
     return current?.status === 'pending' ? current : null;
+  }
+
+  /**
+   * Stamps a finished Task as reviewed by Job reasoning.
+   */
+  async markTaskReviewed(taskId: string): Promise<boolean> {
+    const update = await this.tasks.update(
+      { id: taskId, status: In([...REVIEWABLE_TASK_STATUSES]), reviewedAt: IsNull() },
+      { reviewedAt: new Date() },
+    );
+    return (update.affected ?? 0) > 0;
   }
 
   /**

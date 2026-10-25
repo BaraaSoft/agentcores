@@ -31,7 +31,8 @@ export class StrategyEvaluationService {
 
   /**
    * Moves the Workflow to `evaluating`, measures the cycle, and rolls the results up:
-   * `evaluateJob` per Job, `reviewUnit` per Unit, then `reviewStrategy`.
+   * `evaluateJob` for each Job still open (closed Jobs already carry their outcome),
+   * `reviewUnit` per Unit, then `reviewStrategy`.
    */
   async evaluateActiveStrategy(workflowId: string): Promise<StrategyReview> {
     throw new NotImplementedException();

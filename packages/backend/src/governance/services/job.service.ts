@@ -1,21 +1,24 @@
 import type { TaskStatus } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { JobEntity } from '../entities/job.entity';
 import { TaskEntity } from '../entities/task.entity';
+import type { CloseJobInput } from '../types/close-job-input';
 import type { CreateJobInput } from '../types/create-job-input';
 import type { ListStartableJobsInput } from '../types/list-startable-jobs-input';
 import type { PlaceJobInput } from '../types/place-job-input';
+import { FINISHED_TASK_STATUSES, REVIEWABLE_TASK_STATUSES } from './task.service';
 import { UnitOfWorkService } from './unit-of-work.service';
 
 const ACTIVE_TASK_STATUSES: readonly TaskStatus[] = ['running', 'deferred', 'escalated'];
 
 /**
- * Persistence of Jobs. A Job has no status of its own: its current Task (the lowest-sequence Task
- * not yet complete) decides whether it is ready, running, deferred, escalated, failed, or done.
- * A Job is active while its current Task is running, deferred, or escalated.
+ * Persistence of Jobs. A Job is open until it is closed with an outcome (success, abandoned, failed).
+ * While open, it has no status of its own: its current Task (the lowest-sequence Task not yet
+ * finished) decides whether it is ready, running, deferred, or escalated, and a finished Task
+ * awaiting review means it needs Job reasoning before it can move on.
  */
 @Injectable()
 export class JobService {
@@ -26,7 +29,7 @@ export class JobService {
   ) {}
 
   /**
-   * Creates a Job under an existing Unit of Work.
+   * Creates an open Job under an existing Unit of Work.
    */
   async createJob(input: CreateJobInput): Promise<JobEntity> {
     return this.jobs.save(this.jobs.create({ ...input }));
@@ -53,18 +56,72 @@ export class JobService {
   }
 
   /**
-   * Jobs of the Workflow's active Strategy, in non-deprecated Units, that are ready: no Tasks yet,
-   * or a `pending` current Task. Units with a larger share come first, then older Jobs.
+   * Closes an open Job with its outcome and cancels the Tasks it had not started. Returns false when
+   * the Job was already closed, so a duplicate review changes nothing.
+   */
+  async closeJob(input: CloseJobInput): Promise<boolean> {
+    return this.jobs.manager.transaction(async (manager) => {
+      const update = await manager
+        .getRepository(JobEntity)
+        .update(
+          { id: input.jobId, outcomeStatus: IsNull() },
+          { outcomeStatus: input.status, outcomeSummary: input.summary, closedAt: new Date() },
+        );
+      if ((update.affected ?? 0) === 0) return false;
+      await manager.getRepository(TaskEntity).update({ jobId: input.jobId, status: 'pending' }, { status: 'cancelled' });
+      return true;
+    });
+  }
+
+  /**
+   * Counts one more Job reasoning attempt for the Job and returns the new count. Atomic, so
+   * concurrent deliveries each get their own number.
+   */
+  async recordReviewingAttempt(jobId: string): Promise<number> {
+    const update = await this.jobs
+      .createQueryBuilder()
+      .update(JobEntity)
+      .set({ reviewingAttempts: () => '"reviewingAttempts" + 1' })
+      .where('id = :jobId', { jobId })
+      .returning('"reviewingAttempts"')
+      .execute();
+    const row = (update.raw as { reviewingAttempts: number }[])[0];
+    return row?.reviewingAttempts ?? 0;
+  }
+
+  /**
+   * Resets the attempt count once a plan or review has been applied.
+   */
+  async resetReviewingAttempts(jobId: string): Promise<void> {
+    await this.jobs.update({ id: jobId }, { reviewingAttempts: 0 });
+  }
+
+  /**
+   * Open Jobs of the Workflow's active Strategy, in non-deprecated Units, that can move: no Tasks
+   * yet (to plan), a finished Task awaiting review, or a `pending` current Task. Units with a larger
+   * share come first, then older Jobs.
    */
   async listStartableJobs(input: ListStartableJobsInput): Promise<JobEntity[]> {
-    const query = this.activeStrategyJobs(input.workflowId).andWhere('unit.isDeprecated = false');
+    const query = this.openJobs(input.workflowId).andWhere('unit.isDeprecated = false');
     const anyTask = query.subQuery().select('1').from(TaskEntity, 'anyTask').where('anyTask.jobId = job.id').getQuery();
+    const unreviewedTask = query
+      .subQuery()
+      .select('1')
+      .from(TaskEntity, 'finished')
+      .where('finished.jobId = job.id')
+      .andWhere('finished.status IN (:...reviewable)')
+      .andWhere('finished.reviewedAt IS NULL')
+      .getQuery();
     return query
       .andWhere(
-        new Brackets((ready) =>
-          ready.where(`NOT EXISTS ${anyTask}`).orWhere(`${this.currentTaskStatus(query)} = :pending`, { pending: 'pending' }),
+        new Brackets((canMove) =>
+          canMove
+            .where(`NOT EXISTS ${anyTask}`)
+            .orWhere(`EXISTS ${unreviewedTask}`)
+            .orWhere(`${this.currentTaskStatus(query)} = :pending`),
         ),
       )
+      .setParameters({ reviewable: REVIEWABLE_TASK_STATUSES, pending: 'pending' })
       .orderBy('unit.allocationPercentage', 'DESC')
       .addOrderBy('job.createdAt', 'ASC')
       .limit(input.limit)
@@ -72,26 +129,28 @@ export class JobService {
   }
 
   /**
-   * How many of the Workflow's Jobs are active right now: their current Task is running,
+   * How many of the Workflow's open Jobs are active right now: their current Task is running,
    * deferred, or escalated.
    */
   async countActiveJobs(workflowId: string): Promise<number> {
-    const query = this.activeStrategyJobs(workflowId);
+    const query = this.openJobs(workflowId);
     return query
       .andWhere(`${this.currentTaskStatus(query)} IN (:...active)`, { active: ACTIVE_TASK_STATUSES })
       .getCount();
   }
 
-  private activeStrategyJobs(workflowId: string): SelectQueryBuilder<JobEntity> {
+  private openJobs(workflowId: string): SelectQueryBuilder<JobEntity> {
     return this.jobs
       .createQueryBuilder('job')
       .innerJoinAndSelect('job.unitOfWork', 'unit')
       .innerJoin(WorkflowEntity, 'workflow', 'workflow.activeStrategyId = unit.strategyId')
-      .where('workflow.id = :workflowId', { workflowId });
+      .where('workflow.id = :workflowId', { workflowId })
+      .andWhere('job.outcomeStatus IS NULL');
   }
 
   /**
-   * SQL for the status of the outer `job`'s current Task; NULL when it has none left.
+   * SQL for the status of the outer `job`'s current Task (its lowest-sequence unfinished Task);
+   * NULL when it has none.
    */
   private currentTaskStatus(query: SelectQueryBuilder<JobEntity>): string {
     return query
@@ -99,7 +158,7 @@ export class JobService {
       .select('task.status')
       .from(TaskEntity, 'task')
       .where('task.jobId = job.id')
-      .andWhere(`task.status <> 'complete'`)
+      .andWhere('task.status NOT IN (:...finished)', { finished: FINISHED_TASK_STATUSES })
       .orderBy('task.sequence', 'ASC')
       .limit(1)
       .getQuery();

@@ -1,13 +1,18 @@
+import type { JobOutcomeStatus } from '@ahe/agent-core';
+
 /**
- * The reasoning layer's verdict on a Job: was its objective met, and what's left to do.
- * This is the compressed view the Unit review reads.
+ * One Job as the Unit review sees it. Closed Jobs carry their outcome; Jobs still open at cycle end
+ * are judged by `evaluateJob` and have a null outcome.
+ *
+ * `abandoned` and `failed` mean different things: abandoned is a strategic signal (Job reasoning chose
+ * to stop — wrong place, not worth it), failed is an execution signal (it could not be done).
  */
 export interface JobEvaluation {
   readonly jobId: string;
   readonly jobName: string;
-  readonly isObjectiveMet: boolean;
+  readonly outcomeStatus: JobOutcomeStatus | null;
   /** A few sentences on what the Tasks achieved, with the metric readings that matter. */
   readonly summary: string;
-  /** Extra Task actions that would finish the objective; empty when it's met or not worth pursuing. */
+  /** For open Jobs: Task actions that would finish the objective next cycle; empty otherwise. */
   readonly followUpActions: readonly string[];
 }
