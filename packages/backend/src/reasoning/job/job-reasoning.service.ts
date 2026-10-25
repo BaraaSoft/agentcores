@@ -1,5 +1,9 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JobReasoningModelClient } from './job-reasoning-model.client';
+import { EVALUATE_JOB_MAX_TOKENS, PLAN_TASKS_MAX_TOKENS } from './job-reasoning.constants';
+import { JOB_REASONING_PROMPTS } from './job-reasoning.prompts';
+import { JOB_EVALUATION_OUTPUT_SCHEMA } from './schemas/job-evaluation-output.schema';
+import { JOB_PLAN_SCHEMA } from './schemas/job-plan.schema';
 import type { EvaluateJobInput } from './types/evaluate-job-input';
 import type { JobEvaluation } from './types/job-evaluation';
 import type { JobPlan } from './types/job-plan';
@@ -19,13 +23,24 @@ export class JobReasoningService {
    * After each finished Task: continue, edit the plan, or end the Job as met or abandoned.
    */
   async planTasks(input: JobReasoningInput): Promise<JobPlan> {
-    throw new NotImplementedException();
+    return this.model.completeStructured({
+      systemPrompt: JOB_REASONING_PROMPTS.planTasks.system,
+      userPrompt: JOB_REASONING_PROMPTS.planTasks.user(input),
+      maxTokens: PLAN_TASKS_MAX_TOKENS,
+      schema: JOB_PLAN_SCHEMA,
+    });
   }
 
   /**
    * Judges a Job still open at cycle end against its objective, producing the summary the Unit review reads.
    */
   async evaluateJob(input: EvaluateJobInput): Promise<JobEvaluation> {
-    throw new NotImplementedException();
+    const output = await this.model.completeStructured({
+      systemPrompt: JOB_REASONING_PROMPTS.evaluateJob.system,
+      userPrompt: JOB_REASONING_PROMPTS.evaluateJob.user(input),
+      maxTokens: EVALUATE_JOB_MAX_TOKENS,
+      schema: JOB_EVALUATION_OUTPUT_SCHEMA,
+    });
+    return { jobId: input.jobId, jobName: input.jobName, outcomeStatus: null, ...output };
   }
 }

@@ -248,16 +248,22 @@ sequenceDiagram
 directly. `reasoning.config.ts` (`registerAs('reasoning')`) reads them once and fails at boot when a
 required one is missing.
 
-| Provider | Built from | Used by | Model |
-| --- | --- | --- | --- |
-| `ANTHROPIC_CLIENT` | `ANTHROPIC_API_KEY` | every model client | — |
-| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `UnitReasoningService` | `REASONING_MODEL_ID` |
-| `JobReasoningModelClient` | `ANTHROPIC_CLIENT` + `jobModel` | `JobReasoningService` | `REASONING_JOB_MODEL_ID`, else the default |
-| `TaskReasoningModelClient` | `ANTHROPIC_CLIENT` + `taskModel` | `TaskReasoningService` | `REASONING_TASK_MODEL_ID`, else the default |
+| Provider | Built from | Used by | Model | Effort |
+| --- | --- | --- | --- | --- |
+| `ANTHROPIC_CLIENT` | `ANTHROPIC_API_KEY` | every model client | — | — |
+| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `UnitReasoningService` | `REASONING_MODEL_ID` | high |
+| `JobReasoningModelClient` | `ANTHROPIC_CLIENT` + `jobModel` | `JobReasoningService` | `REASONING_JOB_MODEL_ID`, else the default | high |
+| `TaskReasoningModelClient` | `ANTHROPIC_CLIENT` + `taskModel` | `TaskReasoningService` | `REASONING_TASK_MODEL_ID`, else the default | medium (hot path) |
 
 The subclasses add no behaviour; they exist so each service injects its level's client by class. A level
-that needs its own model (or later its own token or thinking budget) gets a subclass and a settings entry
-in the config; Strategy and Unit run rarely, so they share the default.
+that needs its own model or effort gets a subclass and a settings entry in the config; Strategy and Unit
+run rarely, so they share the default.
+
+**How a call works.** `completeStructured` calls `messages.parse` with adaptive thinking and the method's
+zod schema as the JSON schema output format (`output_config.format`). The model thinks first, then must
+answer in that shape; the SDK parses the answer into `parsed_output`. A reply that stops for any reason
+other than `end_turn` (cut off at `maxTokens`, refused) throws, so the caller's queue retry handles it.
+`maxTokens` covers thinking and the answer together; it stays under the SDK's non-streaming limit.
 
 ---
 
@@ -272,8 +278,9 @@ in the config; Strategy and Unit run rarely, so they share the default.
    Task processor acts on them (execution, escalation, deferral).
 5. **Privacy wall before, not inside.** `safeContext` arrives already filtered by `MemoryRetrievalService`;
    no reasoner can reach the memory system or the sealed zone.
-6. **Structured output.** Every call goes through `completeStructured` on the level's model client, so each method
-   returns a typed object, never free text to parse.
+6. **Structured output.** Every call goes through `completeStructured` on the level's model client with a
+   zod schema (`<level>/schemas/`), so each method returns a typed object, never free text to parse. Types
+   that the model produces are inferred from their schema.
 
 ---
 
@@ -286,7 +293,7 @@ reasoning/
 ├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
 ├── reasoning-model.client.ts       ← base model client; Strategy and Unit use it with the default model
 ├── types/                          ← completion-input, reasoning-model-settings
-├── tests/reasoning.module.spec.ts  ← each level gets its client and model
+├── tests/                          ← reasoning.module (wiring), reasoning-model.client (the call)
 ├── strategy/
 │   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts
 │   └── types/                      ← plan-strategy-input, strategy-plan, planned-unit,
@@ -296,7 +303,10 @@ reasoning/
 │   └── types/                      ← plan-unit-jobs-input, unit-job-plan, planned-job,
 │                                      review-unit-input, unit-review, unit-recommendation
 ├── job/
-│   ├── job-reasoning.service.ts · job-reasoning.prompts.ts · job-reasoning-model.client.ts
+│   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
+│   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
+│   ├── schemas/                     ← job-plan, job-evaluation-output (zod; the output formats)
+│   ├── tests/job-reasoning.service.spec.ts
 │   └── types/                      ← job-reasoning-input, job-plan,
 │                                      evaluate-job-input, task-outcome, job-evaluation
 └── task/
@@ -324,7 +334,7 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
   each reasoner will receive its level's tools as an argument instead of importing governance, with every
   write tool enforcing the governance rules itself.
 
-All reasoner methods and the model client are currently stubs (`NotImplementedException`). The
-`planTasks`, `decideOnBlocker`, `reviewUnit`, and `reviewStrategy` prompts have their rules written; every
-prompt still ends in `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
+`ReasoningModelClient` and `JobReasoningService` are implemented; the Strategy, Unit, and Task reasoners
+are still stubs (`NotImplementedException`). The Job prompts are complete; the `decideOnBlocker`,
+`reviewUnit`, and `reviewStrategy` prompts have their rules written and still end in `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
 against fakes.
