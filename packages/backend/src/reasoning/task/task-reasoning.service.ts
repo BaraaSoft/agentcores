@@ -1,5 +1,5 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
-import { ReasoningModelClient } from '../reasoning-model.client';
+import { TaskReasoningModelClient } from './task-reasoning-model.client';
 import type { BlockerDecision } from './types/blocker-decision';
 import type { PlannedStep } from './types/planned-step';
 import type { TaskReasoningInput } from './types/task-reasoning-input';
@@ -12,7 +12,7 @@ import type { TaskReasoningInput } from './types/task-reasoning-input';
  */
 @Injectable()
 export class TaskReasoningService {
-  constructor(private readonly model: ReasoningModelClient) {}
+  constructor(private readonly model: TaskReasoningModelClient) {}
 
   /**
    * Judges the latest result in `history` and decides the next step: retry, move on, or mark the

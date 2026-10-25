@@ -2,7 +2,8 @@
 
 The thinking half of AHE's [two-tier split](../../../../docs/base/02-system-architecture.md): every
 planning, judging, and deciding call to Opus goes through this module. It is split into **one reasoner per
-governance level** — Strategy, Unit of Work, Job, Task — that share a single model client.
+governance level** — Strategy, Unit of Work, Job, Task — each calling the model through a model client
+configured for its level, over one shared Anthropic instance.
 
 - [Where it sits](#where-it-sits)
 - [The four reasoners](#the-four-reasoners)
@@ -10,6 +11,7 @@ governance level** — Strategy, Unit of Work, Job, Task — that share a single
 - [The Job plan](#the-job-plan)
 - [Results flow up](#results-flow-up)
 - [The Task level and the execution layer](#the-task-level-and-the-execution-layer)
+- [Model clients and config](#model-clients-and-config)
 - [Rules every reasoner follows](#rules-every-reasoner-follows)
 - [Folder layout](#folder-layout)
 - [Extending](#extending)
@@ -32,8 +34,14 @@ flowchart TB
         U["UnitReasoningService"]
         J["JobReasoningService"]
         T["TaskReasoningService"]
-        Client["ReasoningModelClient<br/>(shared)"]
-        S & U & J & T --> Client
+        Client["ReasoningModelClient<br/>default model"]
+        JClient["JobReasoningModelClient"]
+        TClient["TaskReasoningModelClient"]
+        SDK["Anthropic SDK<br/>(one shared instance)"]
+        S & U --> Client
+        J --> JClient
+        T --> TClient
+        Client & JClient & TClient --> SDK
     end
 
     subgraph Below["Layers below"]
@@ -45,14 +53,15 @@ flowchart TB
     JobExec --> J
     Evaluation --> J & U & S
     TaskExec --> T
-    Client --> Anthropic
+    SDK --> Anthropic
     TaskExec -. "ExecutionTask / ExecutionResult" .-> Execution
 ```
 
 - **Above:** the orchestrator, the governance processors, and the evaluation service call the reasoners. They load data, apply the
   [autonomy rules](../../../../docs/base/03-governance-model.md#autonomy-rules), and save the results; the reasoners
   only decide.
-- **Below:** the reasoners call only `ReasoningModelClient`, which calls Opus. The module is a **leaf**: it
+- **Below:** the reasoners call only their model client (`ReasoningModelClient` or a level subclass),
+  which calls the model. The module is a **leaf**: it
   imports no other backend module, holds no database access, and never calls the execution layer itself.
   The Task reasoner's decisions reach the screen only through the Task processor.
 
@@ -233,6 +242,25 @@ sequenceDiagram
 
 ---
 
+## Model clients and config
+
+`ReasoningModule` builds the clients with factory providers; nothing in the module reads env vars
+directly. `reasoning.config.ts` (`registerAs('reasoning')`) reads them once and fails at boot when a
+required one is missing.
+
+| Provider | Built from | Used by | Model |
+| --- | --- | --- | --- |
+| `ANTHROPIC_CLIENT` | `ANTHROPIC_API_KEY` | every model client | — |
+| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `UnitReasoningService` | `REASONING_MODEL_ID` |
+| `JobReasoningModelClient` | `ANTHROPIC_CLIENT` + `jobModel` | `JobReasoningService` | `REASONING_JOB_MODEL_ID`, else the default |
+| `TaskReasoningModelClient` | `ANTHROPIC_CLIENT` + `taskModel` | `TaskReasoningService` | `REASONING_TASK_MODEL_ID`, else the default |
+
+The subclasses add no behaviour; they exist so each service injects its level's client by class. A level
+that needs its own model (or later its own token or thinking budget) gets a subclass and a settings entry
+in the config; Strategy and Unit run rarely, so they share the default.
+
+---
+
 ## Rules every reasoner follows
 
 1. **Text only.** Inputs are summaries and safe context; nothing visual ever reaches Opus.
@@ -244,7 +272,7 @@ sequenceDiagram
    Task processor acts on them (execution, escalation, deferral).
 5. **Privacy wall before, not inside.** `safeContext` arrives already filtered by `MemoryRetrievalService`;
    no reasoner can reach the memory system or the sealed zone.
-6. **Structured output.** Every call goes through `ReasoningModelClient.completeStructured`, so each method
+6. **Structured output.** Every call goes through `completeStructured` on the level's model client, so each method
    returns a typed object, never free text to parse.
 
 ---
@@ -253,9 +281,12 @@ sequenceDiagram
 
 ```
 reasoning/
-├── reasoning.module.ts             ← provides the four reasoners + the client; exports the reasoners
-├── reasoning-model.client.ts       ← Anthropic (Opus) wrapper shared by every level
-├── types/completion-input.ts
+├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; the four reasoners
+├── reasoning.config.ts             ← registerAs('reasoning'): API key + model per level
+├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
+├── reasoning-model.client.ts       ← base model client; Strategy and Unit use it with the default model
+├── types/                          ← completion-input, reasoning-model-settings
+├── tests/reasoning.module.spec.ts  ← each level gets its client and model
 ├── strategy/
 │   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts
 │   └── types/                      ← plan-strategy-input, strategy-plan, planned-unit,
@@ -265,11 +296,11 @@ reasoning/
 │   └── types/                      ← plan-unit-jobs-input, unit-job-plan, planned-job,
 │                                      review-unit-input, unit-review, unit-recommendation
 ├── job/
-│   ├── job-reasoning.service.ts · job-reasoning.prompts.ts
+│   ├── job-reasoning.service.ts · job-reasoning.prompts.ts · job-reasoning-model.client.ts
 │   └── types/                      ← job-reasoning-input, job-plan,
 │                                      evaluate-job-input, task-outcome, job-evaluation
 └── task/
-    ├── task-reasoning.service.ts · task-reasoning.prompts.ts
+    ├── task-reasoning.service.ts · task-reasoning.prompts.ts · task-reasoning-model.client.ts
     └── types/                      ← task-reasoning-input, step-record, planned-step,
                                        blocker-decision
 ```
@@ -283,9 +314,9 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
 
 - **A new decision at a level** — add a method, its input and output types, and a prompt to that level's
   folder. Keep its input to the level's own data and the level below.
-- **A different model per level** — the Task level runs on every step, so it is where cost
-  concentrates. To move it (or any level) to another model, pass the model ID through `CompletionInput`
-  from that level's service; the other levels are unaffected.
+- **A different model per level** — set `REASONING_JOB_MODEL_ID` or `REASONING_TASK_MODEL_ID`. The Task
+  level runs on every step, so it is where cost concentrates. To give Strategy or Unit their own model,
+  add a subclass, a settings entry in `reasoning.config.ts`, and a factory provider, as for Job and Task.
 - **A new governance level** — add a folder with its reasoner, wire it into `ReasoningModule`, and slot it
   into the planning and review flows in governance.
 - **Governance as tools (planned)** — governance services will later be exposed to the reasoners as tools
