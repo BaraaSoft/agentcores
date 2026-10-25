@@ -8,7 +8,7 @@ configured for its level, over one shared Anthropic instance.
 - [Where it sits](#where-it-sits)
 - [The four reasoners](#the-four-reasoners)
 - [Planning flows down](#planning-flows-down)
-- [The Job plan](#the-job-plan)
+- [Job review and planning](#job-review-and-planning)
 - [Results flow up](#results-flow-up)
 - [The Task level and the execution layer](#the-task-level-and-the-execution-layer)
 - [Model clients and config](#model-clients-and-config)
@@ -73,7 +73,7 @@ flowchart TB
 | --- | --- | --- | --- | --- | --- |
 | `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `OrchestratorService`, `StrategyEvaluationService` |
 | `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
-| `JobReasoningService` | One objective | `planTasks`, `evaluateJob` | **Task outcomes** | `JobPlan` (remaining Task actions, or met / abandoned), `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
+| `JobReasoningService` | One objective | `reviewJob`, `planTasks`, `evaluateJob` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools, `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
@@ -112,14 +112,17 @@ sequenceDiagram
         O->>DB: JobService.placeJob — matching Unit, new Unit only if none fits
     end
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
-    alt no Tasks yet, or a finished Task awaits review
-        JW->>J: planTasks(job, safeContext, outcomes, remainingActions)
-        J-->>JW: JobPlan { rationale, remainingActions, isObjectiveMet, abandonReason, summary }
-        alt met, abandoned, or a guardrail hit
+    opt a finished Task awaits review
+        JW->>J: reviewJob(job, safeContext, latestOutcome, history, remainingActions)
+        J-->>JW: JobReview { decision, rationale, revisionNotes, summary }
+        opt met, abandoned, or a guardrail hit
             JW->>DB: JobService.closeJob (success · abandoned · failed)
-        else
-            JW->>DB: TaskService.replaceRemainingTasks
         end
+    end
+    opt no Tasks yet, or the review says revise
+        JW->>J: planTasks(job, reason, history, remainingActions, maxTasks) + plan tools
+        J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
+        JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty
     end
     JW->>JW: queue the Job's current Task if pending → Task level, below
     Note over JW: each finished Task sends the Job back here for review
@@ -127,23 +130,34 @@ sequenceDiagram
 
 ---
 
-## The Job plan
+## Job review and planning
 
-`planTasks` is one method for the first plan and every revision. Its input (`JobReasoningInput`) is the
-objective, the Unit, safe context, the **outcomes** of finished Tasks in order (empty the first time), and
-the **remaining actions** still planned. Its output (`JobPlan`) says one of three things:
+A Job uses two separate calls, so each one has a single job:
 
-| `JobPlan` | Meaning | What the Job processor does |
+| Method | When | How | Output |
+| --- | --- | --- | --- |
+| `reviewJob` | After every finished Task | One structured call (`completeStructured`) | `JobReview`: `decision`, `rationale`, `revisionNotes`, `summary` |
+| `planTasks` | First plan; `revise` | A tool loop (`runToolLoop`) over tools the caller passes in | Nothing — the tools hold the draft |
+
+`reviewJob` reads the Task that **just finished** (`latestOutcome`) apart from the earlier ones (`history`,
+cancelled Tasks included, so dropped work stays visible) and the remaining plan:
+
+| `decision` | Meaning | What the Job processor does |
 | --- | --- | --- |
-| `remainingActions` (same or edited) | Keep going | Replaces the not-started Tasks, within the caps |
-| `isObjectiveMet: true` | The objective is achieved | Closes the Job as `success` |
-| `abandonReason` set | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` |
+| `continue` | The plan still fits | Keeps it. With nothing left to run, the Job stays open and idle for now (see `docs/todo.md`) |
+| `revise` | The plan should change | Calls `planTasks` with `revisionNotes` as the reason |
+| `met` | The objective is achieved | Closes the Job as `success` with `summary` |
+| `abandon` | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` with `rationale` |
 
-`summary` becomes the Job's outcome summary when it closes. Job reasoning never declares `failed`:
-**failed means "we couldn't do it"** and is set by the system — too many failed Tasks in a row, an empty
-plan, or the Task cap (see the [processors spec](../governance/processors/tech-spec.md#how-a-job-ends)).
-The prompt tells the model not to abandon because Tasks keep failing, so the two outcomes stay distinct
-signals.
+`planTasks` gets the reason it was called, the history, the current plan, and the Task limit. The tools
+(`JobPlanningToolset`, in governance) edit an in-memory draft; the processor saves it once after
+`finish_plan`, so a run that crashes halfway changes nothing. The reasoning module stays a leaf: it only
+sees `ReasoningTool`s.
+
+Job reasoning never declares `failed`: **failed means "we couldn't do it"** and is set by the system — too
+many failed Tasks in a row, an empty plan, or the Task cap (see the
+[processors spec](../governance/processors/tech-spec.md#how-a-job-ends)). The review prompt tells the model
+not to abandon because Tasks keep failing, so the two outcomes stay distinct signals.
 
 ---
 
@@ -265,6 +279,13 @@ answer in that shape; the SDK parses the answer into `parsed_output`. A reply th
 other than `end_turn` (cut off at `maxTokens`, refused) throws, so the caller's queue retry handles it.
 `maxTokens` covers thinking and the answer together; it stays under the SDK's non-streaming limit.
 
+**How a tool loop works.** `runToolLoop` calls `messages.create` with adaptive thinking and the tools
+(`strict: true`, input schemas from zod). Each turn's content goes back as the assistant message, so
+thinking carries over. Every tool call is checked against its schema; an unknown tool, invalid input, or a
+`ReasoningToolError` goes back as an `is_error` result for the model to fix. A turn with no tool call gets
+a nudge. The loop ends when the tool marked `endsLoop` succeeds, and throws after `maxTurns` or on a
+`max_tokens` / `refusal` stop.
+
 ---
 
 ## Rules every reasoner follows
@@ -280,7 +301,8 @@ other than `end_turn` (cut off at `maxTokens`, refused) throws, so the caller's 
    no reasoner can reach the memory system or the sealed zone.
 6. **Structured output.** Every call goes through `completeStructured` on the level's model client with a
    zod schema (`<level>/schemas/`), so each method returns a typed object, never free text to parse. Types
-   that the model produces are inferred from their schema.
+   that the model produces are inferred from their schema. The one exception is Job planning, which uses
+   `runToolLoop`; its tools have zod input schemas too.
 
 ---
 
@@ -291,9 +313,10 @@ reasoning/
 ├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; the four reasoners
 ├── reasoning.config.ts             ← registerAs('reasoning'): API key + model per level
 ├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
-├── reasoning-model.client.ts       ← base model client; Strategy and Unit use it with the default model
-├── types/                          ← completion-input, reasoning-model-settings
-├── tests/                          ← reasoning.module (wiring), reasoning-model.client (the call)
+├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and Unit use it as is
+├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
+├── types/                          ← completion-input, tool-loop-input, reasoning-tool, reasoning-model-settings
+├── tests/                          ← reasoning.module (wiring), reasoning-model.client (structured call, tool loop)
 ├── strategy/
 │   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts
 │   └── types/                      ← plan-strategy-input, strategy-plan, planned-unit,
@@ -305,9 +328,9 @@ reasoning/
 ├── job/
 │   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
 │   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
-│   ├── schemas/                     ← job-plan, job-evaluation-output (zod; the output formats)
+│   ├── schemas/                     ← job-review, job-evaluation-output (zod; the output formats)
 │   ├── tests/job-reasoning.service.spec.ts
-│   └── types/                      ← job-reasoning-input, job-plan,
+│   └── types/                      ← job-review-input, job-review, job-review-decision, job-planning-input,
 │                                      evaluate-job-input, task-outcome, job-evaluation
 └── task/
     ├── task-reasoning.service.ts · task-reasoning.prompts.ts · task-reasoning-model.client.ts

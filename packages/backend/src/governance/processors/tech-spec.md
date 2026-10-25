@@ -67,7 +67,7 @@ twice, or out of order without breaking it.
 
 | Processor | Queue | Payload | Concurrency | Queue retries | Calls |
 | --- | --- | --- | --- | --- | --- |
-| `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff | `JobReasoningService.planTasks` (first plan, then after every finished Task) |
+| `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
 | `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1** — one screen, one mouse | **none** — a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
 | `StrategyEvaluationProcessor` | `strategy-evaluation` | `{ workflowId }` | default | 3, exponential backoff | `StrategyEvaluationService` |
 
@@ -87,7 +87,7 @@ Job is in. One more condition comes first: a finished Task that Job reasoning ha
 | Job's Tasks | Job state | What happens |
 | --- | --- | --- |
 | *(no Tasks yet)* | new | The Job processor writes the first plan |
-| a `complete` / `failed` Task not reviewed | needs review | The Job processor reviews it and revises the plan |
+| a `complete` / `failed` Task not reviewed | needs review | The Job processor reviews it, and replans if the review asks |
 | current Task `pending` | ready | Queue the current Task |
 | current Task `running` | running | Wait |
 | current Task `deferred` | deferred | Wait for the delayed queue item |
@@ -167,8 +167,8 @@ A Job closes once, through `JobService.closeJob`, which records `outcomeStatus`,
 
 | Outcome | Meaning | Decided by | When |
 | --- | --- | --- | --- |
-| `success` | The objective was met | Job reasoning | `isObjectiveMet` in the plan |
-| `abandoned` | **We decided to stop** — a strategic signal | Job reasoning | `abandonReason` in the plan |
+| `success` | The objective was met | Job reasoning | The review's decision is `met` |
+| `abandoned` | **We decided to stop** — a strategic signal | Job reasoning | The review's decision is `abandon` |
 | `failed` | **We couldn't do it** — an execution signal | The system | `MAX_CONSECUTIVE_FAILURES` failed Tasks in a row, the plan is empty, `MAX_TASKS_PER_JOB` reached, or Job reasoning itself kept throwing (`MAX_REVIEWING_ATTEMPTS`) |
 
 Job reasoning never chooses `failed`; it can only stop by abandoning, and the prompt tells it not to
@@ -181,7 +181,7 @@ Guardrails on every plan (`job-execution.constants.ts`):
 | Constant | Value | Effect |
 | --- | --- | --- |
 | `MAX_TASKS_PER_JOB` | 20 | Started + planned Tasks never exceed it; reaching it without success closes the Job as failed |
-| `MAX_TASKS_ADDED_PER_REVIEW` | 5 | A review may grow the remaining plan by at most this many Tasks; extra actions are dropped |
+| `MAX_TASKS_ADDED_PER_REVIEW` | 5 | A replan after a review may grow the remaining plan by at most this many Tasks; the planning tools refuse more |
 | `MAX_CONSECUTIVE_FAILURES` | 3 | That many failed Tasks in a row close the Job as failed, whatever the plan says |
 | `MAX_REVIEWING_ATTEMPTS` | 6 | Job reasoning attempts in a row (queue retries included) that may throw; the next attempt closes the Job as failed without calling reasoning |
 
@@ -206,18 +206,28 @@ flowchart TD
     Needs -- no --> Current
     Needs -- yes --> Attempts{"reviewingAttempts + 1<br/>> MAX_REVIEWING_ATTEMPTS?"}
     Attempts -- yes --> Close
-    Attempts -- no --> Plan["Load outcomes + remaining plan + safe memory<br/>JobReasoning.planTasks"]
-    Plan --> Decide{"close?<br/>met · abandoned · guardrail"}
-    Decide -- yes --> Close["JobService.closeJob<br/>(cancels pending Tasks)<br/>markTaskReviewed"] --> Stop3(["done"])
-    Decide -- no --> Replace["TaskService.replaceRemainingTasks<br/>(capped)<br/>markTaskReviewed"] --> Current
+    Attempts -- no --> Kind{"no Tasks yet?"}
+    Kind -- yes --> Plan
+    Kind -- no --> Streak{"MAX_CONSECUTIVE_FAILURES<br/>failed in a row?"}
+    Streak -- yes --> Close
+    Streak -- no --> Review["JobReasoning.reviewJob<br/>latest Task + history + remaining plan"]
+    Review -- "met · abandon" --> Close
+    Review -- "continue" --> Reviewed["markTaskReviewed"] --> Current
+    Review -- "revise" --> Plan["JobReasoning.planTasks<br/>tools edit a draft → finish_plan"]
+    Plan -- "draft empty,<br/>or Task cap reached" --> Close["JobService.closeJob<br/>(cancels pending Tasks)<br/>markTaskReviewed"] --> Stop3(["done"])
+    Plan -- "draft has Tasks" --> Replace["TaskService.replaceRemainingTasks<br/>markTaskReviewed"] --> Current
     Current{"current Task pending?"} -- yes --> Queue["queue that Task<br/>on task-execution"]
     Current -- "no (running, deferred,<br/>escalated)" --> Stop4(["do nothing"])
 ```
 
-- **One reasoning call per finished Task.** Job reasoning sees each finished Task's action, status, and
-  compressed result or failure reason — never its steps — plus the actions still planned.
-- **Plans are edited, not re-run.** The returned list replaces every Task not started yet. When it is
-  identical, nothing is written; otherwise the pending Tasks are cancelled and the new list is appended.
+- **Review, then plan only if needed.** Every finished Task gets one `reviewJob` call (`continue`,
+  `revise`, `met`, `abandon`). Most reviews say `continue` and cost nothing more. Job reasoning sees each
+  Task's action, status, and compressed result or failure reason — never its steps.
+- **Planning edits a draft.** `JobPlanningToolset` (`tools/`) gives the model `view_plan`, `add_task`,
+  `update_task`, `remove_task`, `move_task`, and `finish_plan` over an in-memory copy of the remaining
+  plan. The tools enforce the Task limit; a bad call returns an error the model can fix. Once planning
+  ends, the draft replaces every Task not started yet in one write: an identical draft writes nothing;
+  otherwise the pending Tasks are cancelled and the draft is appended. A crash mid-planning saves nothing.
 - **The review is stamped last.** `markTaskReviewed` runs after the plan or closure is saved; if the
   processor crashes in between, the next delivery reviews the same Task again, and an unchanged plan
   writes nothing.
@@ -277,14 +287,15 @@ is startable) and queues it.
 completes and sends the Job back → the review keeps the plan, Task 2 is queued → … → after Task 3 the
 review sees the objective is met → the Job closes as `success` and Task 4 is cancelled.
 
-**The world changed.** Task 2 finds the subreddit forbids links → the review drops "post the link",
-appends "post a text-only intro", and the Job continues with the new plan.
+**The world changed.** Task 2 finds the subreddit forbids links → the review says `revise` ("post text
+only") → planning removes "post the link", adds "post a text-only intro", and finishes → the Job continues
+with the new plan.
 
 **Task failed.** Task 2 fails → the review retries it differently. If three Tasks fail in a row, the Job
 closes as `failed` without asking reasoning.
 
-**Not worth it.** After a few Tasks, the community turns out to be inactive → Job reasoning sets an
-`abandonReason` → the Job closes as `abandoned`, and the Unit review reads it as a signal about the place,
+**Not worth it.** After a few Tasks, the community turns out to be inactive → the review says `abandon`
+→ the Job closes as `abandoned`, and the Unit review reads it as a signal about the place,
 not about execution.
 
 **Rate limit.** Task 2 is blocked; reasoning says "retry in 30 minutes" → Task 2 is `deferred` and
@@ -352,8 +363,9 @@ governance/processors/
 ├── strategy-evaluation.processor.ts          ← end-of-cycle review
 ├── job-execution/
 │   ├── job-execution.module.ts
-│   ├── job-execution.processor.ts            ← plans a Job, reviews each finished Task, closes it; queues its current Task
+│   ├── job-execution.processor.ts            ← reviews each finished Task, plans when needed, closes the Job; queues its current Task
 │   ├── job-execution.constants.ts            ← context size + plan guardrails
+│   ├── tools/job-planning-toolset.ts         ← the plan tools over an in-memory draft (+ tests/)
 │   └── tests/job-execution.processor.spec.ts
 └── task-execution/
     ├── task-execution.module.ts              ← binds EXECUTION_PROVIDER → @ahe/execution
