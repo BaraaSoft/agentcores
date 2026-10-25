@@ -1,6 +1,6 @@
 import * as z from 'zod/v4';
-import { ReasoningToolError } from '../../../../reasoning/reasoning-tool.error';
-import type { ReasoningTool } from '../../../../reasoning/types/reasoning-tool';
+import { ReasoningToolError } from '../../reasoning-tool.error';
+import type { ReasoningTool } from '../../types/reasoning-tool';
 
 const position = (what: string) => z.number().int().describe(`1-based position of the Task ${what}, as shown by view_plan.`);
 const action = z.string().describe('One concrete action with a clear end, e.g. "Reply to the top 3 new posts in r/AICompanion".');
@@ -11,9 +11,10 @@ function tool<TInput>(definition: ReasoningTool<TInput>): ReasoningTool<TInput> 
 
 /**
  * The tools Job reasoning uses to edit a Job's remaining plan, over an in-memory draft. Nothing is
- * saved here: the Job processor reads `actions` once the model calls `finish_plan` and writes them in
- * one `replaceRemainingTasks`, so a planning run that crashes halfway leaves the plan untouched.
- * The draft enforces the limits, so the model cannot plan past them.
+ * saved here: `planTasks` returns the draft and the Job processor writes it in one
+ * `replaceRemainingTasks`, so a planning run that crashes halfway leaves the plan untouched.
+ * The draft enforces the limits, so the model cannot plan past them. One toolset per planning run;
+ * `ToolsetFactory` creates them.
  */
 export class JobPlanningToolset {
   /** The tools to hand to Job reasoning. */

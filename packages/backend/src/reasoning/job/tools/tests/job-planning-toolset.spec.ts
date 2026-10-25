@@ -1,4 +1,4 @@
-import { ReasoningToolError } from '../../../../../reasoning/reasoning-tool.error';
+import { ReasoningToolError } from '../../../reasoning-tool.error';
 import { JobPlanningToolset } from '../job-planning-toolset';
 
 function setup(remaining: string[] = ['Open', 'Reply'], maxTasks = 4) {

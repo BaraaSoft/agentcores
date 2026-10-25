@@ -120,8 +120,9 @@ sequenceDiagram
         end
     end
     opt no Tasks yet, or the review says revise
-        JW->>J: planTasks(job, reason, history, remainingActions, maxTasks) + plan tools
+        JW->>J: planTasks(job, reason, history, remainingActions, maxTasks)
         J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
+        J-->>JW: the edited plan (actions)
         JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty
     end
     JW->>JW: queue the Job's current Task if pending → Task level, below
@@ -137,7 +138,7 @@ A Job uses two separate calls, so each one has a single job:
 | Method | When | How | Output |
 | --- | --- | --- | --- |
 | `reviewJob` | After every finished Task | One structured call (`completeStructured`) | `JobReview`: `decision`, `rationale`, `revisionNotes`, `summary` |
-| `planTasks` | First plan; `revise` | A tool loop (`runToolLoop`) over tools the caller passes in | Nothing — the tools hold the draft |
+| `planTasks` | First plan; `revise` | A tool loop (`runToolLoop`) over the planning tools | The edited plan: Task actions, in order |
 
 `reviewJob` reads the Task that **just finished** (`latestOutcome`) apart from the earlier ones (`history`,
 cancelled Tasks included, so dropped work stays visible) and the remaining plan:
@@ -149,10 +150,11 @@ cancelled Tasks included, so dropped work stays visible) and the remaining plan:
 | `met` | The objective is achieved | Closes the Job as `success` with `summary` |
 | `abandon` | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` with `rationale` |
 
-`planTasks` gets the reason it was called, the history, the current plan, and the Task limit. The tools
-(`JobPlanningToolset`, in governance) edit an in-memory draft; the processor saves it once after
-`finish_plan`, so a run that crashes halfway changes nothing. The reasoning module stays a leaf: it only
-sees `ReasoningTool`s.
+`planTasks` gets the reason it was called, the history, the current plan, and the Task limit. It gets a new
+`JobPlanningToolset` from `ToolsetFactory.createJobPlanningToolset` — tools over an in-memory draft that
+enforce the limit — runs the loop with its tools, and returns the draft. The toolset is local to that call,
+so no draft is shared between Jobs. The Job processor saves the result in one
+write, so a run that crashes halfway changes nothing. Saving is governance's job; the module stays a leaf.
 
 Job reasoning never declares `failed`: **failed means "we couldn't do it"** and is set by the system — too
 many failed Tasks in a row, an empty plan, or the Task cap (see the
@@ -315,6 +317,7 @@ reasoning/
 ├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
 ├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and Unit use it as is
 ├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
+├── tools/toolset.factory.ts        ← ToolsetFactory: a new toolset per run (+ tests/)
 ├── types/                          ← completion-input, tool-loop-input, reasoning-tool, reasoning-model-settings
 ├── tests/                          ← reasoning.module (wiring), reasoning-model.client (structured call, tool loop)
 ├── strategy/
@@ -328,6 +331,7 @@ reasoning/
 ├── job/
 │   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
 │   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
+│   ├── tools/job-planning-toolset.ts ← the planning tools over an in-memory draft (+ tests/)
 │   ├── schemas/                     ← job-review, job-evaluation-output (zod; the output formats)
 │   ├── tests/job-reasoning.service.spec.ts
 │   └── types/                      ← job-review-input, job-review, job-review-decision, job-planning-input,

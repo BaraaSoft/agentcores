@@ -223,11 +223,12 @@ flowchart TD
 - **Review, then plan only if needed.** Every finished Task gets one `reviewJob` call (`continue`,
   `revise`, `met`, `abandon`). Most reviews say `continue` and cost nothing more. Job reasoning sees each
   Task's action, status, and compressed result or failure reason — never its steps.
-- **Planning edits a draft.** `JobPlanningToolset` (`tools/`) gives the model `view_plan`, `add_task`,
+- **Planning edits a draft.** `JobReasoningService.planTasks` gives the model `view_plan`, `add_task`,
   `update_task`, `remove_task`, `move_task`, and `finish_plan` over an in-memory copy of the remaining
-  plan. The tools enforce the Task limit; a bad call returns an error the model can fix. Once planning
-  ends, the draft replaces every Task not started yet in one write: an identical draft writes nothing;
-  otherwise the pending Tasks are cancelled and the draft is appended. A crash mid-planning saves nothing.
+  plan (see the [reasoning spec](../../reasoning/tech-spec.md#job-review-and-planning)) and returns it.
+  The tools enforce the Task limit; a bad call returns an error the model can fix. The returned plan
+  replaces every Task not started yet in one write: an identical plan writes nothing; otherwise the
+  pending Tasks are cancelled and the new plan is appended. A crash mid-planning saves nothing.
 - **The review is stamped last.** `markTaskReviewed` runs after the plan or closure is saved; if the
   processor crashes in between, the next delivery reviews the same Task again, and an unchanged plan
   writes nothing.
@@ -365,7 +366,6 @@ governance/processors/
 │   ├── job-execution.module.ts
 │   ├── job-execution.processor.ts            ← reviews each finished Task, plans when needed, closes the Job; queues its current Task
 │   ├── job-execution.constants.ts            ← context size + plan guardrails
-│   ├── tools/job-planning-toolset.ts         ← the plan tools over an in-memory draft (+ tests/)
 │   └── tests/job-execution.processor.spec.ts
 └── task-execution/
     ├── task-execution.module.ts              ← binds EXECUTION_PROVIDER → @ahe/execution

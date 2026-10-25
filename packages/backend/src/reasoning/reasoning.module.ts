@@ -9,6 +9,7 @@ import { ANTHROPIC_CLIENT } from './reasoning.tokens';
 import { StrategyReasoningService } from './strategy/strategy-reasoning.service';
 import { TaskReasoningModelClient } from './task/task-reasoning-model.client';
 import { TaskReasoningService } from './task/task-reasoning.service';
+import { ToolsetFactory } from './tools/toolset.factory';
 import { UnitReasoningService } from './unit-of-work/unit-reasoning.service';
 
 type ReasoningConfig = ConfigType<typeof reasoningConfig>;
@@ -41,6 +42,7 @@ type ReasoningConfig = ConfigType<typeof reasoningConfig>;
       inject: [ANTHROPIC_CLIENT, reasoningConfig.KEY],
       useFactory: (anthropic: Anthropic, config: ReasoningConfig) => new TaskReasoningModelClient(anthropic, config.taskModel),
     },
+    ToolsetFactory,
     StrategyReasoningService,
     UnitReasoningService,
     JobReasoningService,

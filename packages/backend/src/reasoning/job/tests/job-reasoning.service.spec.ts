@@ -1,5 +1,5 @@
-import * as z from 'zod/v4';
-import type { ReasoningTool } from '../../types/reasoning-tool';
+import { ToolsetFactory } from '../../tools/toolset.factory';
+import type { ToolLoopInput } from '../../types/tool-loop-input';
 import type { JobReasoningModelClient } from '../job-reasoning-model.client';
 import {
   EVALUATE_JOB_MAX_TOKENS,
@@ -42,9 +42,9 @@ const REVIEW: JobReview = {
 
 function setup() {
   const model = { completeStructured: jest.fn(), runToolLoop: jest.fn().mockResolvedValue(undefined) };
-  const service = new JobReasoningService(model as unknown as JobReasoningModelClient);
+  const service = new JobReasoningService(model as unknown as JobReasoningModelClient, new ToolsetFactory());
   const structured = () => model.completeStructured.mock.calls[0][0];
-  const loop = () => model.runToolLoop.mock.calls[0][0];
+  const loop = (): ToolLoopInput => model.runToolLoop.mock.calls[0][0];
   return { model, service, structured, loop };
 }
 
@@ -79,19 +79,32 @@ describe('JobReasoningService', () => {
   });
 
   describe('planTasks', () => {
-    it('runs the tool loop with the caller’s tools, the reason, and the Task limit', async () => {
+    it('runs the tool loop with the planning tools, the reason, and the Task limit, and returns the edited plan', async () => {
       const t = setup();
-      const tools: ReasoningTool[] = [
-        { name: 'finish_plan', description: 'Done.', inputSchema: z.object({}), endsLoop: true, run: () => 'Saved.' },
-      ];
+      t.model.runToolLoop.mockImplementation(async ({ tools }: ToolLoopInput) => {
+        const call = (name: string, input: object) => tools.find((tool) => tool.name === name)!.run(input);
+        call('add_task', { action: 'Post a text-only intro', position: 1 });
+        call('finish_plan', { rationale: 'Text only.' });
+      });
 
-      await t.service.planTasks(
-        { ...JOB, reason: 'Replace the link post.', history: [OPENED, LINK_FAILED], remainingActions: ['Reply'], maxTasks: 6 },
-        tools,
-      );
+      const actions = await t.service.planTasks({
+        ...JOB,
+        reason: 'Replace the link post.',
+        history: [OPENED, LINK_FAILED],
+        remainingActions: ['Reply'],
+        maxTasks: 6,
+      });
 
-      const { systemPrompt, userPrompt, maxTokens, maxTurns, tools: sent } = t.loop();
-      expect(sent).toBe(tools);
+      expect(actions).toEqual(['Post a text-only intro', 'Reply']);
+      const { systemPrompt, userPrompt, maxTokens, maxTurns, tools } = t.loop();
+      expect(tools.map((tool) => tool.name)).toEqual([
+        'view_plan',
+        'add_task',
+        'update_task',
+        'remove_task',
+        'move_task',
+        'finish_plan',
+      ]);
       expect(maxTokens).toBe(PLAN_TASKS_MAX_TOKENS);
       expect(maxTurns).toBe(PLAN_TASKS_MAX_TURNS);
       expect(systemPrompt).toContain('finish_plan');
@@ -104,7 +117,7 @@ describe('JobReasoningService', () => {
     it('marks the first plan as having no history and no plan', async () => {
       const t = setup();
 
-      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingActions: [], maxTasks: 20 }, []);
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingActions: [], maxTasks: 20 });
 
       expect(t.loop().userPrompt).toContain('None — this is the first plan.');
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');

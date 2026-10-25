@@ -20,7 +20,6 @@ import {
   MAX_TASKS_ADDED_PER_REVIEW,
   MAX_TASKS_PER_JOB,
 } from './job-execution.constants';
-import { JobPlanningToolset } from './tools/job-planning-toolset';
 
 /** Tasks Job reasoning sees as history: everything that finished or was dropped. */
 const HISTORY_STATUSES: readonly TaskStatus[] = ['complete', 'failed', 'cancelled'];
@@ -29,10 +28,11 @@ type JobRun = { readonly workflow: WorkflowEntity; readonly job: JobEntity; read
 
 /**
  * Moves a Job forward in two separate steps. **Reviewing** judges each finished Task in one structured
- * call: continue, revise, met, or abandon. **Planning** edits the remaining plan through
- * `JobPlanningToolset` — for a new Job, or when the review asks for changes — and saves the draft once
- * at the end. Once the Job's finished Tasks are reviewed, its current Task is queued if it is pending. Only one Task of a Job is queued at a time; the Task processor sends
- * the Job back here when a Task completes or fails. Queuing the same Job again is safe, which is how
+ * call: continue, revise, met, or abandon. **Planning** lets Job reasoning edit the remaining plan
+ * with its planning tools — for a new Job, or when the review asks for changes — and this processor
+ * saves the result in one write. Once the Job's finished Tasks are reviewed, its current Task is
+ * queued if it is pending. Only one Task of a Job is queued at a time; the Task processor sends the
+ * Job back here when a Task completes or fails. Queuing the same Job again is safe, which is how
  * paused Jobs and resolved escalations resume.
  */
 @Processor(JOB_EXECUTION_QUEUE)
@@ -158,14 +158,16 @@ export class JobExecutionProcessor extends WorkerHost {
     );
     if (maxTasks <= 0) return this.fail(run.job.id, summary, `Reached the ${MAX_TASKS_PER_JOB}-Task limit.`);
 
-    const toolset = new JobPlanningToolset(remainingActions, maxTasks);
-    await this.jobReasoning.planTasks(
-      { ...this.jobContext(run), reason, history: this.history(tasks), remainingActions, maxTasks },
-      toolset.tools,
-    );
-    if (toolset.actions.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
+    const actions = await this.jobReasoning.planTasks({
+      ...this.jobContext(run),
+      reason,
+      history: this.history(tasks),
+      remainingActions,
+      maxTasks,
+    });
+    if (actions.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
 
-    await this.tasks.replaceRemainingTasks({ workflowId: run.workflow.id, jobId: run.job.id, actions: toolset.actions });
+    await this.tasks.replaceRemainingTasks({ workflowId: run.workflow.id, jobId: run.job.id, actions });
     return false;
   }
 
