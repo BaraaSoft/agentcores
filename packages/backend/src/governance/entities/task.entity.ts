@@ -44,6 +44,10 @@ export class TaskEntity {
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
+  /** When Job reasoning reviewed this finished Task; the Job waits while a finished Task is unreviewed. */
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewedAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

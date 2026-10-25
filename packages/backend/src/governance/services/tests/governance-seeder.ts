@@ -1,4 +1,4 @@
-import type { GoldStandards, TaskStatus, WorkflowResources } from '@ahe/agent-core';
+import type { GoldStandards, JobOutcomeStatus, TaskStatus, WorkflowResources } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
@@ -54,14 +54,29 @@ export class GovernanceSeeder {
       .save({ strategyId, name, successCriteria: [], allocationPercentage, isDeprecated });
   }
 
-  async job(unitOfWorkId: string, name = 'Engage r/AICompanion'): Promise<JobEntity> {
-    return this.dataSource.getRepository(JobEntity).save({ unitOfWorkId, name, objective: `Objective of ${name}` });
+  async job(unitOfWorkId: string, name = 'Engage r/AICompanion', outcomeStatus: JobOutcomeStatus | null = null): Promise<JobEntity> {
+    return this.dataSource.getRepository(JobEntity).save({
+      unitOfWorkId,
+      name,
+      objective: `Objective of ${name}`,
+      outcomeStatus,
+      outcomeSummary: outcomeStatus === null ? null : `Closed as ${outcomeStatus}`,
+      closedAt: outcomeStatus === null ? null : new Date(),
+    });
   }
 
   /**
-   * Adds Tasks to a Job with the given statuses, in sequence order.
+   * Adds Tasks to a Job with the given statuses, in sequence order. Complete and failed Tasks are
+   * already reviewed unless `isAwaitingReview`, which leaves the last of them unreviewed.
    */
-  async tasks(workflowId: string, jobId: string, statuses: readonly TaskStatus[]): Promise<TaskEntity[]> {
+  async tasks(
+    workflowId: string,
+    jobId: string,
+    statuses: readonly TaskStatus[],
+    isAwaitingReview = false,
+  ): Promise<TaskEntity[]> {
+    const reviewable = statuses.map((status) => status === 'complete' || status === 'failed');
+    const awaitingReview = isAwaitingReview ? reviewable.lastIndexOf(true) : -1;
     return this.dataSource.getRepository(TaskEntity).save(
       statuses.map((status, index) => ({
         workflowId,
@@ -73,6 +88,7 @@ export class GovernanceSeeder {
         failureReason: null,
         startedAt: null,
         completedAt: null,
+        reviewedAt: reviewable[index] && index !== awaitingReview ? new Date() : null,
       })),
     );
   }

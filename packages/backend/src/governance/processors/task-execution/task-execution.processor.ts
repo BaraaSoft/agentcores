@@ -5,7 +5,8 @@ import type { Job, Queue } from 'bullmq';
 import { IdentityService } from '../../../identity/identity.service';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
 import { PrivacyFilterService } from '../../../memory/privacy-filter.service';
-import { TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import { TaskReasoningService } from '../../../reasoning/task/task-reasoning.service';
 import type { PlannedStep } from '../../../reasoning/task/types/planned-step';
@@ -37,7 +38,8 @@ const MS_PER_MINUTE = 60_000;
 /**
  * Runs one Task: Task reasoning (Opus) plans a step, the execution layer (Sonnet/Haiku) carries it
  * out on screen, and the result goes back to reasoning, until the Task is done, escalated, deferred,
- * or failed. On completion it queues the Job's next Task, so a Job's Tasks run one after another.
+ * or failed. When it completes or fails, the Job goes back to Job reasoning for review, which decides
+ * the next Task, so a Job's Tasks run one after another.
  *
  * Concurrency is 1: there is one screen and one mouse on the Mac Mini.
  *
@@ -51,6 +53,8 @@ export class TaskExecutionProcessor extends WorkerHost {
     private readonly executionProvider: ExecutionProvider,
     @InjectQueue(TASK_EXECUTION_QUEUE)
     private readonly taskQueue: Queue<TaskExecutionJobData>,
+    @InjectQueue(JOB_EXECUTION_QUEUE)
+    private readonly jobQueue: Queue<JobExecutionJobData>,
     private readonly taskReasoning: TaskReasoningService,
     private readonly workflows: WorkflowService,
     private readonly tasks: TaskService,
@@ -98,6 +102,7 @@ export class TaskExecutionProcessor extends WorkerHost {
       };
     } catch (error) {
       await this.tasks.markTaskFailed({ taskId, reason: error instanceof Error ? error.message : String(error) });
+      await this.queueJobReview(workflowId, task.jobId);
       throw error;
     }
   }
@@ -182,8 +187,9 @@ export class TaskExecutionProcessor extends WorkerHost {
   }
 
   /**
-   * Saves how the Task ended, stores its learnings, and moves the Job along: complete queues the
-   * next Task, deferred re-queues this one after the delay. Failed and escalated hold the Job.
+   * Saves how the Task ended, stores its learnings, and moves the Job along: complete and failed send
+   * the Job back for review, deferred re-queues this Task after the delay, escalated holds the Job
+   * until the owner decides.
    */
   private async finish(run: TaskRun, owner: string, end: StepsEnd): Promise<void> {
     const { workflowId, task } = run;
@@ -197,12 +203,12 @@ export class TaskExecutionProcessor extends WorkerHost {
         if (Object.keys(metricReadings).length > 0) {
           await this.metrics.recordReadings({ unitOfWorkId: task.job.unitOfWorkId, taskId: task.id, readings: metricReadings });
         }
-        const next = await this.tasks.findNextPendingTask(task.jobId);
-        if (next !== null) await this.taskQueue.add(next.id, { workflowId, taskId: next.id });
+        await this.queueJobReview(workflowId, task.jobId);
         break;
       }
       case 'failed':
         await this.tasks.markTaskFailed({ taskId: task.id, reason: end.summary });
+        await this.queueJobReview(workflowId, task.jobId);
         break;
       case 'escalated':
         await this.reporting.raiseEscalation({ workflowId, taskId: task.id, question: end.summary });
@@ -215,5 +221,13 @@ export class TaskExecutionProcessor extends WorkerHost {
     for (const content of end.learnings) {
       await this.memory.recordLearning({ owner, workflowId, content });
     }
+  }
+
+  /**
+   * Queues the Job so Job reasoning reviews the Task that just finished. The Job ID is the queue job
+   * ID, so the Job is never queued twice.
+   */
+  private async queueJobReview(workflowId: string, jobId: string): Promise<void> {
+    await this.jobQueue.add(jobId, { workflowId, jobId }, { jobId });
   }
 }

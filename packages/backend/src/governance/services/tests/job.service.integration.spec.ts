@@ -3,6 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';
 import { TestDatabaseModule } from '../../../database/tests/test-database.module';
+import { JobEntity } from '../../entities/job.entity';
+import { TaskEntity } from '../../entities/task.entity';
 import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 import { JobService } from '../job.service';
 import { UnitOfWorkService } from '../unit-of-work.service';
@@ -33,32 +35,37 @@ describeWithDatabase('JobService (Postgres)', () => {
   });
 
   describe('listStartableJobs and countActiveJobs', () => {
-    async function workflowWithJobs(jobs: Record<string, readonly TaskStatus[]>) {
+    async function workflowWithJobs(jobs: Record<string, readonly TaskStatus[]>, awaitingReview: readonly string[] = []) {
       const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
       const ids: Record<string, string> = {};
       for (const [name, statuses] of Object.entries(jobs)) {
         const job = await seeder.job(unit.id, name);
-        await seeder.tasks(workflow.id, job.id, statuses);
+        await seeder.tasks(workflow.id, job.id, statuses, awaitingReview.includes(name));
         ids[name] = job.id;
       }
-      return { workflow, strategy, ids };
+      return { workflow, strategy, unit, ids };
     }
 
-    it('starts new Jobs and Jobs whose current Task is pending, and nothing else', async () => {
-      const { workflow, ids } = await workflowWithJobs({
-        new: [],
-        ready: ['complete', 'pending', 'pending'],
-        running: ['complete', 'running', 'pending'],
-        deferred: ['deferred', 'pending'],
-        escalated: ['escalated', 'pending'],
-        failed: ['complete', 'failed', 'pending'],
-        done: ['complete', 'complete'],
-      });
+    it('starts new Jobs, Jobs with a Task awaiting review, and Jobs whose current Task is pending', async () => {
+      const { workflow, unit, ids } = await workflowWithJobs(
+        {
+          new: [],
+          ready: ['complete', 'failed', 'cancelled', 'pending'],
+          justCompleted: ['complete', 'pending'],
+          justFailed: ['complete', 'failed', 'pending'],
+          running: ['complete', 'running', 'pending'],
+          deferred: ['deferred', 'pending'],
+          escalated: ['escalated', 'pending'],
+          finished: ['complete', 'cancelled'],
+        },
+        ['justCompleted', 'justFailed'],
+      );
+      await seeder.job(unit.id, 'Closed', 'success');
 
       const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 10 });
 
-      expect(startable.map((job) => job.id).sort()).toEqual([ids.new, ids.ready].sort());
+      expect(startable.map((job) => job.id).sort()).toEqual([ids.new, ids.ready, ids.justCompleted, ids.justFailed].sort());
       expect(startable[0].unitOfWork.name).toBe('Community engagement');
     });
 
@@ -71,6 +78,7 @@ describeWithDatabase('JobService (Postgres)', () => {
         escalated: ['escalated'],
         failed: ['failed'],
         done: ['complete'],
+        cancelled: ['complete', 'cancelled'],
       });
 
       expect(await service.countActiveJobs(workflow.id)).toBe(3);
@@ -100,6 +108,40 @@ describeWithDatabase('JobService (Postgres)', () => {
       const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 2 });
 
       expect(startable.map((job) => job.id)).toEqual([largeOlder.id, largeNewer.id]);
+    });
+  });
+
+  describe('closeJob', () => {
+    it('records the outcome once and cancels the Tasks that had not started', async () => {
+      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const job = await seeder.job((await seeder.unit(strategy.id, 'Community engagement')).id);
+      await seeder.tasks(workflow.id, job.id, ['complete', 'pending', 'pending']);
+
+      expect(await service.closeJob({ jobId: job.id, status: 'abandoned', summary: 'The community is inactive.' })).toBe(true);
+      expect(await service.closeJob({ jobId: job.id, status: 'success', summary: 'Too late.' })).toBe(false);
+
+      const closed = await dataSource.getRepository(JobEntity).findOneByOrFail({ id: job.id });
+      expect(closed).toEqual(
+        expect.objectContaining({ outcomeStatus: 'abandoned', outcomeSummary: 'The community is inactive.', closedAt: expect.any(Date) }),
+      );
+      const statuses = (await dataSource.getRepository(TaskEntity).find({ where: { jobId: job.id }, order: { sequence: 'ASC' } })).map(
+        (task) => task.status,
+      );
+      expect(statuses).toEqual(['complete', 'cancelled', 'cancelled']);
+      expect(await service.listStartableJobs({ workflowId: workflow.id, limit: 10 })).toEqual([]);
+    });
+  });
+
+  describe('reviewing attempts', () => {
+    it('counts attempts atomically and resets them', async () => {
+      const { strategy } = await seeder.workflowWithActiveStrategy();
+      const job = await seeder.job((await seeder.unit(strategy.id, 'Community engagement')).id);
+
+      const counts = await Promise.all([service.recordReviewingAttempt(job.id), service.recordReviewingAttempt(job.id)]);
+      expect(counts.sort()).toEqual([1, 2]);
+
+      await service.resetReviewingAttempts(job.id);
+      expect(await service.recordReviewingAttempt(job.id)).toBe(1);
     });
   });
 

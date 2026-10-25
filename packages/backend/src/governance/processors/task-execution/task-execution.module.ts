@@ -5,7 +5,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IdentityModule } from '../../../identity/identity.module';
 import { MemoryModule } from '../../../memory/memory.module';
-import { TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
 import { ReportingModule } from '../../../reporting/reporting.module';
 import { WorkflowModule } from '../../../workflow/workflow.module';
@@ -20,7 +20,7 @@ import { EXECUTION_PROVIDER } from './task-execution.tokens';
  */
 @Module({
   imports: [
-    BullModule.registerQueue({ name: TASK_EXECUTION_QUEUE }),
+    BullModule.registerQueue({ name: TASK_EXECUTION_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
     GovernanceModule,
     IdentityModule,
     MemoryModule,

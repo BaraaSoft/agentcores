@@ -31,45 +31,79 @@ describeWithDatabase('TaskService (Postgres)', () => {
     await seeder.clear();
   });
 
-  async function jobWithTasks(statuses: readonly TaskStatus[]) {
+  async function jobWithTasks(statuses: readonly TaskStatus[], isAwaitingReview = false) {
     const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
     const unit = await seeder.unit(strategy.id, 'Community engagement');
     const job = await seeder.job(unit.id);
-    const tasks = await seeder.tasks(workflow.id, job.id, statuses);
+    const tasks = await seeder.tasks(workflow.id, job.id, statuses, isAwaitingReview);
     return { workflow, job, tasks };
   }
 
   const reload = (taskId: string) => dataSource.getRepository(TaskEntity).findOneByOrFail({ id: taskId });
+  const statusesOf = async (jobId: string) =>
+    (await service.listTasks(jobId)).map((task) => [task.action, task.sequence, task.status]);
 
-  describe('createTasks', () => {
-    it('numbers the actions in order, after any Tasks the Job already has', async () => {
-      const { workflow, job } = await jobWithTasks(['complete']);
+  describe('replaceRemainingTasks', () => {
+    it('writes the first plan in order', async () => {
+      const { workflow, job } = await jobWithTasks([]);
 
-      const created = await service.createTasks({ workflowId: workflow.id, jobId: job.id, actions: ['Open', 'Reply'] });
+      const pending = await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: ['Open', 'Reply'] });
 
-      expect(created.map((task) => [task.action, task.sequence, task.status])).toEqual([
-        ['Open', 2, 'pending'],
-        ['Reply', 3, 'pending'],
+      expect(pending.map((task) => [task.action, task.sequence, task.status])).toEqual([
+        ['Open', 1, 'pending'],
+        ['Reply', 2, 'pending'],
       ]);
       expect(await service.hasTasks(job.id)).toBe(true);
     });
 
-    it('creates nothing for an empty breakdown', async () => {
-      const { workflow, job } = await jobWithTasks([]);
+    it('leaves the plan alone when it is unchanged', async () => {
+      const { workflow, job, tasks } = await jobWithTasks(['complete', 'pending', 'pending']);
 
-      expect(await service.createTasks({ workflowId: workflow.id, jobId: job.id, actions: [] })).toEqual([]);
-      expect(await service.hasTasks(job.id)).toBe(false);
+      const pending = await service.replaceRemainingTasks({
+        workflowId: workflow.id,
+        jobId: job.id,
+        actions: ['Action 2', 'Action 3'],
+      });
+
+      expect(pending.map((task) => task.id)).toEqual([tasks[1].id, tasks[2].id]);
+      expect(await dataSource.getRepository(TaskEntity).count()).toBe(3);
+    });
+
+    it('cancels the pending Tasks and appends the new plan after the last Task', async () => {
+      const { workflow, job } = await jobWithTasks(['complete', 'failed', 'pending', 'pending']);
+
+      await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: ['Retry differently', 'Action 4'] });
+
+      expect(await statusesOf(job.id)).toEqual([
+        ['Action 1', 1, 'complete'],
+        ['Action 2', 2, 'failed'],
+        ['Action 3', 3, 'cancelled'],
+        ['Action 4', 4, 'cancelled'],
+        ['Retry differently', 5, 'pending'],
+        ['Action 4', 6, 'pending'],
+      ]);
+      expect((await service.findNextPendingTask(job.id))?.action).toBe('Retry differently');
+    });
+
+    it('cancels every pending Task for an empty plan', async () => {
+      const { workflow, job } = await jobWithTasks(['complete', 'pending']);
+
+      expect(await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: [] })).toEqual([]);
+      expect(await statusesOf(job.id)).toEqual([
+        ['Action 1', 1, 'complete'],
+        ['Action 2', 2, 'cancelled'],
+      ]);
     });
   });
 
   describe('findNextPendingTask — the current Task rule', () => {
-    it('returns the first Task that is not complete, when it is pending', async () => {
-      const { job, tasks } = await jobWithTasks(['complete', 'pending', 'pending']);
+    it('returns the first unfinished Task when it is pending, skipping complete, failed, and cancelled ones', async () => {
+      const { job, tasks } = await jobWithTasks(['complete', 'failed', 'cancelled', 'pending', 'pending']);
 
-      expect((await service.findNextPendingTask(job.id))?.id).toBe(tasks[1].id);
+      expect((await service.findNextPendingTask(job.id))?.id).toBe(tasks[3].id);
     });
 
-    it.each<TaskStatus>(['running', 'deferred', 'escalated', 'failed'])(
+    it.each<TaskStatus>(['running', 'deferred', 'escalated'])(
       'returns null when the current Task is %s, even with pending Tasks after it',
       async (status) => {
         const { job } = await jobWithTasks(['complete', status, 'pending']);
@@ -78,10 +112,36 @@ describeWithDatabase('TaskService (Postgres)', () => {
       },
     );
 
-    it('returns null when every Task is complete', async () => {
-      const { job } = await jobWithTasks(['complete', 'complete']);
+    it.each<TaskStatus>(['complete', 'failed'])('returns null while a %s Task awaits review', async (status) => {
+      const { job } = await jobWithTasks([status, 'pending'], true);
 
       expect(await service.findNextPendingTask(job.id)).toBeNull();
+    });
+
+    it('returns null when every Task is finished', async () => {
+      const { job } = await jobWithTasks(['complete', 'failed', 'cancelled']);
+
+      expect(await service.findNextPendingTask(job.id)).toBeNull();
+    });
+  });
+
+  describe('reviews', () => {
+    it('finds the finished Task awaiting review, then releases the Job once it is reviewed', async () => {
+      const { job, tasks } = await jobWithTasks(['complete', 'failed', 'pending'], true);
+
+      expect((await service.findUnreviewedTask(job.id))?.id).toBe(tasks[1].id);
+      expect(await service.markTaskReviewed(tasks[1].id)).toBe(true);
+      expect(await service.markTaskReviewed(tasks[1].id)).toBe(false);
+
+      expect(await service.findUnreviewedTask(job.id)).toBeNull();
+      expect((await service.findNextPendingTask(job.id))?.id).toBe(tasks[2].id);
+    });
+
+    it('never asks to review a cancelled Task', async () => {
+      const { job, tasks } = await jobWithTasks(['cancelled', 'pending']);
+
+      expect(await service.findUnreviewedTask(job.id)).toBeNull();
+      expect(await service.markTaskReviewed(tasks[0].id)).toBe(false);
     });
   });
 
@@ -156,6 +216,7 @@ describeWithDatabase('TaskService (Postgres)', () => {
       ['run a complete Task', (taskId) => service.markTaskRunning(taskId), 'complete'],
       ['put a failed Task back to pending', (taskId) => service.markTaskPending(taskId), 'failed'],
       ['defer a pending Task', (taskId) => service.markTaskDeferred(taskId), 'pending'],
+      ['run a cancelled Task', (taskId) => service.markTaskRunning(taskId), 'cancelled'],
     ])('refuses to %s', async (_label, transition, status) => {
       const { tasks } = await jobWithTasks([status]);
 

@@ -3,6 +3,7 @@ import type { Job, Queue } from 'bullmq';
 import type { IdentityService } from '../../../../identity/identity.service';
 import type { MemoryRetrievalService } from '../../../../memory/memory-retrieval.service';
 import type { PrivacyFilterService } from '../../../../memory/privacy-filter.service';
+import type { JobExecutionJobData } from '../../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../../queue/types/task-execution-job-data';
 import type { TaskReasoningService } from '../../../../reasoning/task/task-reasoning.service';
 import type { BlockerDecision } from '../../../../reasoning/task/types/blocker-decision';
@@ -58,6 +59,7 @@ function setup() {
 
   const execution = { runTask: jest.fn<Promise<ExecutionResult>, Parameters<ExecutionProvider['runTask']>>() };
   const taskQueue = { add: jest.fn().mockResolvedValue(undefined) };
+  const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const reasoning = {
     planNextStep: jest.fn<Promise<PlannedStep>, [TaskReasoningInput]>(),
     decideOnBlocker: jest.fn<Promise<BlockerDecision>, [TaskReasoningInput]>(),
@@ -65,7 +67,6 @@ function setup() {
   const workflows = { findWorkflowById: jest.fn().mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'running' }) };
   const tasks = {
     findTaskWithLineage: jest.fn().mockResolvedValue(task),
-    findNextPendingTask: jest.fn().mockResolvedValue(null),
     markTaskRunning: jest.fn().mockResolvedValue(true),
     markTaskPending: jest.fn(),
     markTaskDeferred: jest.fn(),
@@ -88,6 +89,7 @@ function setup() {
   const processor = new TaskExecutionProcessor(
     execution as unknown as ExecutionProvider,
     taskQueue as unknown as Queue<TaskExecutionJobData>,
+    jobQueue as unknown as Queue<JobExecutionJobData>,
     reasoning as unknown as TaskReasoningService,
     workflows as unknown as WorkflowService,
     tasks as unknown as TaskService,
@@ -99,7 +101,7 @@ function setup() {
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, taskId: TASK_ID } } as Job<TaskExecutionJobData>);
 
-  return { run, task, execution, taskQueue, reasoning, workflows, tasks, metrics, memory, privacyFilter, identity, reporting };
+  return { run, task, execution, taskQueue, jobQueue, reasoning, workflows, tasks, metrics, memory, privacyFilter, identity, reporting };
 }
 
 describe('TaskExecutionProcessor', () => {
@@ -154,7 +156,7 @@ describe('TaskExecutionProcessor', () => {
     expect(t.tasks.markTaskRunning).not.toHaveBeenCalled();
   });
 
-  it('loops plan → execute until reasoning says done, then completes and queues the next Task', async () => {
+  it('loops plan → execute until reasoning says done, then completes and sends the Job back for review', async () => {
     const t = setup();
     t.reasoning.planNextStep
       .mockResolvedValueOnce(step())
@@ -163,7 +165,6 @@ describe('TaskExecutionProcessor', () => {
     t.execution.runTask
       .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result({ summary: 'Reply posted.', metricReadings: { upvotes: 2 } }));
-    t.tasks.findNextPendingTask.mockResolvedValue({ id: 'task-2' });
 
     const outcome = await t.run();
 
@@ -174,7 +175,8 @@ describe('TaskExecutionProcessor', () => {
       result: { summary: 'Reply posted.', metricReadings: { upvotes: 2 }, completedAt: expect.any(Date) },
     });
     expect(t.metrics.recordReadings).toHaveBeenCalledWith({ unitOfWorkId: 'unit-1', taskId: TASK_ID, readings: { upvotes: 2 } });
-    expect(t.taskQueue.add).toHaveBeenCalledWith('task-2', { workflowId: WORKFLOW_ID, taskId: 'task-2' });
+    expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
+    expect(t.taskQueue.add).not.toHaveBeenCalled();
   });
 
   it('feeds every execution result back to reasoning unchanged, with the Task and safe context', async () => {
@@ -218,6 +220,7 @@ describe('TaskExecutionProcessor', () => {
     expect(outcome?.status).toBe('failed');
     expect(t.execution.runTask).not.toHaveBeenCalled();
     expect(t.tasks.markTaskFailed).toHaveBeenCalledWith({ taskId: TASK_ID, reason: expect.stringContaining('sealed topic') });
+    expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
   });
 
   it('escalates a step that needs human judgment', async () => {
@@ -251,6 +254,7 @@ describe('TaskExecutionProcessor', () => {
     expect(t.reasoning.decideOnBlocker).toHaveBeenCalledWith(expect.objectContaining({ recentChallengeCount: 3 }));
     expect(t.tasks.markTaskDeferred).toHaveBeenCalledWith(TASK_ID);
     expect(t.taskQueue.add).toHaveBeenCalledWith(TASK_ID, { workflowId: WORKFLOW_ID, taskId: TASK_ID }, { delay: 600_000 });
+    expect(t.jobQueue.add).not.toHaveBeenCalled();
     expect(t.memory.recordLearning).toHaveBeenCalledWith({
       owner: 'owner-1',
       workflowId: WORKFLOW_ID,
@@ -290,6 +294,7 @@ describe('TaskExecutionProcessor', () => {
       expect.objectContaining({ question: 'Please enter the reddit.com email code' }),
     );
     expect(t.taskQueue.add).not.toHaveBeenCalled();
+    expect(t.jobQueue.add).not.toHaveBeenCalled();
   });
 
   it('fails the Task when the blocker decision gives no way forward', async () => {
@@ -313,15 +318,16 @@ describe('TaskExecutionProcessor', () => {
 
     expect(t.execution.runTask).toHaveBeenCalledTimes(MAX_TASK_ITERATIONS);
     expect(outcome).toEqual(expect.objectContaining({ status: 'failed', iterations: MAX_TASK_ITERATIONS }));
-    expect(t.tasks.findNextPendingTask).not.toHaveBeenCalled();
+    expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
   });
 
-  it('marks the Task failed and rethrows when something crashes mid-run', async () => {
+  it('marks the Task failed, sends the Job for review, and rethrows when something crashes mid-run', async () => {
     const t = setup();
     t.reasoning.planNextStep.mockResolvedValueOnce(step());
     t.execution.runTask.mockRejectedValueOnce(new Error('Screen Recording permission missing'));
 
     await expect(t.run()).rejects.toThrow('Screen Recording permission missing');
     expect(t.tasks.markTaskFailed).toHaveBeenCalledWith({ taskId: TASK_ID, reason: 'Screen Recording permission missing' });
+    expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
   });
 });

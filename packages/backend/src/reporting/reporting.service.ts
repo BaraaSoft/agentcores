@@ -53,7 +53,8 @@ export class ReportingService {
 
   /**
    * Records the owner's answer. Approved: the Task goes back to pending and its Job is queued again,
-   * so the Job resumes from that Task. Rejected: the Task is failed and its Job stays held.
+   * so the Job resumes from that Task. Rejected: the Task is failed and its Job is queued for review,
+   * so Job reasoning decides how to continue without it.
    */
   async resolveEscalation(input: ResolveEscalationInput): Promise<EscalationEntity> {
     throw new NotImplementedException();
