@@ -196,7 +196,7 @@ What crosses each boundary:
 
 ```mermaid
 flowchart BT
-    Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason"]
+    Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason · location"]
     TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed · open<br/>summary"]
     JobEval --> UnitRev["UnitReview<br/>criteria met? · summary · recommendation"]
     UnitRev --> StratRev["StrategyReview<br/>grade · reallocations · deprecations · new Jobs"]
@@ -227,7 +227,7 @@ sequenceDiagram
         T-->>P: PlannedStep { instruction, platform, needsHumanJudgment, isTaskDone }
         P->>P: isTaskDone → complete · needsHumanJudgment → escalate · sealed topic → fail
         P->>X: runTask({ instruction, context, credentials, maxSteps })
-        X-->>P: ExecutionResult { status, summary, finalLocation, blocker, metricReadings }
+        X-->>P: ExecutionResult { status, summary, locationPath, locationDetails, blocker, metricReadings }
         P->>P: append StepRecord { instruction, platform, result } to history
         alt blocked
             P->>T: decideOnBlocker(TaskReasoningInput)

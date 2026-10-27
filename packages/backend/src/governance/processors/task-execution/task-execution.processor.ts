@@ -199,7 +199,11 @@ export class TaskExecutionProcessor extends WorkerHost {
           (readings, step) => ({ ...readings, ...step.result.metricReadings }),
           {},
         );
-        await this.tasks.markTaskComplete({ taskId: task.id, result: { summary: end.summary, metricReadings, completedAt: new Date() } });
+        await this.tasks.markTaskComplete({
+          taskId: task.id,
+          result: { summary: end.summary, metricReadings, completedAt: new Date() },
+          ...this.locationOf(end.history),
+        });
         if (Object.keys(metricReadings).length > 0) {
           await this.metrics.recordReadings({ unitOfWorkId: task.job.unitOfWorkId, taskId: task.id, readings: metricReadings });
         }
@@ -215,12 +219,26 @@ export class TaskExecutionProcessor extends WorkerHost {
         break;
       case 'deferred':
         await this.tasks.markTaskDeferred(task.id);
-        await this.taskQueue.add(task.id, { workflowId, taskId: task.id }, { delay: (end.retryAfterMinutes ?? 0) * MS_PER_MINUTE });
+        await this.taskQueue.add(
+          task.id,
+          { workflowId, taskId: task.id },
+          { delay: (end.retryAfterMinutes ?? 0) * MS_PER_MINUTE },
+        );
         break;
     }
     for (const content of end.learnings) {
       await this.memory.recordLearning({ owner, workflowId, content });
     }
+  }
+
+  /**
+   * The Task's location: from the latest step the execution layer finished (`done`) with a location.
+   * A later step may only have checked something elsewhere, so the latest step alone is not enough.
+   */
+  private locationOf(history: readonly StepRecord[]): { locationPath: string | null; locationDetails: string | null } {
+    const located = [...history].reverse().find((step) => step.result.status === 'done' && step.result.locationPath !== '');
+    if (located === undefined) return { locationPath: null, locationDetails: null };
+    return { locationPath: located.result.locationPath, locationDetails: located.result.locationDetails || null };
   }
 
   /**

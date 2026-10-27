@@ -25,12 +25,16 @@ const OPENED: TaskOutcome = {
   status: 'complete',
   result: { summary: 'Subreddit open; 12 new posts.', metricReadings: { new_posts: 12 }, completedAt: new Date() },
   failureReason: null,
+  locationPath: 'reddit.com/r/AICompanion',
+  locationDetails: null,
 };
 const LINK_FAILED: TaskOutcome = {
   action: 'Post the launch link',
   status: 'failed',
   result: null,
   failureReason: 'Links are not allowed',
+  locationPath: null,
+  locationDetails: null,
 };
 
 const REVIEW: JobReview = {
@@ -72,7 +76,7 @@ describe('JobReasoningService', () => {
         '<LATEST_TASK>\nJust finished: [failed] Post the launch link\n   Failure: Links are not allowed\n</LATEST_TASK>',
       );
       expect(userPrompt).toContain(
-        '1. [complete] Open r/AICompanion\n   Result: Subreddit open; 12 new posts.\n   Metrics: new_posts=12',
+        '1. [complete] Open r/AICompanion\n   Result: Subreddit open; 12 new posts.\n   Metrics: new_posts=12\n   Location: reddit.com/r/AICompanion',
       );
       expect(userPrompt).toContain('<REMAINING_PLAN>\n1. Reply to the top thread\n</REMAINING_PLAN>');
     });

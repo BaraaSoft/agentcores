@@ -36,7 +36,8 @@ function result(overrides: Partial<ExecutionResult> = {}): ExecutionResult {
   return {
     status: 'done',
     summary: 'The top post is about memory in AI companions.',
-    finalLocation: 'Safari — reddit.com/r/AICompanion',
+    locationPath: 'reddit.com/r/AICompanion',
+    locationDetails: '',
     blocker: null,
     stepsTaken: 4,
     metricReadings: {},
@@ -101,7 +102,21 @@ function setup() {
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, taskId: TASK_ID } } as Job<TaskExecutionJobData>);
 
-  return { run, task, execution, taskQueue, jobQueue, reasoning, workflows, tasks, metrics, memory, privacyFilter, identity, reporting };
+  return {
+    run,
+    task,
+    execution,
+    taskQueue,
+    jobQueue,
+    reasoning,
+    workflows,
+    tasks,
+    metrics,
+    memory,
+    privacyFilter,
+    identity,
+    reporting,
+  };
 }
 
 describe('TaskExecutionProcessor', () => {
@@ -164,19 +179,62 @@ describe('TaskExecutionProcessor', () => {
       .mockResolvedValueOnce(step({ isTaskDone: true }));
     t.execution.runTask
       .mockResolvedValueOnce(result())
-      .mockResolvedValueOnce(result({ summary: 'Reply posted.', metricReadings: { upvotes: 2 } }));
+      .mockResolvedValueOnce(
+        result({
+          summary: 'Reply posted.',
+          locationPath: 'reddit.com/r/AICompanion/comments/abc123',
+          metricReadings: { upvotes: 2 },
+        }),
+      );
 
     const outcome = await t.run();
 
-    expect(outcome).toEqual({ taskId: TASK_ID, status: 'complete', summary: 'Reply posted.', iterations: 2, retryAfterMinutes: null });
+    expect(outcome).toEqual({
+      taskId: TASK_ID,
+      status: 'complete',
+      summary: 'Reply posted.',
+      iterations: 2,
+      retryAfterMinutes: null,
+    });
     expect(t.tasks.markTaskRunning).toHaveBeenCalledWith(TASK_ID);
     expect(t.tasks.markTaskComplete).toHaveBeenCalledWith({
       taskId: TASK_ID,
       result: { summary: 'Reply posted.', metricReadings: { upvotes: 2 }, completedAt: expect.any(Date) },
+      locationPath: 'reddit.com/r/AICompanion/comments/abc123',
+      locationDetails: null,
     });
     expect(t.metrics.recordReadings).toHaveBeenCalledWith({ unitOfWorkId: 'unit-1', taskId: TASK_ID, readings: { upvotes: 2 } });
     expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
     expect(t.taskQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('keeps the location of the latest finished step that reported one, not a later check elsewhere', async () => {
+    const t = setup();
+    t.reasoning.planNextStep
+      .mockResolvedValueOnce(step())
+      .mockResolvedValueOnce(step())
+      .mockResolvedValueOnce(step())
+      .mockResolvedValueOnce(step({ isTaskDone: true }));
+    t.execution.runTask
+      .mockResolvedValueOnce(result({ locationPath: 'Slack', locationDetails: 'Slack → #launch → thread from @ana' }))
+      .mockResolvedValueOnce(result({ status: 'failed', locationPath: 'Slack' }))
+      .mockResolvedValueOnce(result({ locationPath: '' }));
+
+    await t.run();
+
+    expect(t.tasks.markTaskComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ locationPath: 'Slack', locationDetails: 'Slack → #launch → thread from @ana' }),
+    );
+  });
+
+  it('completes without a location when no step reported one', async () => {
+    const t = setup();
+    t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ isTaskDone: true }));
+    t.execution.runTask.mockResolvedValueOnce(result({ locationPath: '' }));
+
+    await t.run();
+
+    expect(t.tasks.markTaskComplete).toHaveBeenCalledWith(expect.objectContaining({ locationPath: null, locationDetails: null }));
   });
 
   it('feeds every execution result back to reasoning unchanged, with the Task and safe context', async () => {
@@ -225,7 +283,9 @@ describe('TaskExecutionProcessor', () => {
 
   it('escalates a step that needs human judgment', async () => {
     const t = setup();
-    t.reasoning.planNextStep.mockResolvedValueOnce(step({ needsHumanJudgment: true, instruction: 'Spend $50 on a promoted post?' }));
+    t.reasoning.planNextStep.mockResolvedValueOnce(
+      step({ needsHumanJudgment: true, instruction: 'Spend $50 on a promoted post?' }),
+    );
 
     const outcome = await t.run();
 
@@ -250,7 +310,12 @@ describe('TaskExecutionProcessor', () => {
     const outcome = await t.run();
 
     expect(outcome).toEqual(expect.objectContaining({ status: 'deferred', retryAfterMinutes: 10 }));
-    expect(t.identity.recordChallenge).toHaveBeenCalledWith({ workflowId: WORKFLOW_ID, platform: 'reddit.com', taskId: TASK_ID, blocker });
+    expect(t.identity.recordChallenge).toHaveBeenCalledWith({
+      workflowId: WORKFLOW_ID,
+      platform: 'reddit.com',
+      taskId: TASK_ID,
+      blocker,
+    });
     expect(t.reasoning.decideOnBlocker).toHaveBeenCalledWith(expect.objectContaining({ recentChallengeCount: 3 }));
     expect(t.tasks.markTaskDeferred).toHaveBeenCalledWith(TASK_ID);
     expect(t.taskQueue.add).toHaveBeenCalledWith(TASK_ID, { workflowId: WORKFLOW_ID, taskId: TASK_ID }, { delay: 600_000 });
@@ -300,7 +365,9 @@ describe('TaskExecutionProcessor', () => {
   it('fails the Task when the blocker decision gives no way forward', async () => {
     const t = setup();
     t.reasoning.planNextStep.mockResolvedValueOnce(step());
-    t.execution.runTask.mockResolvedValueOnce(result({ status: 'blocked', blocker: { kind: 'account_restricted', detail: 'Suspended' } }));
+    t.execution.runTask.mockResolvedValueOnce(
+      result({ status: 'blocked', blocker: { kind: 'account_restricted', detail: 'Suspended' } }),
+    );
     t.reasoning.decideOnBlocker.mockResolvedValueOnce(decision({ rationale: 'Account suspended; not worth pursuing' }));
 
     const outcome = await t.run();

@@ -252,13 +252,17 @@ flowchart TD
     Claim -- no --> Skip3(["skip: another worker has it"])
     Claim -- yes --> Loop["plan → execute loop"]
     Loop --> End{"how it ended"}
-    End -- complete --> C["markTaskComplete + metric readings<br/>queue the Job for review"]
+    End -- complete --> C["markTaskComplete + metric readings + location<br/>queue the Job for review"]
     End -- failed --> F["markTaskFailed<br/>queue the Job for review"]
     End -- deferred --> D["markTaskDeferred<br/>queue this Task again after retryAfterMinutes"]
     End -- escalated --> E["raiseEscalation<br/>Job waits for the owner"]
 ```
 
 - The Task processor never picks the next Task; it hands the Job back to Job reasoning.
+- **Location.** A completed Task stores `locationPath` (the permalink, file path, or app where the work
+  lives) and `locationDetails` (brief steps to reach a view in software), taken from the latest step the
+  execution layer finished with a location. A later step that only checked something elsewhere does not
+  overwrite it. Job reasoning sees the location in each Task outcome and uses it in follow-up Tasks.
 - Learnings from blockers go to memory whatever the ending.
 - An exception inside the loop marks the Task `failed`, queues the Job for review, and rethrows; with no
   queue retries, the Task is not run again automatically.

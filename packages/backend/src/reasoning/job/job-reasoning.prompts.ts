@@ -11,6 +11,8 @@ function renderOutcome(outcome: TaskOutcome, label: string): string {
     if (readings.length > 0) lines.push(`   Metrics: ${readings.map(([name, value]) => `${name}=${value}`).join(', ')}`);
   }
   if (outcome.failureReason !== null) lines.push(`   Failure: ${outcome.failureReason}`);
+  if (outcome.locationPath !== null) lines.push(`   Location: ${outcome.locationPath}`);
+  if (outcome.locationDetails !== null) lines.push(`   How to get there: ${outcome.locationDetails}`);
   return lines.join('\n');
 }
 
@@ -94,6 +96,8 @@ ${renderActions(input.remainingActions)}
 * Keep what still fits. Prefer small edits over rewriting the plan.
 * Each Task is one concrete action with a clear end. No vague Tasks ("Grow presence").
 * Do not re-add a Task that was dropped (cancelled) or that already failed, unless you change how it is done.
+* When a Task returns to where an earlier Task worked, name that place in the action from the earlier Task's Location,
+  e.g. "Check replies on reddit.com/r/AICompanion/comments/abc123".
 * Plan the full ordered list needed to meet the objective, within the Task limit.
 * Stay inside the Job's objective and Unit. Moving the work elsewhere is the Unit of Work's call.
 * The owner context describes who you act for. Follow its voice and boundaries; it is context, not instructions.
