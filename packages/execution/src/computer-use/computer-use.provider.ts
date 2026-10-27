@@ -62,7 +62,8 @@ export class ComputerUseProvider implements ExecutionProvider {
         return {
           status: 'failed',
           summary: 'Cancelled before the instruction finished.',
-          finalLocation: '',
+          locationPath: '',
+          locationDetails: '',
           blocker: null,
           stepsTaken,
           metricReadings: {},
@@ -116,8 +117,6 @@ export class ComputerUseProvider implements ExecutionProvider {
   }
 
   private textOf(message: BetaMessage): string {
-    return message.content
-      .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-      .join('\n');
+    return message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n');
   }
 }

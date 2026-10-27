@@ -9,8 +9,13 @@ export interface ExecutionResult {
   readonly status: ExecutionStatus;
   /** Compressed description of the final state relevant to the instruction (≤ ~100 words). */
   readonly summary: string;
-  /** App and page the screen ended on, e.g. "Chrome — reddit.com/r/AICompanion". Empty when unknown. */
-  readonly finalLocation: string;
+  /**
+   * Where the instruction's work lives: the permalink of what was created or changed, an absolute file
+   * path, or the app name for a native app, e.g. "reddit.com/r/AICompanion/comments/abc123". Empty when unknown.
+   */
+  readonly locationPath: string;
+  /** For software views only: very brief steps to reach that view, e.g. "Slack → #launch → thread from @ana". Empty otherwise. */
+  readonly locationDetails: string;
   /** Set when `status` is `blocked`; `null` otherwise. */
   readonly blocker: ExecutionBlocker | null;
   readonly stepsTaken: number;

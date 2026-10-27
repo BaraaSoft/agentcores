@@ -51,7 +51,8 @@ describe('ComputerUseProvider', () => {
   const done: TaskReport = {
     status: 'done',
     summary: 'Top post upvoted.',
-    finalLocation: 'Chrome — reddit.com',
+    locationPath: 'reddit.com/r/AICompanion/comments/abc123',
+    locationDetails: '',
     blocker: null,
     metricReadings: [{ name: 'upvotes', value: 42 }],
   };
@@ -75,7 +76,8 @@ describe('ComputerUseProvider', () => {
     expect(result).toEqual({
       status: 'done',
       summary: 'Top post upvoted.',
-      finalLocation: 'Chrome — reddit.com',
+      locationPath: 'reddit.com/r/AICompanion/comments/abc123',
+      locationDetails: '',
       blocker: null,
       stepsTaken: 2,
       metricReadings: { upvotes: 42 },
@@ -110,7 +112,8 @@ describe('ComputerUseProvider', () => {
         reportCall({
           status: 'blocked',
           summary: 'Signed in with s3cret-pass, then a code was asked.',
-          finalLocation: 'Chrome — reddit.com/login',
+          locationPath: 'reddit.com/login',
+          locationDetails: '',
           blocker: { kind: 'verification_code', detail: 'Email code prompt.' },
           metricReadings: [],
         }),

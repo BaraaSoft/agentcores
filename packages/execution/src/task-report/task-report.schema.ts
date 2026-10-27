@@ -12,8 +12,22 @@ export const TASK_REPORT_SCHEMA = z.object({
     .describe('"done" when the instruction is finished, "blocked" when a gate stopped you, "failed" when it cannot be done.'),
   summary: z
     .string()
-    .describe('At most 100 words on the final state relevant to the instruction: what was done, what is visible now, anything surprising.'),
-  finalLocation: z.string().describe('The app and page the screen ended on, e.g. "Chrome — reddit.com/r/AICompanion".'),
+    .describe(
+      'At most 100 words on the final state relevant to the instruction: what was done, what is visible now, anything surprising.',
+    ),
+  locationPath: z
+    .string()
+    .describe(
+      'Where the work of the instruction lives, not just where the screen ended: the permalink of what you created or changed ' +
+        '(e.g. "reddit.com/r/AICompanion/comments/abc123"), an absolute file path, or the app name for a native app. ' +
+        'Empty when nothing was located.',
+    ),
+  locationDetails: z
+    .string()
+    .describe(
+      'Only for a view inside software with no address: very brief steps to reach it, e.g. "Slack → #launch → thread from @ana". ' +
+        'Empty for web pages and files.',
+    ),
   blocker: z
     .object({
       kind: z.enum(BLOCKER_KINDS),
