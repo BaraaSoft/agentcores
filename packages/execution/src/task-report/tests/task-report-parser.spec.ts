@@ -5,7 +5,8 @@ import type { ParseTaskReportInput } from '../types/parse-task-report-input';
 const report = (fields: Partial<TaskReport>): TaskReport => ({
   status: 'done',
   summary: 'Done.',
-  finalLocation: 'Chrome — reddit.com',
+  locationPath: 'reddit.com',
+  locationDetails: '',
   blocker: null,
   metricReadings: [],
   ...fields,
@@ -27,7 +28,7 @@ describe('TaskReportParser', () => {
       input({
         report: report({
           summary: 'Reply posted on the top thread.',
-          finalLocation: 'Chrome — reddit.com/r/AICompanion',
+          locationPath: 'https://reddit.com/r/AICompanion/comments/abc123?utm_source=share',
           metricReadings: [{ name: 'upvotes', value: 12 }],
         }),
       }),
@@ -35,7 +36,8 @@ describe('TaskReportParser', () => {
     expect(state).toEqual({
       status: 'done',
       summary: 'Reply posted on the top thread.',
-      finalLocation: 'Chrome — reddit.com/r/AICompanion',
+      locationPath: 'https://reddit.com/r/AICompanion/comments/abc123',
+      locationDetails: '',
       blocker: null,
       metricReadings: { upvotes: 12 },
     });
@@ -83,7 +85,8 @@ describe('TaskReportParser', () => {
         report: report({
           status: 'blocked',
           summary: 'Typed hunter2 into the login form.',
-          finalLocation: 'login?pw=hunter2',
+          locationPath: 'example.com/login?next=hunter2',
+          locationDetails: 'Settings → hunter2',
           blocker: { kind: 'verification_code', detail: 'Code asked after hunter2 was accepted.' },
         }),
         secrets: ['hunter2'],
@@ -104,7 +107,8 @@ describe('TaskReportParser', () => {
     expect(parser.parse(input({ finalText: 'I could not find the thread.' }))).toEqual({
       status: 'failed',
       summary: 'Finished without a task report: I could not find the thread.',
-      finalLocation: '',
+      locationPath: '',
+      locationDetails: '',
       blocker: null,
       metricReadings: {},
     });

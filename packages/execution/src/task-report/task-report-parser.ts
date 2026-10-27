@@ -1,4 +1,5 @@
 import type { ExecutionBlocker, ExecutionResult } from '@ahe/agent-core';
+import { cleanLocationPath } from '../utils/clean-location-path';
 import { redactSecrets } from '../utils/redact-secrets';
 import { TASK_REPORT_SCHEMA } from './task-report.schema';
 import type { TaskReport } from './task-report.schema';
@@ -16,7 +17,8 @@ type ReportedOutcome = Omit<ExecutionResult, 'stepsTaken'>;
  * The model ends a task by calling the strict `submit_task_report` tool, so the screen is summarised in the
  * same conversation that saw it — no extra model call, and no screenshot ever leaves the package.
  * The API enforces the schema; it is checked again here so a missing or malformed report becomes
- * a `failed` result, never a crash. Every returned string has the task's secrets redacted.
+ * a `failed` result, never a crash. Every returned string has the task's secrets redacted, and the
+ * location loses tracking and credential query parameters.
  */
 export class TaskReportParser {
   parse(input: ParseTaskReportInput): ReportedOutcome {
@@ -42,7 +44,8 @@ export class TaskReportParser {
     return {
       status: report.status,
       summary: this.truncate(report.summary, MAX_SUMMARY_LENGTH),
-      finalLocation: this.truncate(report.finalLocation, MAX_FIELD_LENGTH),
+      locationPath: this.truncate(cleanLocationPath(report.locationPath), MAX_FIELD_LENGTH),
+      locationDetails: this.truncate(report.locationDetails.trim(), MAX_FIELD_LENGTH),
       blocker: report.status === 'blocked' ? this.readBlocker(report) : null,
       metricReadings: this.readMetrics(report.metricReadings),
     };
@@ -64,7 +67,8 @@ export class TaskReportParser {
     return {
       ...state,
       summary: clean(state.summary),
-      finalLocation: clean(state.finalLocation),
+      locationPath: clean(state.locationPath),
+      locationDetails: clean(state.locationDetails),
       blocker: state.blocker === null ? null : { ...state.blocker, detail: clean(state.blocker.detail) },
     };
   }
@@ -73,7 +77,8 @@ export class TaskReportParser {
     return {
       status: 'failed',
       summary: this.truncate(summary, MAX_SUMMARY_LENGTH),
-      finalLocation: '',
+      locationPath: '',
+      locationDetails: '',
       blocker: null,
       metricReadings: {},
     };

@@ -11,4 +11,8 @@ export interface Task {
   readonly action: string;
   readonly status: TaskStatus;
   readonly result: TaskResult | null;
+  /** Where the Task was performed, as the execution layer reported it; set when the Task completes. */
+  readonly locationPath: string | null;
+  /** Brief steps to reach that place in software; `null` for web pages and files. */
+  readonly locationDetails: string | null;
 }

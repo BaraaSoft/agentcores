@@ -70,7 +70,7 @@ const result = await provider.runTask(
   },
   abortController.signal,
 );
-// → { status: 'done', summary: '…', finalLocation: 'Chrome — reddit.com/r/AICompanion',
+// → { status: 'done', summary: '…', locationPath: 'reddit.com/r/AICompanion/comments/abc123', locationDetails: '',
 //     blocker: null, stepsTaken: 7, metricReadings: { upvotes: 43 } }
 ```
 
@@ -238,7 +238,8 @@ flowchart TD
 | ---------------- | --------------------------------------------------------------------------------------- |
 | `status`         | `done`, `blocked`, or `failed`                                                          |
 | `summary`        | ≤ 100 words requested, truncated at 900 characters                                      |
-| `finalLocation`  | App and page the screen ended on, truncated at 300 characters                           |
+| `locationPath`   | Where the work lives (permalink, file path, or app name); tracking and credential query parameters are stripped; truncated at 300 characters |
+| `locationDetails` | Brief steps to reach a view in software with no address; empty for web pages and files; truncated at 300 characters |
 | `blocker`        | Kept only when `blocked`; a blocked report without one gets kind `other` and the summary |
 | `metricReadings` | Sent as `[{name, value}]` (strict mode has no maps), returned as `{ name: value }`       |
 
