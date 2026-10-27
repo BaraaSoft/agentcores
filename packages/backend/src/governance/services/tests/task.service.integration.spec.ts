@@ -170,20 +170,29 @@ describeWithDatabase('TaskService (Postgres)', () => {
       expect(await service.markTaskRunning(tasks[0].id)).toBe(true);
     });
 
-    it('stores the result when a running Task completes', async () => {
+    it('stores the result and location when a running Task completes', async () => {
       const { tasks } = await jobWithTasks(['running']);
       const completedAt = new Date('2026-10-24T09:00:00Z');
 
       const changed = await service.markTaskComplete({
         taskId: tasks[0].id,
         result: { summary: 'Reply posted.', metricReadings: { upvotes: 2 }, completedAt },
+        locationPath: 'reddit.com/r/AICompanion/comments/abc123',
+        locationDetails: null,
       });
 
       const task = await reload(tasks[0].id);
       expect(changed).toBe(true);
       expect(task.status).toBe('complete');
       expect(task.completedAt).toEqual(completedAt);
-      expect(task.result).toEqual({ summary: 'Reply posted.', metricReadings: { upvotes: 2 }, completedAt: completedAt.toISOString() });
+      expect(task.result).toEqual({
+        summary: 'Reply posted.',
+        metricReadings: { upvotes: 2 },
+        completedAt: completedAt.toISOString(),
+      });
+      expect(task).toEqual(
+        expect.objectContaining({ locationPath: 'reddit.com/r/AICompanion/comments/abc123', locationDetails: null }),
+      );
     });
 
     it('defers a running Task and clears its start time', async () => {
@@ -212,7 +221,17 @@ describeWithDatabase('TaskService (Postgres)', () => {
     });
 
     it.each<[string, (taskId: string) => Promise<boolean>, TaskStatus]>([
-      ['complete a pending Task', (taskId) => service.markTaskComplete({ taskId, result: { summary: '', metricReadings: {}, completedAt: new Date() } }), 'pending'],
+      [
+        'complete a pending Task',
+        (taskId) =>
+          service.markTaskComplete({
+            taskId,
+            result: { summary: '', metricReadings: {}, completedAt: new Date() },
+            locationPath: null,
+            locationDetails: null,
+          }),
+        'pending',
+      ],
       ['run a complete Task', (taskId) => service.markTaskRunning(taskId), 'complete'],
       ['put a failed Task back to pending', (taskId) => service.markTaskPending(taskId), 'failed'],
       ['defer a pending Task', (taskId) => service.markTaskDeferred(taskId), 'pending'],

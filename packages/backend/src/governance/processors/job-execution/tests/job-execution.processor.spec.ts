@@ -31,6 +31,8 @@ function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`)
     status,
     result: null,
     failureReason: status === 'failed' ? 'Page not found' : null,
+    locationPath: null,
+    locationDetails: null,
   };
 }
 
@@ -140,8 +142,24 @@ describe('JobExecutionProcessor', () => {
 
       expect(t.jobReasoning.reviewJob).toHaveBeenCalledWith(
         expect.objectContaining({
-          latestOutcome: { action: 'Open r/AICompanion', status: 'complete', result: null, failureReason: null },
-          history: [{ action: 'Task 1', status: 'cancelled', result: null, failureReason: null }],
+          latestOutcome: {
+            action: 'Open r/AICompanion',
+            status: 'complete',
+            result: null,
+            failureReason: null,
+            locationPath: null,
+            locationDetails: null,
+          },
+          history: [
+            {
+              action: 'Task 1',
+              status: 'cancelled',
+              result: null,
+              failureReason: null,
+              locationPath: null,
+              locationDetails: null,
+            },
+          ],
           remainingActions: ['Reply'],
         }),
       );

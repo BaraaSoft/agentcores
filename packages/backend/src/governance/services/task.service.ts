@@ -145,12 +145,14 @@ export class TaskService {
   }
 
   /**
-   * running → complete, storing the result.
+   * running → complete, storing the result and the location.
    */
   async markTaskComplete(input: CompleteTaskInput): Promise<boolean> {
     return this.transition(input.taskId, ['running'], {
       status: 'complete',
       result: input.result,
+      locationPath: input.locationPath,
+      locationDetails: input.locationDetails,
       completedAt: input.result.completedAt,
     });
   }

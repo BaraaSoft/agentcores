@@ -38,6 +38,14 @@ export class TaskEntity {
   @Column({ type: 'text', nullable: true })
   failureReason: string | null;
 
+  /** Where the Task was performed (a permalink, a file path, or an app), as the execution layer reported it on completion. */
+  @Column({ type: 'text', nullable: true })
+  locationPath: string | null;
+
+  /** Brief steps to reach that view in software with no address; null for web pages and files. */
+  @Column({ type: 'text', nullable: true })
+  locationDetails: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   startedAt: Date | null;
 

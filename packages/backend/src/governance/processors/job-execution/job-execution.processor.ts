@@ -185,7 +185,14 @@ export class JobExecutionProcessor extends WorkerHost {
   }
 
   private outcome(task: TaskEntity): TaskOutcome {
-    return { action: task.action, status: task.status, result: task.result, failureReason: task.failureReason };
+    return {
+      action: task.action,
+      status: task.status,
+      result: task.result,
+      failureReason: task.failureReason,
+      locationPath: task.locationPath,
+      locationDetails: task.locationDetails,
+    };
   }
 
   private remainingActions(tasks: readonly TaskEntity[]): string[] {
