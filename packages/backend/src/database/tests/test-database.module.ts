@@ -17,6 +17,7 @@ export interface TestDatabaseOptions {
  * The integration-spec counterpart of `DatabaseModule`: connects to the test database from
  * `testDatabaseConfig`, rebuilds the given entities' tables in the suite's own schema, and exports
  * their repositories so services under test get them through dependency injection.
+ * The `vector` extension is created in `public`, where every suite's schema can reach its operators.
  */
 @Module({})
 export class TestDatabaseModule {
@@ -34,6 +35,7 @@ export class TestDatabaseModule {
           },
           dataSourceFactory: async (dataSourceOptions?: DataSourceOptions) => {
             const dataSource = await new DataSource(dataSourceOptions!).initialize();
+            await dataSource.query('CREATE EXTENSION IF NOT EXISTS vector');
             await dataSource.query(`CREATE SCHEMA IF NOT EXISTS "${options.schema}"`);
             await dataSource.synchronize(true);
             return dataSource;
