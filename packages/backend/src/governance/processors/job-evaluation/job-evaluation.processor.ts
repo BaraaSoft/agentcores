@@ -157,13 +157,30 @@ export class JobEvaluationProcessor extends WorkerHost {
       strategyId: evaluation.job.unitOfWork.strategyId,
       plannedJob: {
         name: request.evidenceJobName.slice(0, JOB_NAME_MAX_LENGTH),
-        objective: request.evidenceObjective,
+        objective: this.evidenceObjective(request),
         unitName: EVALUATIONS_UNIT_NAME,
       },
     });
     if (!(await this.evaluations.parkForEvidence(evaluation.id, evidenceJob.id))) return;
     const jobId = evidenceJob.id;
     await this.jobQueue.add(jobId, { workflowId, jobId }, { jobId });
+  }
+
+  /**
+   * The errand as a Job objective. Where the mark turns on quality that has to be seen, the criteria
+   * the evaluator drew from its research are listed with the key each reading must come back under,
+   * so the standard reaches the one agent that can actually look at the work. Everything the errand
+   * needs is in this one objective: planning and execution never see the judgement behind it.
+   */
+  private evidenceObjective(request: EvidenceRequest): string {
+    if (request.evidenceCriteria.length === 0) return request.evidenceObjective;
+    const criteria = request.evidenceCriteria
+      .map((criterion, index) => `${index + 1}. (${criterion.key}) ${criterion.whatToExamine}`)
+      .join('\n');
+    return `${request.evidenceObjective}
+
+Open the work once and rate each of these from 1 to 10, reporting each as a metric reading under the key in brackets:
+${criteria}`;
   }
 
   /** What the evidence Job reported, once it has closed; null when none was ever asked for. */

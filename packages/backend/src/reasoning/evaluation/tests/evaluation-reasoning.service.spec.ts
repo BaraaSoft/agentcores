@@ -45,6 +45,7 @@ const NEEDS_EVIDENCE = {
   whatBad: null,
   evidenceJobName: 'Read upvotes on the intro post',
   evidenceObjective: 'Open reddit.com/r/AICompanion/comments/abc123 and report its upvotes, comments, and views.',
+  evidenceCriteria: null,
 };
 
 function setup() {
@@ -129,10 +130,19 @@ describe('EvaluationReasoningService', () => {
 
       expect(judgement).toEqual({
         verdict: 'needs_evidence',
+        evidenceCriteria: [],
         evidenceJobName: 'Read upvotes on the intro post',
         evidenceObjective: 'Open reddit.com/r/AICompanion/comments/abc123 and report its upvotes, comments, and views.',
         rubric: 'Upvotes decide the score and the post was only minutes old.',
       });
+    });
+
+    it('passes the criteria through when the mark turns on quality that has to be seen', async () => {
+      const t = setup();
+      const criteria = [{ key: 'title_legibility', whatToExamine: 'Whether the titles stay readable at normal size.' }];
+      t.model.completeStructured.mockResolvedValue({ ...NEEDS_EVIDENCE, evidenceCriteria: criteria });
+
+      expect(await t.service.judgeJob(JOB)).toMatchObject({ evidenceCriteria: criteria });
     });
 
     it('names the errand after the Job when the model leaves the name out', async () => {
