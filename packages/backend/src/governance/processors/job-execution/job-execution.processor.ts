@@ -2,7 +2,8 @@ import type { TaskStatus } from '@ahe/agent-core';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
-import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import type { JobEvaluationJobData } from '../../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import { JobReasoningService } from '../../../reasoning/job/job-reasoning.service';
@@ -11,8 +12,10 @@ import type { WorkflowEntity } from '../../../workflow/entities/workflow.entity'
 import { WorkflowService } from '../../../workflow/workflow.service';
 import type { JobEntity } from '../../entities/job.entity';
 import type { TaskEntity } from '../../entities/task.entity';
+import { JobEvaluationService } from '../../services/job-evaluation.service';
 import { JobService } from '../../services/job.service';
 import { TaskService } from '../../services/task.service';
+import { toTaskOutcome } from '../to-task-outcome';
 import {
   JOB_CONTEXT_RECORD_LIMIT,
   MAX_CONSECUTIVE_FAILURES,
@@ -33,17 +36,21 @@ type JobRun = { readonly workflow: WorkflowEntity; readonly job: JobEntity; read
  * saves the result in one write. Once the Job's finished Tasks are reviewed, its current Task is
  * queued if it is pending. Only one Task of a Job is queued at a time; the Task processor sends the
  * Job back here when a Task completes or fails. Queuing the same Job again is safe, which is how
- * paused Jobs and resolved escalations resume.
+ * paused Jobs and resolved escalations resume. A Job that closes having been spun up to gather
+ * evidence hands the evaluation waiting on it back to the evaluator.
  */
 @Processor(JOB_EXECUTION_QUEUE)
 export class JobExecutionProcessor extends WorkerHost {
   constructor(
     @InjectQueue(TASK_EXECUTION_QUEUE)
     private readonly taskQueue: Queue<TaskExecutionJobData>,
+    @InjectQueue(JOB_EVALUATION_QUEUE)
+    private readonly evaluationQueue: Queue<JobEvaluationJobData>,
     private readonly jobReasoning: JobReasoningService,
     private readonly workflows: WorkflowService,
     private readonly jobs: JobService,
     private readonly tasks: TaskService,
+    private readonly evaluations: JobEvaluationService,
     private readonly memory: MemoryRetrievalService,
   ) {
     super();
@@ -77,11 +84,27 @@ export class JobExecutionProcessor extends WorkerHost {
       // - failed: a system limit was hit (3 failed Tasks in a row, an empty plan,
       //   the 20-Task cap, or Job reasoning throwing too many times).
       // Its pending Tasks were already cancelled when it closed.
-      if (isClosed) return;
+      if (isClosed) return this.resumeEvaluation(workflowId, jobId);
     }
 
     const next = await this.tasks.findNextPendingTask(jobId);
     if (next !== null) await this.taskQueue.add(next.id, { workflowId, taskId: next.id });
+  }
+
+  /**
+   * Step 7 of the evaluation round trip (mapped out on `JobEvaluationProcessor`): this Job has just
+   * closed, and if it was spun up to gather evidence for a judgement, that judgement goes back to the
+   * evaluator now its evidence is in.
+   *
+   * Nothing marks an evidence Job out as different while it runs — it is planned, executed, and closed
+   * like any other Job — so the only way to tell is to ask whether a judgement is parked on it. For
+   * every ordinary Job that is one lookup returning null, and nothing else happens.
+   */
+  private async resumeEvaluation(workflowId: string, jobId: string): Promise<void> {
+    const waiting = await this.evaluations.findEvaluationAwaiting(jobId);
+    if (waiting === null) return;
+    if (!(await this.evaluations.resumeFromEvidence(waiting.id))) return;
+    await this.evaluationQueue.add(waiting.id, { kind: 'judge', workflowId, evaluationId: waiting.id });
   }
 
   /**
@@ -120,7 +143,7 @@ export class JobExecutionProcessor extends WorkerHost {
     const remainingActions = this.remainingActions(tasks);
     const review = await this.jobReasoning.reviewJob({
       ...this.jobContext(run),
-      latestOutcome: this.outcome(latest),
+      latestOutcome: toTaskOutcome(latest),
       history: this.history(tasks.filter((task) => task.id !== latest.id)),
       remainingActions,
     });
@@ -181,18 +204,7 @@ export class JobExecutionProcessor extends WorkerHost {
   }
 
   private history(tasks: readonly TaskEntity[]): TaskOutcome[] {
-    return tasks.filter((task) => HISTORY_STATUSES.includes(task.status)).map((task) => this.outcome(task));
-  }
-
-  private outcome(task: TaskEntity): TaskOutcome {
-    return {
-      action: task.action,
-      status: task.status,
-      result: task.result,
-      failureReason: task.failureReason,
-      locationPath: task.locationPath,
-      locationDetails: task.locationDetails,
-    };
+    return tasks.filter((task) => HISTORY_STATUSES.includes(task.status)).map(toTaskOutcome);
   }
 
   private remainingActions(tasks: readonly TaskEntity[]): string[] {

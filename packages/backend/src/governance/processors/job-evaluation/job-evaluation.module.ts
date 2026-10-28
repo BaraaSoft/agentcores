@@ -1,0 +1,22 @@
+import { BullModule } from '@nestjs/bullmq';
+import { Module } from '@nestjs/common';
+import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { ReasoningModule } from '../../../reasoning/reasoning.module';
+import { WorkflowModule } from '../../../workflow/workflow.module';
+import { GovernanceModule } from '../../governance.module';
+import { JobEvaluationProcessor } from './job-evaluation.processor';
+
+/**
+ * The worker that marks finished work: the daily sweep over Jobs that saw activity, and the
+ * judgement of each one.
+ */
+@Module({
+  imports: [
+    BullModule.registerQueue({ name: JOB_EVALUATION_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
+    GovernanceModule,
+    ReasoningModule,
+    WorkflowModule,
+  ],
+  providers: [JobEvaluationProcessor],
+})
+export class JobEvaluationModule {}

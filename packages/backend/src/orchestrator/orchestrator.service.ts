@@ -47,7 +47,7 @@ export class OrchestratorService implements OnApplicationBootstrap {
 
   /**
    * Starts a Workflow: plans its first Strategy if it has none, registers its
-   * daily-report and cycle-check repeatable jobs, and sets it `running`.
+   * daily-evaluation, daily-report and cycle-check repeatable jobs, and sets it `running`.
    */
   async startWorkflow(workflowId: string): Promise<WorkflowEntity> {
     throw new NotImplementedException();

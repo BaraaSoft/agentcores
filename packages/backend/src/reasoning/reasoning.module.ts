@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Module } from '@nestjs/common';
 import { ConfigModule, type ConfigType } from '@nestjs/config';
+import { EvaluationReasoningService } from './evaluation/evaluation-reasoning.service';
 import { JobReasoningModelClient } from './job/job-reasoning-model.client';
 import { JobReasoningService } from './job/job-reasoning.service';
 import { ReasoningModelClient } from './reasoning-model.client';
@@ -15,7 +16,8 @@ import { UnitReasoningService } from './unit-of-work/unit-reasoning.service';
 type ReasoningConfig = ConfigType<typeof reasoningConfig>;
 
 /**
- * The reasoning layer, one service per governance level: Strategy, Unit of Work, Job, Task.
+ * The reasoning layer, one service per governance level: Strategy, Unit of Work, Job, Task, plus the
+ * evaluator that marks finished work.
  * One Anthropic instance is shared; each level's model client wraps it with that level's model.
  * A leaf module: other modules call it, it calls no one.
  */
@@ -47,7 +49,8 @@ type ReasoningConfig = ConfigType<typeof reasoningConfig>;
     UnitReasoningService,
     JobReasoningService,
     TaskReasoningService,
+    EvaluationReasoningService,
   ],
-  exports: [StrategyReasoningService, UnitReasoningService, JobReasoningService, TaskReasoningService],
+  exports: [StrategyReasoningService, UnitReasoningService, JobReasoningService, TaskReasoningService, EvaluationReasoningService],
 })
 export class ReasoningModule {}

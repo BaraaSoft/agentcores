@@ -1,14 +1,8 @@
 import { ToolsetFactory } from '../../tools/toolset.factory';
 import type { ToolLoopInput } from '../../types/tool-loop-input';
 import type { JobReasoningModelClient } from '../job-reasoning-model.client';
-import {
-  EVALUATE_JOB_MAX_TOKENS,
-  PLAN_TASKS_MAX_TOKENS,
-  PLAN_TASKS_MAX_TURNS,
-  REVIEW_JOB_MAX_TOKENS,
-} from '../job-reasoning.constants';
+import { PLAN_TASKS_MAX_TOKENS, PLAN_TASKS_MAX_TURNS, REVIEW_JOB_MAX_TOKENS } from '../job-reasoning.constants';
 import { JobReasoningService } from '../job-reasoning.service';
-import { JOB_EVALUATION_OUTPUT_SCHEMA } from '../schemas/job-evaluation-output.schema';
 import { JOB_REVIEW_SCHEMA } from '../schemas/job-review.schema';
 import type { JobReview } from '../types/job-review';
 import type { TaskOutcome } from '../types/task-outcome';
@@ -126,29 +120,5 @@ describe('JobReasoningService', () => {
       expect(t.loop().userPrompt).toContain('None — this is the first plan.');
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');
     });
-  });
-
-  it('evaluates an open Job and returns it with no outcome', async () => {
-    const t = setup();
-    t.model.completeStructured.mockResolvedValue({ summary: 'Half done.', followUpActions: ['Reply to the top thread'] });
-
-    const evaluation = await t.service.evaluateJob({
-      jobId: 'job-1',
-      jobName: JOB.jobName,
-      objective: JOB.objective,
-      tasks: [OPENED, LINK_FAILED],
-    });
-
-    expect(evaluation).toEqual({
-      jobId: 'job-1',
-      jobName: 'Engage r/AICompanion',
-      outcomeStatus: null,
-      summary: 'Half done.',
-      followUpActions: ['Reply to the top thread'],
-    });
-    expect(t.structured()).toEqual(
-      expect.objectContaining({ schema: JOB_EVALUATION_OUTPUT_SCHEMA, maxTokens: EVALUATE_JOB_MAX_TOKENS }),
-    );
-    expect(t.structured().userPrompt).toContain('2. [failed] Post the launch link');
   });
 });

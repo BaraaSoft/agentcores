@@ -1,11 +1,13 @@
 import type { TaskStatus } from '@ahe/agent-core';
 import type { Job, Queue } from 'bullmq';
 import type { MemoryRetrievalService } from '../../../../memory/memory-retrieval.service';
+import type { JobEvaluationJobData } from '../../../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../../queue/types/task-execution-job-data';
 import type { JobReasoningService } from '../../../../reasoning/job/job-reasoning.service';
 import type { JobReview } from '../../../../reasoning/job/types/job-review';
 import type { WorkflowService } from '../../../../workflow/workflow.service';
+import type { JobEvaluationService } from '../../../services/job-evaluation.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
 import {
@@ -38,6 +40,7 @@ function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`)
 
 function setup() {
   const taskQueue = { add: jest.fn().mockResolvedValue(undefined) };
+  const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const jobReasoning = {
     reviewJob: jest.fn().mockResolvedValue(review()),
     planTasks: jest.fn().mockResolvedValue(['Open r/AICompanion', 'Reply']),
@@ -62,16 +65,22 @@ function setup() {
     markTaskReviewed: jest.fn().mockResolvedValue(true),
     findNextPendingTask: jest.fn().mockResolvedValue({ id: 'task-1' }),
   };
+  const evaluations = {
+    findEvaluationAwaiting: jest.fn().mockResolvedValue(null),
+    resumeFromEvidence: jest.fn().mockResolvedValue(true),
+  };
   const memory = {
     retrieveSafeContext: jest.fn().mockResolvedValue({ owner: 'owner-1', records: [], promptBlock: 'Voice: warm, short.' }),
   };
 
   const processor = new JobExecutionProcessor(
     taskQueue as unknown as Queue<TaskExecutionJobData>,
+    evaluationQueue as unknown as Queue<JobEvaluationJobData>,
     jobReasoning as unknown as JobReasoningService,
     workflows as unknown as WorkflowService,
     jobs as unknown as JobService,
     tasks as unknown as TaskService,
+    evaluations as unknown as JobEvaluationService,
     memory as unknown as MemoryRetrievalService,
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, jobId: JOB_ID } } as Job<JobExecutionJobData>);
@@ -84,7 +93,7 @@ function setup() {
   };
   const savedActions = () => tasks.replaceRemainingTasks.mock.calls[0]?.[0].actions;
 
-  return { run, reviewing, savedActions, taskQueue, jobReasoning, workflows, jobs, tasks, memory };
+  return { run, reviewing, savedActions, taskQueue, evaluationQueue, jobReasoning, workflows, jobs, tasks, evaluations, memory };
 }
 
 describe('JobExecutionProcessor', () => {
@@ -214,6 +223,32 @@ describe('JobExecutionProcessor', () => {
       expect(t.jobs.closeJob).toHaveBeenCalledWith({ jobId: JOB_ID, status: 'success', summary: 'Target reached.' });
       expect(t.tasks.markTaskReviewed).toHaveBeenCalledWith('task-1');
       expect(t.taskQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('hands a closing evidence Job back to the evaluation waiting on it', async () => {
+      const t = setup();
+      t.reviewing([task(1, 'complete')]);
+      t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'met', summary: '61 upvotes.' }));
+      t.evaluations.findEvaluationAwaiting.mockResolvedValue({ id: 'eval-1' });
+
+      await t.run();
+
+      expect(t.evaluations.findEvaluationAwaiting).toHaveBeenCalledWith(JOB_ID);
+      expect(t.evaluationQueue.add).toHaveBeenCalledWith('eval-1', {
+        kind: 'judge',
+        workflowId: WORKFLOW_ID,
+        evaluationId: 'eval-1',
+      });
+    });
+
+    it('queues no evaluation for an ordinary Job that closes', async () => {
+      const t = setup();
+      t.reviewing([task(1, 'complete')]);
+      t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'met', summary: 'Target reached.' }));
+
+      await t.run();
+
+      expect(t.evaluationQueue.add).not.toHaveBeenCalled();
     });
 
     it('closes the Job as abandoned when Job reasoning decides to stop', async () => {
