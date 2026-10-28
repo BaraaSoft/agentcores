@@ -1,0 +1,269 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
+import { describeWithDatabase } from '../../../database/tests/test-database.config';
+import { TestDatabaseModule } from '../../../database/tests/test-database.module';
+import { EmbeddingClient } from '../../../embedding/embedding.client';
+import { EMBEDDING_DIMENSIONS } from '../../../embedding/embedding.constants';
+import { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
+import { JobEvaluationService } from '../job-evaluation.service';
+import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
+
+const DATE = '2026-10-26';
+
+/**
+ * Embeds by direction rather than by meaning: each text is placed at a fixed angle, so texts at
+ * nearby angles come out close and the suite can assert on the ordering the real model would give.
+ */
+const ANGLES: Record<string, number> = {
+  'Introduce a product to a small online community through a text post': 0,
+  'Share a product announcement in a niche discussion forum': 0.3,
+  'Reply to comments on an existing community thread': 1.0,
+  'Produce a mechanical part design and export it for manufacture': 3.0,
+};
+
+class AngleEmbeddingClient extends EmbeddingClient {
+  async embed(text: string): Promise<number[]> {
+    const angle = ANGLES[text];
+    if (angle === undefined) throw new Error(`No angle for "${text}"`);
+    const vector = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
+    vector[0] = Math.cos(angle);
+    vector[1] = Math.sin(angle);
+    return vector;
+  }
+}
+
+describeWithDatabase('JobEvaluationService (Postgres)', () => {
+  let moduleRef: TestingModule;
+  let dataSource: DataSource;
+  let seeder: GovernanceSeeder;
+  let service: JobEvaluationService;
+
+  beforeAll(async () => {
+    moduleRef = await Test.createTestingModule({
+      imports: [TestDatabaseModule.register({ schema: 'job_evaluation_service_spec', entities: GOVERNANCE_ENTITIES })],
+      providers: [JobEvaluationService, GovernanceSeeder, { provide: EmbeddingClient, useClass: AngleEmbeddingClient }],
+    }).compile();
+    dataSource = moduleRef.get(DataSource);
+    seeder = moduleRef.get(GovernanceSeeder);
+    service = moduleRef.get(JobEvaluationService);
+  });
+
+  afterAll(async () => {
+    await moduleRef.close();
+  });
+
+  beforeEach(async () => {
+    await seeder.clear();
+  });
+
+  const reload = (evaluationId: string) => dataSource.getRepository(JobEvaluationEntity).findOneByOrFail({ id: evaluationId });
+
+  /** One Workflow with a Job under it, ready to be judged. */
+  async function openEvaluation(jobName = 'Engage r/AICompanion') {
+    const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+    const unit = await seeder.unit(strategy.id, 'Community engagement');
+    const job = await seeder.job(unit.id, jobName);
+    const evaluation = await service.createEvaluation({
+      workflowId: workflow.id,
+      jobId: job.id,
+      unitOfWorkId: unit.id,
+      evaluationDate: DATE,
+    });
+    return { workflow, unit, job, evaluation };
+  }
+
+  function score(evaluationId: string, objectiveSummary: string, scoreOutOfTen = 4) {
+    return service.recordScore({
+      evaluationId,
+      score: scoreOutOfTen,
+      objectiveSummary,
+      whatGood: 'Led with a question.',
+      whatBad: 'Posted at 3am.',
+      rubric: 'Judged on upvotes.',
+    });
+  }
+
+  describe('createEvaluation', () => {
+    it('opens a judgement in the judging state', async () => {
+      const { evaluation } = await openEvaluation();
+
+      expect(evaluation).toMatchObject({ state: 'judging', score: null, attempts: 0, evidenceJobId: null });
+    });
+
+    it('returns the judgement already opened rather than a second one for the same day', async () => {
+      const { workflow, unit, job, evaluation } = await openEvaluation();
+
+      const again = await service.createEvaluation({
+        workflowId: workflow.id,
+        jobId: job.id,
+        unitOfWorkId: unit.id,
+        evaluationDate: DATE,
+      });
+
+      expect(again.id).toBe(evaluation.id);
+      expect(await dataSource.getRepository(JobEvaluationEntity).count()).toBe(1);
+    });
+
+    it('judges the same Job again on another day', async () => {
+      const { workflow, unit, job } = await openEvaluation();
+
+      await service.createEvaluation({
+        workflowId: workflow.id,
+        jobId: job.id,
+        unitOfWorkId: unit.id,
+        evaluationDate: '2026-10-27',
+      });
+
+      expect(await dataSource.getRepository(JobEvaluationEntity).count()).toBe(2);
+    });
+  });
+
+  describe('the states a judgement moves through', () => {
+    it('records the score, the feedback, and the objective vector', async () => {
+      const { evaluation } = await openEvaluation();
+
+      expect(await score(evaluation.id, 'Reply to comments on an existing community thread')).toBe(true);
+
+      const stored = await reload(evaluation.id);
+      expect(stored).toMatchObject({
+        state: 'scored',
+        score: 4,
+        objectiveSummary: 'Reply to comments on an existing community thread',
+        whatGood: 'Led with a question.',
+        whatBad: 'Posted at 3am.',
+      });
+      expect(stored.objectiveEmbedding).toHaveLength(EMBEDDING_DIMENSIONS);
+    });
+
+    it('does not score a judgement twice', async () => {
+      const { evaluation } = await openEvaluation();
+      await score(evaluation.id, 'Reply to comments on an existing community thread', 4);
+
+      expect(await score(evaluation.id, 'Reply to comments on an existing community thread', 9)).toBe(false);
+      expect((await reload(evaluation.id)).score).toBe(4);
+    });
+
+    it('parks on an evidence Job, wakes again, and can then be scored', async () => {
+      const { evaluation } = await openEvaluation();
+      const evidenceJob = await seeder.job((await reload(evaluation.id)).unitOfWorkId, 'Read the upvotes');
+
+      expect(await service.parkForEvidence(evaluation.id, evidenceJob.id)).toBe(true);
+      expect(await reload(evaluation.id)).toMatchObject({ state: 'awaiting_evidence', evidenceJobId: evidenceJob.id });
+
+      expect(await service.findEvaluationAwaiting(evidenceJob.id)).toMatchObject({ id: evaluation.id });
+      expect(await service.resumeFromEvidence(evaluation.id)).toBe(true);
+      expect(await score(evaluation.id, 'Reply to comments on an existing community thread')).toBe(true);
+    });
+
+    it('will not park a judgement that has already settled', async () => {
+      const { evaluation } = await openEvaluation();
+      await score(evaluation.id, 'Reply to comments on an existing community thread');
+
+      expect(await service.parkForEvidence(evaluation.id, evaluation.jobId)).toBe(false);
+    });
+
+    it('counts attempts one at a time', async () => {
+      const { evaluation } = await openEvaluation();
+
+      expect(await service.recordJudgingAttempt(evaluation.id)).toBe(1);
+      expect(await service.recordJudgingAttempt(evaluation.id)).toBe(2);
+    });
+
+    it('records why a judgement was given up on', async () => {
+      const { evaluation } = await openEvaluation();
+
+      expect(await service.failEvaluation(evaluation.id, 'judging threw 3 times')).toBe(true);
+      expect(await reload(evaluation.id)).toMatchObject({ state: 'failed', rubric: 'Not judged: judging threw 3 times' });
+    });
+  });
+
+  describe('searchPastEvaluations', () => {
+    /** Three scored Jobs in one Workflow, at increasing distance from the forum-post objective. */
+    async function scoredWorkflow() {
+      const { workflow, unit } = await openEvaluation('Post an intro');
+      const summaries = [
+        'Introduce a product to a small online community through a text post',
+        'Reply to comments on an existing community thread',
+        'Produce a mechanical part design and export it for manufacture',
+      ];
+      for (const [index, objectiveSummary] of summaries.entries()) {
+        const job = await seeder.job(unit.id, `Job ${index}`);
+        const evaluation = await service.createEvaluation({
+          workflowId: workflow.id,
+          jobId: job.id,
+          unitOfWorkId: unit.id,
+          evaluationDate: DATE,
+        });
+        await score(evaluation.id, objectiveSummary, index + 2);
+      }
+      return { workflow, unit };
+    }
+
+    it('returns the closest objectives first', async () => {
+      const { workflow } = await scoredWorkflow();
+
+      const found = await service.searchPastEvaluations({
+        workflowId: workflow.id,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 3,
+      });
+
+      expect(found.map((evaluation) => evaluation.objectiveSummary)).toEqual([
+        'Introduce a product to a small online community through a text post',
+        'Reply to comments on an existing community thread',
+        'Produce a mechanical part design and export it for manufacture',
+      ]);
+    });
+
+    it('returns at most the limit asked for', async () => {
+      const { workflow } = await scoredWorkflow();
+
+      const found = await service.searchPastEvaluations({
+        workflowId: workflow.id,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 1,
+      });
+
+      expect(found).toHaveLength(1);
+      expect(found[0].objectiveSummary).toBe('Introduce a product to a small online community through a text post');
+    });
+
+    it('narrows to the Jobs that went badly when asked for a ceiling', async () => {
+      const { workflow } = await scoredWorkflow();
+
+      const found = await service.searchPastEvaluations({
+        workflowId: workflow.id,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 3,
+        maxScore: 2,
+      });
+
+      expect(found.map((evaluation) => evaluation.score)).toEqual([2]);
+    });
+
+    it('never crosses into another owner\u2019s Workflow', async () => {
+      await scoredWorkflow();
+      const other = await seeder.workflowWithActiveStrategy();
+
+      const found = await service.searchPastEvaluations({
+        workflowId: other.workflow.id,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 3,
+      });
+
+      expect(found).toEqual([]);
+    });
+
+    it('skips judgements that were never scored', async () => {
+      const { workflow } = await openEvaluation();
+
+      const found = await service.searchPastEvaluations({
+        workflowId: workflow.id,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 3,
+      });
+
+      expect(found).toEqual([]);
+    });
+  });
+});

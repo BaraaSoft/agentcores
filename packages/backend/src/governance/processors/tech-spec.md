@@ -1,9 +1,10 @@
 # Governance processors
 
 The BullMQ workers that move work through governance: the **Job processor** plans a Job, reviews every
-Task it finishes, and starts the next one; the **Task processor** runs one Task at a time on screen; and
-the **Strategy evaluation processor** reviews a cycle when its 30 days are up. This document explains how
-Jobs and Tasks move: who queues what, when a Job may go on, when it must wait, and how it ends.
+Task it finishes, and starts the next one; the **Task processor** runs one Task at a time on screen; the
+**Job evaluation processor** marks each day's finished work out of 10; and the **Strategy evaluation
+processor** reviews a cycle when its 30 days are up. This document explains how Jobs and Tasks move: who
+queues what, when a Job may go on, when it must wait, and how it ends.
 
 - [Where they sit](#where-they-sit)
 - [The processors](#the-processors)
@@ -12,6 +13,7 @@ Jobs and Tasks move: who queues what, when a Job may go on, when it must wait, a
 - [How a Job ends](#how-a-job-ends)
 - [Job processor](#job-processor)
 - [Task processor](#task-processor)
+- [Job evaluation processor](#job-evaluation-processor)
 - [Who queues what](#who-queues-what)
 - [Scenarios](#scenarios)
 - [Guarantees](#guarantees)
@@ -30,17 +32,20 @@ flowchart LR
     Orch["OrchestratorService<br/>every minute"]
     Owner["Owner<br/>answers an escalation"]
     Cron["Daily cycle check"]
+    EvalCron["Daily marking, 20:00"]
 
     subgraph Queues["BullMQ"]
         JQ["job-execution"]
         TQ["task-execution"]
         SQ["strategy-evaluation"]
+        EQ["job-evaluation"]
     end
 
     subgraph Processors["governance/processors"]
         JP["JobExecutionProcessor<br/>plan · review · start"]
         TP["TaskExecutionProcessor<br/>concurrency 1"]
         SP["StrategyEvaluationProcessor"]
+        EP["JobEvaluationProcessor<br/>sweep · judge"]
     end
 
     DB[("Governance services<br/>Task status + review = source of truth")]
@@ -54,7 +59,11 @@ flowchart LR
     TP -- "complete / failed → review the Job" --> JQ
     TP -- "deferred → same Task, delayed" --> TQ
     SQ --> SP
-    JP & TP & SP <--> DB
+    EvalCron --> EQ
+    EQ --> EP
+    EP -- "evidence Job" --> JQ
+    JP -- "an evidence Job closed" --> EQ
+    JP & TP & SP & EP <--> DB
 ```
 
 The queues only carry work; they hold no rules. **Whether a Job may move on is decided by its Tasks in
@@ -69,6 +78,7 @@ twice, or out of order without breaking it.
 | --- | --- | --- | --- | --- | --- |
 | `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
 | `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1** — one screen, one mouse | **none** — a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
+| `JobEvaluationProcessor` | `job-evaluation` | `{ kind: 'sweep', workflowId, evaluationDate }` or `{ kind: 'judge', workflowId, evaluationId }` | default | 3, exponential backoff | `EvaluationReasoningService.judgeJob` |
 | `StrategyEvaluationProcessor` | `strategy-evaluation` | `{ workflowId }` | default | 3, exponential backoff | `StrategyEvaluationService` |
 
 The Job queue uses the Job's ID as the queue job ID and removes entries on completion, so a Job already
@@ -269,6 +279,77 @@ flowchart TD
 
 ---
 
+## Job evaluation processor
+
+This is the agent marking its own homework. At 20:00 the **sweep** finds every Job of the Workflow that
+saw activity that day and opens one judgement per Job; **judging** then marks each out of 10 and stores one
+sentence on what was good and one on what was bad, for the planner to read before it writes a Job like it.
+
+```mermaid
+flowchart TD
+    Sweep(["sweep: { workflowId, evaluationDate }"]) --> Find["Jobs whose Task was reviewed that day,<br/>or that closed that day — open or closed"]
+    Find --> Open["createEvaluation per Job<br/>(unique on jobId + evaluationDate)"]
+    Open --> Judge(["judge: { evaluationId }"])
+    Judge --> Verdict{"judgeJob"}
+    Verdict -- scored --> Score["score 1–10 + whatGood + whatBad<br/>+ the objective vector"]
+    Verdict -- needs_evidence --> Errand["file an evidence Job<br/>under the Evaluations Unit"]
+    Errand --> Park["state → awaiting_evidence"]
+    Park -.-> Closed["that Job closes"] -.-> Judge
+```
+
+### The round trip, step by step
+
+Two queues are involved and the work crosses between them twice, so it is worth reading once in order.
+The right-hand column is the state the judgement is left in.
+
+| # | Who runs | What happens | State after |
+| --- | --- | --- | --- |
+| 1 | Daily cron | One `sweep` message per Workflow, carrying the date | — |
+| 2 | `JobEvaluationProcessor.sweep` | `createEvaluation` for each Job with activity that day | `judging` |
+| 3 | `JobEvaluationProcessor.sweep` | One `judge` message per Job | `judging` |
+| 4 | `JobEvaluationProcessor.judge` | `judgeJob` → **scored**: `recordScore` | `scored` ✓ |
+| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob`, then `parkForEvidence` | `awaiting_evidence` |
+| 6 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
+| 7 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `judge` message | `judging` |
+| 8 | `JobEvaluationProcessor.judge` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
+
+**Two kinds of message on `job-evaluation`.** `{ kind: 'sweep', workflowId, evaluationDate }` is a whole
+day's work for one Workflow; `{ kind: 'judge', workflowId, evaluationId }` is one Job. The date travels in
+the payload rather than being read from the clock, so a retry judges the day it was meant to. A `judge`
+message says only *which* judgement to work on — how far along it is lives in the row's `state`, which is
+why steps 4 and 8 are the same code path.
+
+**Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
+any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to
+tell is to ask whether a judgement is parked on it, which is what step 7 does on every Job that closes.
+
+**The order of writes in step 5 matters.** The judgement is parked *before* its evidence Job is queued. The
+other way round, that Job could close and look for a judgement that was not yet recorded as waiting, and
+the mark would never be finished.
+
+**A Job is marked more than once.** Engagement arrives for days after a post goes up, so any day a Job sees
+fresh activity it is judged again, and the row is keyed on `jobId + evaluationDate` rather than on the Job.
+
+**Activity means a Task of the Job was reviewed that day, or the Job closed that day.** `reviewedAt` is
+used rather than `completedAt`, because a failed Task has no completion time — and a failed Job is exactly
+the kind the planner most needs to learn from.
+
+| Guard | Why |
+| --- | --- |
+| Evidence Jobs are excluded from the sweep | Judging a Job that exists to serve a judgement would never end |
+| One evidence round per judgement | The second call is told the evidence is in; asking again means it cannot settle the Job at all |
+| Every transition names the state it expects | A message delivered twice changes nothing the second time |
+| `MAX_JUDGING_ATTEMPTS` | One unmarkable Job never blocks the rest of the day |
+
+**Only the objective is embedded, never the feedback** — searching over the feedback too would match a Job
+simply because its failure text mentioned the same place. Embeddings come from `embedding/`, a small model
+running in this process: no API key, and nothing leaves the machine. Vectors are stored as a float array
+and cast to pgvector in the query, which keeps the column inside what TypeORM can generate migrations for.
+Search is always scoped to one Workflow, so what the agent learns for one owner never reaches another's
+planning.
+
+---
+
 ## Who queues what
 
 | Event | Who queues | What | Queue |
@@ -279,6 +360,10 @@ flowchart TD
 | A Task is deferred | `TaskExecutionProcessor` | The same Task, delayed by `retryAfterMinutes` | `task-execution` |
 | The owner resolves an escalation | `ReportingService.resolveEscalation` | The Task's Job (approved: resume; rejected: review the failure) | `job-execution` |
 | A Workflow resumes | `OrchestratorService` (next pass) | Its startable Jobs again | `job-execution` |
+| 20:00 daily | `OrchestratorService` (repeatable) | The day's sweep for the Workflow | `job-evaluation` |
+| The sweep finds a Job with activity | `JobEvaluationProcessor` | That Job's judgement | `job-evaluation` |
+| The evaluator needs a real-world reading | `JobEvaluationProcessor` | The evidence Job it filed | `job-execution` |
+| An evidence Job closes | `JobExecutionProcessor` | The judgement parked on it | `job-evaluation` |
 
 The orchestrator never queues Tasks, and nothing queues a Task that is not its Job's current Task. If the
 review hand-off is lost, the orchestrator's next pass finds the Job (a finished Task awaits review, so it
@@ -366,6 +451,12 @@ finds nothing unreviewed) and queues the same current Task.
 governance/processors/
 ├── tech-spec.md                              ← this file
 ├── strategy-evaluation.processor.ts          ← end-of-cycle review
+├── to-task-outcome.ts                        ← the Task view the reasoning layer may see
+├── job-evaluation/
+│   ├── job-evaluation.module.ts
+│   ├── job-evaluation.processor.ts           ← daily sweep, then marks each Job; parks on evidence Jobs
+│   ├── job-evaluation.constants.ts           ← attempt cap + the Evaluations Unit name
+│   └── tests/job-evaluation.processor.spec.ts
 ├── job-execution/
 │   ├── job-execution.module.ts
 │   ├── job-execution.processor.ts            ← reviews each finished Task, plans when needed, closes the Job; queues its current Task

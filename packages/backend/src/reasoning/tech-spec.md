@@ -2,13 +2,14 @@
 
 The thinking half of AHE's [two-tier split](../../../../docs/base/02-system-architecture.md): every
 planning, judging, and deciding call to Opus goes through this module. It is split into **one reasoner per
-governance level** — Strategy, Unit of Work, Job, Task — each calling the model through a model client
-configured for its level, over one shared Anthropic instance.
+governance level** — Strategy, Unit of Work, Job, Task — plus the **evaluator** that marks finished work,
+each calling the model through a model client configured for its level, over one shared Anthropic instance.
 
 - [Where it sits](#where-it-sits)
-- [The four reasoners](#the-four-reasoners)
+- [The reasoners](#the-reasoners)
 - [Planning flows down](#planning-flows-down)
 - [Job review and planning](#job-review-and-planning)
+- [Marking finished work](#marking-finished-work)
 - [Results flow up](#results-flow-up)
 - [The Task level and the execution layer](#the-task-level-and-the-execution-layer)
 - [Model clients and config](#model-clients-and-config)
@@ -26,6 +27,7 @@ flowchart TB
         Orch["orchestrator/OrchestratorService<br/>plans each new Strategy"]
         JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>plans a Job, reviews each finished Task"]
         Evaluation["governance/StrategyEvaluationService<br/>rolls results up at cycle end"]
+        JobEval["governance/processors/job-evaluation/JobEvaluationProcessor<br/>marks each day's work"]
         TaskExec["governance/processors/task-execution/TaskExecutionProcessor<br/>the Task loop"]
     end
 
@@ -34,11 +36,12 @@ flowchart TB
         U["UnitReasoningService"]
         J["JobReasoningService"]
         T["TaskReasoningService"]
+        E["EvaluationReasoningService"]
         Client["ReasoningModelClient<br/>default model"]
         JClient["JobReasoningModelClient"]
         TClient["TaskReasoningModelClient"]
         SDK["Anthropic SDK<br/>(one shared instance)"]
-        S & U --> Client
+        S & U & E --> Client
         J --> JClient
         T --> TClient
         Client & JClient & TClient --> SDK
@@ -51,7 +54,8 @@ flowchart TB
 
     Orch --> S & U
     JobExec --> J
-    Evaluation --> J & U & S
+    JobEval --> E
+    Evaluation --> U & S
     TaskExec --> T
     SDK --> Anthropic
     TaskExec -. "ExecutionTask / ExecutionResult" .-> Execution
@@ -67,22 +71,26 @@ flowchart TB
 
 ---
 
-## The four reasoners
+## The reasoners
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
 | `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `OrchestratorService`, `StrategyEvaluationService` |
 | `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
-| `JobReasoningService` | One objective | `reviewJob`, `planTasks`, `evaluateJob` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools, `JobEvaluation` | `JobExecutionProcessor`, `StrategyEvaluationService` |
+| `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
+| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Unit's criteria, gathered evidence | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
 directly below it.** The Strategy reasoner never sees a Task; the Task reasoner never sees a screenshot.
 
 | | Strategy | Unit | Job | Task |
 | --- | --- | --- | --- | --- |
-| Cadence | Once per cycle | When a Unit needs Jobs; cycle end | When a Job starts, after every finished Task; cycle end (open Jobs) | Every step of a Task |
+| Cadence | Once per cycle | When a Unit needs Jobs; cycle end | When a Job starts, after every finished Task | Every step of a Task |
 | Volume | Very low | Low | Medium | High — the hot path |
+
+The evaluator sits beside the Job level rather than on it: it runs once a day over the Jobs that saw
+activity, so its volume follows how much work the agent did that day.
 
 ---
 
@@ -163,27 +171,53 @@ not to abandon because Tasks keep failing, so the two outcomes stay distinct sig
 
 ---
 
+## Marking finished work
+
+`judgeJob` is the agent grading itself. Once a day, every Job that saw activity is marked out of 10 with
+one sentence on what was good and one on what was bad. Those marks are the only memory the planner has of
+how its own work landed.
+
+| | |
+| --- | --- |
+| Who picks the standard | The model does. The objective's own bar first, then the Unit's success criteria, then the test that kind of work deserves — stated back in `rubric` |
+| How the scale is held | Anchored in the prompt: 1–3 not met, 4–6 partly, 7–8 met, 9–10 exceeded *with evidence*. Without anchors a 1–10 scale collapses to "everything is a 7" |
+| Who the feedback is for | The next planner, not the owner. `whatGood` and `whatBad` name the decision, not the outcome: "led with a question, which pulled replies", not "the post did well" |
+| What `objectiveSummary` is for | Finding this Job again. Written in general terms — kind of work, medium, intent — because it is the text the planner's search is matched against |
+
+**When the outcome is not on record, it does not guess.** A post judged minutes after it went up has no
+engagement yet. Rather than inventing a number, the evaluator returns an `EvidenceRequest`: a real Job,
+filed under the Strategy's Evaluations Unit, that goes and reads the figures through the execution layer.
+The judgement parks until that Job closes and is then marked on what came back. One round only — the
+second call is told the evidence is in and must mark on it.
+
+```mermaid
+flowchart LR
+    Judge["judgeJob"] -->|scored| Store["1–10 + whatGood / whatBad<br/>+ objectiveSummary vector"]
+    Judge -->|needs_evidence| Errand["Evidence Job<br/>reads views, likes, replies, a file"]
+    Errand -->|closes| Judge
+    Store --> Planner["planJobs reads the closest past objectives"]
+```
+
+Evidence Jobs are never themselves marked, so this cannot feed on itself.
+
+---
+
 ## Results flow up
 
-At the end of a cycle, `StrategyEvaluationService` rolls results up, compressing at every level. Closed
-Jobs already carry their outcome; only Jobs still open are evaluated.
+At the end of a cycle, `StrategyEvaluationService` rolls results up, compressing at every level. No Job is
+judged here: each was already marked on the day it ran.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant E as StrategyEvaluationService
-    participant J as JobReasoning
     participant U as UnitReasoning
     participant S as StrategyReasoning
     participant DB as Governance rows
 
-    E->>DB: load Units, Jobs, Task outcomes, Unit measurements
+    E->>DB: load Units, Unit measurements, stored job_evaluations rows
     loop each Unit
-        loop each Job still open in the Unit
-            E->>J: evaluateJob(objective, task outcomes)
-            J-->>E: JobEvaluation { outcomeStatus: null, summary, followUpActions }
-        end
-        Note over E: closed Jobs become JobEvaluations from their outcome fields
+        Note over E: the Unit's Jobs were marked day by day; nothing is judged now
         E->>U: reviewUnit(measurement, jobEvaluations)
         U-->>E: UnitReview { isMeetingCriteria, summary, recommendation, proposedJobs }
     end
@@ -197,7 +231,7 @@ What crosses each boundary:
 ```mermaid
 flowchart BT
     Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason · location"]
-    TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed · open<br/>summary"]
+    TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed · open<br/>score 1–10 · whatGood · whatBad"]
     JobEval --> UnitRev["UnitReview<br/>criteria met? · summary · recommendation"]
     UnitRev --> StratRev["StrategyReview<br/>grade · reallocations · deprecations · new Jobs"]
 ```
@@ -312,12 +346,13 @@ a nudge. The loop ends when the tool marked `endsLoop` succeeds, and throws afte
 
 ```
 reasoning/
-├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; the four reasoners
+├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; every reasoner
 ├── reasoning.config.ts             ← registerAs('reasoning'): API key + model per level
 ├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
 ├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and Unit use it as is
 ├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
 ├── tools/toolset.factory.ts        ← ToolsetFactory: a new toolset per run (+ tests/)
+├── task-outcome.prompts.ts         ← renders Task outcomes as prompt text, shared by Job and evaluation prompts
 ├── types/                          ← completion-input, tool-loop-input, reasoning-tool, reasoning-model-settings
 ├── tests/                          ← reasoning.module (wiring), reasoning-model.client (structured call, tool loop)
 ├── strategy/
@@ -332,14 +367,20 @@ reasoning/
 │   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
 │   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
 │   ├── tools/job-planning-toolset.ts ← the planning tools over an in-memory draft (+ tests/)
-│   ├── schemas/                     ← job-review, job-evaluation-output (zod; the output formats)
+│   ├── schemas/job-review.schema.ts ← zod; the output format
 │   ├── tests/job-reasoning.service.spec.ts
 │   └── types/                      ← job-review-input, job-review, job-review-decision, job-planning-input,
-│                                      evaluate-job-input, task-outcome, job-evaluation
-└── task/
-    ├── task-reasoning.service.ts · task-reasoning.prompts.ts · task-reasoning-model.client.ts
-    └── types/                      ← task-reasoning-input, step-record, planned-step,
-                                       blocker-decision
+│                                      task-outcome
+├── task/
+│   ├── task-reasoning.service.ts · task-reasoning.prompts.ts · task-reasoning-model.client.ts
+│   └── types/                      ← task-reasoning-input, step-record, planned-step,
+│                                      blocker-decision
+└── evaluation/
+    ├── evaluation-reasoning.service.ts · evaluation-reasoning.prompts.ts · evaluation-reasoning.constants.ts
+    ├── schemas/job-judgement-output.schema.ts
+    ├── tests/evaluation-reasoning.service.spec.ts
+    └── types/                      ← judge-job-input, gathered-evidence, job-judgement, scored-job,
+                                       evidence-request, job-judgement-verdict, job-evaluation
 ```
 
 Each level's types live with the level that produces them; another level that consumes them imports
@@ -361,7 +402,7 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
   each reasoner will receive its level's tools as an argument instead of importing governance, with every
   write tool enforcing the governance rules itself.
 
-`ReasoningModelClient` and `JobReasoningService` are implemented; the Strategy, Unit, and Task reasoners
+`ReasoningModelClient`, `JobReasoningService`, and `EvaluationReasoningService` are implemented; the Strategy, Unit, and Task reasoners
 are still stubs (`NotImplementedException`). The Job prompts are complete; the `decideOnBlocker`,
 `reviewUnit`, and `reviewStrategy` prompts have their rules written and still end in `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
 against fakes.

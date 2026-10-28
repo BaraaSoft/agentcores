@@ -1,10 +1,11 @@
 import type { Metric, UnitMeasurement } from '@ahe/agent-core';
-import type { JobEvaluation } from '../../job/types/job-evaluation';
+import type { JobEvaluation } from '../../evaluation/types/job-evaluation';
 
 /**
- * Everything needed to review one Unit of Work at the end of a cycle. The Unit level reads
- * its measured metrics and one evaluation per Job, never individual Tasks. An abandoned Job is a
- * strategic signal about the Unit; a failed Job is an execution signal about how the work was done.
+ * Everything needed to review one Unit of Work at the end of a cycle. The Unit level reads its
+ * measured metrics and the marks its Jobs were given day by day, never individual Tasks. An
+ * abandoned Job is a strategic signal about the Unit; a failed Job is an execution signal about how
+ * the work was done.
  */
 export interface ReviewUnitInput {
   readonly unitOfWorkId: string;

@@ -1,25 +1,6 @@
-import type { EvaluateJobInput } from './types/evaluate-job-input';
+import { renderTaskOutcome, renderTaskOutcomes } from '../task-outcome.prompts';
 import type { JobPlanningInput } from './types/job-planning-input';
 import type { JobReviewInput } from './types/job-review-input';
-import type { TaskOutcome } from './types/task-outcome';
-
-function renderOutcome(outcome: TaskOutcome, label: string): string {
-  const lines = [`${label} [${outcome.status}] ${outcome.action}`];
-  if (outcome.result !== null) {
-    lines.push(`   Result: ${outcome.result.summary}`);
-    const readings = Object.entries(outcome.result.metricReadings);
-    if (readings.length > 0) lines.push(`   Metrics: ${readings.map(([name, value]) => `${name}=${value}`).join(', ')}`);
-  }
-  if (outcome.failureReason !== null) lines.push(`   Failure: ${outcome.failureReason}`);
-  if (outcome.locationPath !== null) lines.push(`   Location: ${outcome.locationPath}`);
-  if (outcome.locationDetails !== null) lines.push(`   How to get there: ${outcome.locationDetails}`);
-  return lines.join('\n');
-}
-
-function renderOutcomes(outcomes: readonly TaskOutcome[], empty: string): string {
-  if (outcomes.length === 0) return empty;
-  return outcomes.map((outcome, index) => renderOutcome(outcome, `${index + 1}.`)).join('\n');
-}
 
 function renderActions(actions: readonly string[]): string {
   return actions.length === 0 ? 'None.' : actions.map((action, index) => `${index + 1}. ${action}`).join('\n');
@@ -72,11 +53,11 @@ export const JOB_REASONING_PROMPTS = {
     user: (input: JobReviewInput): string => `${renderJob(input)}
 
 <LATEST_TASK>
-${renderOutcome(input.latestOutcome, 'Just finished:')}
+${renderTaskOutcome(input.latestOutcome, 'Just finished:')}
 </LATEST_TASK>
 
 <EARLIER_TASKS>
-${renderOutcomes(input.history, 'None.')}
+${renderTaskOutcomes(input.history, 'None.')}
 </EARLIER_TASKS>
 
 <REMAINING_PLAN>
@@ -112,7 +93,7 @@ ${input.reason}
 </WHY_PLANNING>
 
 <TASKS_SO_FAR>
-${renderOutcomes(input.history, 'None — this is the first plan.')}
+${renderTaskOutcomes(input.history, 'None — this is the first plan.')}
 </TASKS_SO_FAR>
 
 <CURRENT_PLAN>
@@ -122,33 +103,5 @@ ${renderActions(input.remainingActions)}
 <LIMIT>
 The plan may hold at most ${input.maxTasks} Tasks when you finish.
 </LIMIT>`,
-  },
-  evaluateJob: {
-    system: `<SITUATION>
-* The cycle has ended and this Job is still open: its objective was neither met nor given up.
-* You see each of its Tasks' action, status, and compressed result or failure reason — never their steps.
-* Your summary is what the Unit of Work review reads about this Job.
-</SITUATION>
-
-<RULES>
-* Judge progress against the objective, not effort spent. Say plainly how far the Job got.
-* Cite the metric readings that matter; do not invent numbers.
-* Name what held it back: failed Tasks, Tasks never reached, or an objective too big for one cycle.
-* followUpActions are the concrete Tasks that would finish the objective next cycle, in order. Leave it empty
-  when the remaining work is not worth doing.
-</RULES>
-
-<OUTPUT>
-* summary: a few sentences on what the Tasks achieved and what is left.
-* followUpActions: the ordered Task actions to finish it, or none.
-</OUTPUT>`,
-    user: (input: EvaluateJobInput): string => `<JOB>
-Name: ${input.jobName}
-Objective: ${input.objective}
-</JOB>
-
-<TASKS>
-${renderOutcomes(input.tasks, 'None.')}
-</TASKS>`,
   },
 } as const;

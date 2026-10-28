@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';
 import { TestDatabaseModule } from '../../../database/tests/test-database.module';
+import { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEntity } from '../../entities/job.entity';
 import { TaskEntity } from '../../entities/task.entity';
 import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
@@ -108,6 +109,52 @@ describeWithDatabase('JobService (Postgres)', () => {
       const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 2 });
 
       expect(startable.map((job) => job.id)).toEqual([largeOlder.id, largeNewer.id]);
+    });
+  });
+
+  describe('listJobsWithActivityOn', () => {
+    const today = () => new Date().toISOString().slice(0, 10);
+    const namesOn = async (workflowId: string, evaluationDate: string) =>
+      (await service.listJobsWithActivityOn({ workflowId, evaluationDate })).map((job) => job.name);
+
+    it('finds Jobs whose Task was reviewed that day, open or closed', async () => {
+      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const unit = await seeder.unit(strategy.id, 'Community engagement');
+      const open = await seeder.job(unit.id, 'Still running');
+      await seeder.tasks(workflow.id, open.id, ['complete', 'pending']);
+      const closed = await seeder.job(unit.id, 'Finished last week', 'success');
+      await seeder.tasks(workflow.id, closed.id, ['complete']);
+      const untouched = await seeder.job(unit.id, 'Never started');
+      await seeder.tasks(workflow.id, untouched.id, ['pending']);
+
+      expect(await namesOn(workflow.id, today())).toEqual(['Still running', 'Finished last week']);
+    });
+
+    it('leaves out Jobs spun up to gather evidence for an evaluation', async () => {
+      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const unit = await seeder.unit(strategy.id, 'Community engagement');
+      const judged = await seeder.job(unit.id, 'Post an intro');
+      await seeder.tasks(workflow.id, judged.id, ['complete']);
+      const evidence = await seeder.job(unit.id, 'Read the upvotes');
+      await seeder.tasks(workflow.id, evidence.id, ['complete']);
+      await dataSource.getRepository(JobEvaluationEntity).save({
+        workflowId: workflow.id,
+        jobId: judged.id,
+        unitOfWorkId: unit.id,
+        evaluationDate: today(),
+        evidenceJobId: evidence.id,
+      });
+
+      expect(await namesOn(workflow.id, today())).toEqual(['Post an intro']);
+    });
+
+    it('finds nothing on a day with no activity', async () => {
+      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const unit = await seeder.unit(strategy.id, 'Community engagement');
+      const job = await seeder.job(unit.id, 'Post an intro');
+      await seeder.tasks(workflow.id, job.id, ['complete']);
+
+      expect(await namesOn(workflow.id, '2026-01-01')).toEqual([]);
     });
   });
 

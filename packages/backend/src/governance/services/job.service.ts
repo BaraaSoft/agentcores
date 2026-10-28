@@ -3,10 +3,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
+import { JobEvaluationEntity } from '../entities/job-evaluation.entity';
 import { JobEntity } from '../entities/job.entity';
 import { TaskEntity } from '../entities/task.entity';
 import type { CloseJobInput } from '../types/close-job-input';
 import type { CreateJobInput } from '../types/create-job-input';
+import type { ListJobsWithActivityInput } from '../types/list-jobs-with-activity-input';
 import type { ListStartableJobsInput } from '../types/list-startable-jobs-input';
 import type { PlaceJobInput } from '../types/place-job-input';
 import { FINISHED_TASK_STATUSES, REVIEWABLE_TASK_STATUSES } from './task.service';
@@ -125,6 +127,45 @@ export class JobService {
       .orderBy('unit.allocationPercentage', 'DESC')
       .addOrderBy('job.createdAt', 'ASC')
       .limit(input.limit)
+      .getMany();
+  }
+
+  /**
+   * Jobs of the Workflow's active Strategy that did something on `evaluationDate`: a Task of theirs
+   * was reviewed that day, or the Job itself closed that day. Open and closed Jobs both count,
+   * because engagement on finished work keeps arriving for days afterwards. Jobs that exist only to
+   * gather evidence for an evaluation are left out, so the evaluator never judges its own helpers.
+   *
+   * The day boundary is the database's time zone, which is the same machine the daily cron runs on.
+   */
+  async listJobsWithActivityOn(input: ListJobsWithActivityInput): Promise<JobEntity[]> {
+    const query = this.jobs
+      .createQueryBuilder('job')
+      .innerJoinAndSelect('job.unitOfWork', 'unit')
+      .innerJoin(WorkflowEntity, 'workflow', 'workflow.activeStrategyId = unit.strategyId')
+      .where('workflow.id = :workflowId');
+    const reviewedTask = query
+      .subQuery()
+      .select('1')
+      .from(TaskEntity, 'task')
+      .where('task.jobId = job.id')
+      .andWhere('"task"."reviewedAt"::date = :evaluationDate')
+      .getQuery();
+    const evidenceFor = query
+      .subQuery()
+      .select('1')
+      .from(JobEvaluationEntity, 'evaluation')
+      .where('evaluation.evidenceJobId = job.id')
+      .getQuery();
+    return query
+      .andWhere(
+        new Brackets((hasActivity) =>
+          hasActivity.where(`EXISTS ${reviewedTask}`).orWhere('"job"."closedAt"::date = :evaluationDate'),
+        ),
+      )
+      .andWhere(`NOT EXISTS ${evidenceFor}`)
+      .setParameters({ workflowId: input.workflowId, evaluationDate: input.evaluationDate })
+      .orderBy('job.createdAt', 'ASC')
       .getMany();
   }
 
