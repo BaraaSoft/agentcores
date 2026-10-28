@@ -29,6 +29,7 @@ const NEEDS_EVIDENCE: JobJudgement = {
   verdict: 'needs_evidence',
   evidenceJobName: 'Read upvotes on the intro post',
   evidenceObjective: 'Open the post and report its upvotes.',
+  evidenceCriteria: [],
   rubric: 'Upvotes decide the score.',
 };
 
@@ -164,6 +165,27 @@ describe('JobEvaluationProcessor', () => {
         { jobId: 'evidence-job-1' },
       );
       expect(t.evaluations.recordScore).not.toHaveBeenCalled();
+    });
+
+    it('carries the criteria into the errand with the key each reading must come back under', async () => {
+      const t = setup();
+      t.evaluationReasoning.judgeJob.mockResolvedValue({
+        ...NEEDS_EVIDENCE,
+        evidenceObjective: 'Open /Users/owner/Movies/launch-cut.mp4 in QuickTime.',
+        evidenceCriteria: [
+          { key: 'title_legibility', whatToExamine: 'Whether the titles stay readable at normal size.' },
+          { key: 'opening_hook', whatToExamine: 'Whether the first three seconds give a reason to keep watching.' },
+        ],
+      });
+
+      await t.judge();
+
+      expect(t.jobs.placeJob.mock.calls[0][0].plannedJob.objective).toBe(
+        'Open /Users/owner/Movies/launch-cut.mp4 in QuickTime.\n\n' +
+          'Open the work once and rate each of these from 1 to 10, reporting each as a metric reading under the key in brackets:\n' +
+          '1. (title_legibility) Whether the titles stay readable at normal size.\n' +
+          '2. (opening_hook) Whether the first three seconds give a reason to keep watching.',
+      );
     });
 
     it('shows the evidence a resumed judgement was waiting for', async () => {

@@ -202,11 +202,18 @@ a video or edits a design reports `locationPath` (the absolute file path, or the
 prompt as `Location:` and `How to get there:`. The evaluator quotes them into the errand, so the evidence
 Job knows what to open and where.
 
-What the evaluator cannot do is look at it. Nothing above the Task level ever sees a screenshot, so an
-exported cut comes back as words. Two things make that workable: the errand is told to **name the specific
-things to report on** rather than ask for a description, and `GatheredEvidence` carries one entry per Task,
-so an errand that asks about several aspects comes back as several readings rather than one summary
-stretched over all of them.
+What the evaluator cannot do is look at it. Nothing above the Task level ever sees a screenshot, so the one
+agent in the system with eyes is the computer-use agent carrying out the errand. The evaluator therefore
+sends **criteria, not a question**: `evidenceCriteria` is a list of `{ key, whatToExamine }` drawn from what
+it just learnt about how this kind of work is done well, and the processor renders them into the errand's
+objective with the key each reading must come back under.
+
+That turns prose into numbers. The errand opens the work once, rates each criterion, and reports them as
+`metricReadings` — which is a `Record<string, number>` with no size limit, unlike the 100-word summary — and
+those readings are printed straight back into the second judging pass as `Metrics: title_legibility=8`. The
+evaluator sets the standard, the execution layer applies its eyes, and the mark comes from both.
+
+An outcome that is only a figure on a page needs no criteria, and `evidenceCriteria` is empty for it.
 
 Evidence is one round only — the second call is told the evidence is in and must mark on it.
 

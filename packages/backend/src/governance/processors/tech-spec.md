@@ -308,7 +308,7 @@ The right-hand column is the state the judgement is left in.
 | 2 | `JobEvaluationProcessor.sweep` | `createEvaluation` for each Job with activity that day | `judging` |
 | 3 | `JobEvaluationProcessor.sweep` | One `judge` message per Job | `judging` |
 | 4 | `JobEvaluationProcessor.judge` | `judgeJob` → **scored**: `recordScore` | `scored` ✓ |
-| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob` to read the real outcome, then `parkForEvidence` | `awaiting_evidence` |
+| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob` to read the real outcome, criteria rendered into its objective, then `parkForEvidence` | `awaiting_evidence` |
 | 6 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
 | 7 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `judge` message | `judging` |
 | 8 | `JobEvaluationProcessor.judge` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
@@ -324,6 +324,11 @@ evaluator is unsure what good looks like for this kind of work it settles that t
 only for what no search can reach — the work itself: a logged-in account, a file that was exported, a
 project open in an editor. The Task that did the work recorded where it lives, so the errand can say what
 to open.
+
+**The errand carries its own standard.** When the mark turns on quality that has to be seen, the judgement
+travels down as criteria: `requestEvidence` renders each `{ key, whatToExamine }` into the errand's
+objective, naming the key its reading must come back under. Planning and execution never learn there is a
+judgement behind it — everything they need is in the objective, like any other Job.
 
 **Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
 any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to

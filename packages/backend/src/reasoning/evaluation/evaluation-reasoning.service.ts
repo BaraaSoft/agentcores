@@ -38,6 +38,7 @@ export class EvaluationReasoningService {
         verdict: 'needs_evidence',
         evidenceJobName: output.evidenceJobName || `Measure: ${input.jobName}`,
         evidenceObjective: output.evidenceObjective,
+        evidenceCriteria: output.evidenceCriteria ?? [],
         rubric: output.rubric,
       };
     }

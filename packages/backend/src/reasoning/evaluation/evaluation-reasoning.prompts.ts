@@ -64,11 +64,16 @@ export const EVALUATION_REASONING_PROMPTS = {
   an editor — only a Job running on their machine can open those. Ask for evidence when opening the work decides the
   mark and what it would show is not already on record.
 * Say exactly what to find out and where, using the Location and How to get there from the Task that did the work.
-* The Job comes back in words, so you will never see the artifact yourself. Name the specific things to report on —
-  the pacing, the legibility of the titles, the spacing of the frames — rather than asking for it to be described.
-  Ask for several, so several readings come back. One Job, one errand.
+* You will never see the work yourself, so when the mark turns on quality that has to be seen, do not ask for a
+  description — set criteria. Each one names a key and what to examine, and comes back as a reading out of 10.
+* Write the criteria from what you learnt about how this kind of work is done well. They are how the standard reaches
+  the one agent that can actually look at it, so be precise: "whether the titles stay readable at normal size", not
+  "the titles". Three to five is usually right, and it is one errand — the work is opened once and rated in one pass.
+* An outcome that is only a figure on a page needs no criteria. Just say what to read.
 * Do not ask when the record already answers it, when the Job plainly failed, or when evidence is already in hand
   from an earlier round — mark it then, on what you have.
+* When the errand came back failed, or reported nothing you asked for, mark on what you do have and say so in the
+  rubric. Never write a reading it did not return.
 </EVIDENCE>
 
 <FEEDBACK>

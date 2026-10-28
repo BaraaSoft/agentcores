@@ -47,4 +47,19 @@ export const JOB_JUDGEMENT_OUTPUT_SCHEMA = z.object({
       'For "needs_evidence": exactly what that Job must find out and where, concrete enough for a computer-use ' +
         'agent to carry out. Null for "scored".',
     ),
+  evidenceCriteria: z
+    .array(
+      z.object({
+        key: z.string().describe('Short snake_case name the reading comes back under, e.g. "title_legibility".'),
+        whatToExamine: z
+          .string()
+          .describe('What to look at and what would make it good, in one sentence an agent looking at the work can act on.'),
+      }),
+    )
+    .nullable()
+    .describe(
+      'For "needs_evidence" where the mark turns on quality that has to be seen: what to rate once the work is open, ' +
+        'drawn from what you learnt about how this kind of work is done well. Each comes back as a 1-10 reading under ' +
+        'its key. Empty or null when the errand is only reading a figure off a page.',
+    ),
 });
