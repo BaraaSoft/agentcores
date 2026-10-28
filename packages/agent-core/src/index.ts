@@ -15,6 +15,8 @@ export type { StrategyOutcome } from './governance/strategy-outcome';
 export type { StrategyEvaluation } from './governance/strategy-evaluation';
 export type { Strategy } from './governance/strategy';
 export type { UnitOfWork } from './governance/unit-of-work';
+export { UNIT_OF_WORK_STATES } from './governance/unit-of-work-state';
+export type { UnitOfWorkState } from './governance/unit-of-work-state';
 export type { Job } from './governance/job';
 export { JOB_OUTCOME_STATUSES } from './governance/job-outcome-status';
 export type { JobOutcomeStatus } from './governance/job-outcome-status';

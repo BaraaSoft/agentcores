@@ -3,7 +3,6 @@ import type { JobEvaluationJobData } from '../../../../queue/types/job-evaluatio
 import type { JobExecutionJobData } from '../../../../queue/types/job-execution-job-data';
 import type { EvaluationReasoningService } from '../../../../reasoning/evaluation/evaluation-reasoning.service';
 import type { JobJudgement } from '../../../../reasoning/evaluation/types/job-judgement';
-import type { WorkflowService } from '../../../../workflow/workflow.service';
 import type { JobEvaluationService } from '../../../services/job-evaluation.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
@@ -36,7 +35,7 @@ const NEEDS_EVIDENCE: JobJudgement = {
 function evaluation(changes: Record<string, unknown> = {}) {
   return {
     id: EVALUATION_ID,
-    workflowId: WORKFLOW_ID,
+    owner: 'owner-1',
     jobId: JOB_ID,
     state: 'judging',
     evidenceJobId: null,
@@ -56,7 +55,6 @@ function setup() {
   const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationReasoning = { judgeJob: jest.fn().mockResolvedValue(SCORED) };
-  const workflows = { findWorkflowById: jest.fn().mockResolvedValue({ id: WORKFLOW_ID, state: 'running' }) };
   const evaluations = {
     createEvaluation: jest.fn().mockResolvedValue(evaluation()),
     findEvaluationById: jest.fn().mockResolvedValue(evaluation()),
@@ -66,7 +64,9 @@ function setup() {
     failEvaluation: jest.fn().mockResolvedValue(true),
   };
   const jobs = {
-    listJobsWithActivityOn: jest.fn().mockResolvedValue([{ id: JOB_ID, unitOfWorkId: 'unit-1' }]),
+    listJobsWithActivityOn: jest
+      .fn()
+      .mockResolvedValue([{ id: JOB_ID, unitOfWorkId: 'unit-1', unitOfWork: { strategy: { owner: 'owner-1' } } }]),
     placeJob: jest.fn().mockResolvedValue({ id: 'evidence-job-1' }),
     findJobById: jest.fn().mockResolvedValue(null),
   };
@@ -76,7 +76,6 @@ function setup() {
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
     jobQueue as unknown as Queue<JobExecutionJobData>,
     evaluationReasoning as unknown as EvaluationReasoningService,
-    workflows as unknown as WorkflowService,
     evaluations as unknown as JobEvaluationService,
     jobs as unknown as JobService,
     tasks as unknown as TaskService,
@@ -85,7 +84,7 @@ function setup() {
   const sweep = () => run({ kind: 'sweep', workflowId: WORKFLOW_ID, evaluationDate: DATE });
   const judge = () => run({ kind: 'judge', workflowId: WORKFLOW_ID, evaluationId: EVALUATION_ID });
 
-  return { sweep, judge, evaluationQueue, jobQueue, evaluationReasoning, workflows, evaluations, jobs, tasks };
+  return { sweep, judge, evaluationQueue, jobQueue, evaluationReasoning, evaluations, jobs, tasks };
 }
 
 describe('JobEvaluationProcessor', () => {
@@ -97,7 +96,7 @@ describe('JobEvaluationProcessor', () => {
 
       expect(t.jobs.listJobsWithActivityOn).toHaveBeenCalledWith({ workflowId: WORKFLOW_ID, evaluationDate: DATE });
       expect(t.evaluations.createEvaluation).toHaveBeenCalledWith({
-        workflowId: WORKFLOW_ID,
+        owner: 'owner-1',
         jobId: JOB_ID,
         unitOfWorkId: 'unit-1',
         evaluationDate: DATE,
@@ -244,14 +243,17 @@ describe('JobEvaluationProcessor', () => {
     });
   });
 
-  it.each(['paused', 'evaluating'])('does nothing while the Workflow is %s', async (state) => {
+  it("judges a Job whose Unit of Work is paused, so the judgement never strands in 'judging'", async () => {
     const t = setup();
-    t.workflows.findWorkflowById.mockResolvedValue({ id: WORKFLOW_ID, state });
+    const settled = evaluation();
+    t.evaluations.findEvaluationById.mockResolvedValue({
+      ...settled,
+      job: { ...settled.job, unitOfWork: { ...settled.job.unitOfWork, state: 'paused' } },
+    });
+    t.evaluationReasoning.judgeJob.mockResolvedValue(SCORED);
 
-    await t.sweep();
     await t.judge();
 
-    expect(t.jobs.listJobsWithActivityOn).not.toHaveBeenCalled();
-    expect(t.evaluationReasoning.judgeJob).not.toHaveBeenCalled();
+    expect(t.evaluations.recordScore).toHaveBeenCalled();
   });
 });

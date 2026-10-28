@@ -3,8 +3,9 @@ import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, Primary
 import { JobEntity } from './job.entity';
 
 /**
- * An atomic action run by the Task processor. `workflowId` is denormalised so the
- * orchestrator can find pending/running Tasks for a Workflow without joining up the tree.
+ * An atomic action run by the Task processor. `workflowId` records the machine that runs it, since
+ * one Strategy can run on several machines, and lets the orchestrator find a machine's pending and
+ * running Tasks without joining up the tree.
  */
 @Entity('tasks')
 @Index(['workflowId', 'status'])

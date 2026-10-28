@@ -1,18 +1,15 @@
-import type { Strategy } from '../governance/strategy';
 import type { WorkflowResources } from './workflow-resources';
 import type { WorkflowState } from './workflow-state';
 
 /**
- * One owner's self-contained agent: a goal, its current 30-day Strategy,
- * the history it learns from, and the resources it may use.
+ * One machine's run of a Strategy: the resources it may use there and its lifecycle state. A
+ * Strategy can run on several machines at once, each through its own Workflow.
  */
 export interface Workflow {
   readonly id: string;
-  readonly name: string;
-  /** HumanExperiences user ID of the person this Workflow acts for. */
-  readonly owner: string;
-  readonly activeStrategy: Strategy | null;
-  readonly strategyHistory: readonly Strategy[];
+  readonly strategyId: string;
+  /** The machine this Workflow runs on, e.g. its hostname. */
+  readonly machineId: string;
   readonly resources: WorkflowResources;
   readonly state: WorkflowState;
 }

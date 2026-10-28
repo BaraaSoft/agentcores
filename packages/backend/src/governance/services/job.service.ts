@@ -51,10 +51,11 @@ export class JobService {
   }
 
   /**
-   * Returns the Job with its Unit of Work loaded, or null.
+   * Returns the Job with its Unit of Work and Strategy loaded, or null. The Unit's state gates the
+   * run; the Strategy names the owner.
    */
   async findJobById(jobId: string): Promise<JobEntity | null> {
-    return this.jobs.findOne({ where: { id: jobId }, relations: { unitOfWork: true } });
+    return this.jobs.findOne({ where: { id: jobId }, relations: { unitOfWork: { strategy: true } } });
   }
 
   /**
@@ -99,7 +100,7 @@ export class JobService {
   }
 
   /**
-   * Open Jobs of the Workflow's active Strategy, in non-deprecated Units, that can move: no Tasks
+   * Open Jobs of the Strategy that the Workflow runs, in non-deprecated Units, that can move: no Tasks
    * yet (to plan), a finished Task awaiting review, or a `pending` current Task. Units with a larger
    * share come first, then older Jobs.
    */
@@ -131,7 +132,7 @@ export class JobService {
   }
 
   /**
-   * Jobs of the Workflow's active Strategy that did something on `evaluationDate`: a Task of theirs
+   * Jobs of the Strategy that the Workflow runs that did something on `evaluationDate`: a Task of theirs
    * was reviewed that day, or the Job itself closed that day. Open and closed Jobs both count,
    * because engagement on finished work keeps arriving for days afterwards. Jobs that exist only to
    * gather evidence for an evaluation are left out, so the evaluator never judges its own helpers.
@@ -142,7 +143,8 @@ export class JobService {
     const query = this.jobs
       .createQueryBuilder('job')
       .innerJoinAndSelect('job.unitOfWork', 'unit')
-      .innerJoin(WorkflowEntity, 'workflow', 'workflow.activeStrategyId = unit.strategyId')
+      .innerJoinAndSelect('unit.strategy', 'strategy')
+      .innerJoin(WorkflowEntity, 'workflow', 'workflow.strategyId = unit.strategyId')
       .where('workflow.id = :workflowId');
     const reviewedTask = query
       .subQuery()
@@ -170,7 +172,7 @@ export class JobService {
   }
 
   /**
-   * How many of the Workflow's open Jobs are active right now: their current Task is running,
+   * How many open Jobs of the Strategy that the Workflow runs are active right now: their current Task is running,
    * deferred, or escalated.
    */
   async countActiveJobs(workflowId: string): Promise<number> {
@@ -184,7 +186,7 @@ export class JobService {
     return this.jobs
       .createQueryBuilder('job')
       .innerJoinAndSelect('job.unitOfWork', 'unit')
-      .innerJoin(WorkflowEntity, 'workflow', 'workflow.activeStrategyId = unit.strategyId')
+      .innerJoin(WorkflowEntity, 'workflow', 'workflow.strategyId = unit.strategyId')
       .where('workflow.id = :workflowId', { workflowId })
       .andWhere('job.outcomeStatus IS NULL');
   }

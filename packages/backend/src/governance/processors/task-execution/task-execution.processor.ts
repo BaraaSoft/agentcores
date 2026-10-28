@@ -13,7 +13,6 @@ import type { PlannedStep } from '../../../reasoning/task/types/planned-step';
 import type { StepRecord } from '../../../reasoning/task/types/step-record';
 import type { TaskReasoningInput } from '../../../reasoning/task/types/task-reasoning-input';
 import { ReportingService } from '../../../reporting/reporting.service';
-import { WorkflowService } from '../../../workflow/workflow.service';
 import type { TaskEntity } from '../../entities/task.entity';
 import { MetricsService } from '../../services/metrics.service';
 import { TaskService } from '../../services/task.service';
@@ -56,7 +55,6 @@ export class TaskExecutionProcessor extends WorkerHost {
     @InjectQueue(JOB_EXECUTION_QUEUE)
     private readonly jobQueue: Queue<JobExecutionJobData>,
     private readonly taskReasoning: TaskReasoningService,
-    private readonly workflows: WorkflowService,
     private readonly tasks: TaskService,
     private readonly metrics: MetricsService,
     private readonly memory: MemoryRetrievalService,
@@ -70,29 +68,29 @@ export class TaskExecutionProcessor extends WorkerHost {
   /**
    * Runs the queued Task and records how it ended. Runs a `pending` Task, or a `deferred` one whose
    * delay is up. Returns `null` without running when the Task is in any other state (delivered twice)
-   * or the Workflow is not `running`, or another worker claimed it first; a deferred Task that comes
+   * or its Unit of Work is not `running`, or another worker claimed it first; a deferred Task that comes
    * due while paused goes back to pending, so it runs when its Job is queued again on resume.
    */
   async process(message: Job<TaskExecutionJobData>): Promise<TaskRunOutcome | null> {
     const { workflowId, taskId } = message.data;
     const task = await this.tasks.findTaskWithLineage(taskId);
     if (task?.status !== 'pending' && task?.status !== 'deferred') return null;
-    const workflow = await this.workflows.findWorkflowById(workflowId);
-    if (workflow?.state !== 'running') {
+    if (task.job.unitOfWork.state !== 'running') {
       if (task.status === 'deferred') await this.tasks.markTaskPending(taskId);
       return null;
     }
 
     if (!(await this.tasks.markTaskRunning(taskId))) return null;
+    const owner = task.job.unitOfWork.strategy.owner;
     try {
       const context = await this.memory.retrieveSafeContext({
-        owner: workflow.owner,
+        owner,
         query: task.action,
         limit: TASK_CONTEXT_RECORD_LIMIT,
       });
       const run: TaskRun = { workflowId, task, safeContext: context.promptBlock };
       const end = await this.runSteps(run);
-      await this.finish(run, workflow.owner, end);
+      await this.finish(run, owner, end);
       return {
         taskId,
         status: end.status,

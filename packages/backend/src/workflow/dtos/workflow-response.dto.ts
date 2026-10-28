@@ -10,20 +10,17 @@ export class WorkflowResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
-  name: string;
+  @ApiProperty({ format: 'uuid' })
+  strategyId: string;
 
   @ApiProperty()
-  owner: string;
+  machineId: string;
 
   @ApiProperty({ enum: WORKFLOW_STATES })
   state: WorkflowState;
 
   @ApiProperty()
   resources: WorkflowResources;
-
-  @ApiProperty({ format: 'uuid', nullable: true })
-  activeStrategyId: string | null;
 
   /**
    * Maps a persisted Workflow to its API representation.

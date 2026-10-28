@@ -1,21 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, Length, ValidateNested } from 'class-validator';
+import { IsString, IsUUID, Length, ValidateNested } from 'class-validator';
 import { WorkflowResourcesRequestDto } from './workflow-resources-request.dto';
 
 /**
- * Body for `POST /workflows`. A new Workflow starts `paused` with no Strategy.
+ * Body for `POST /workflows`. A new Workflow runs one Strategy on one machine, and starts `paused`.
  */
 export class CreateWorkflowRequestDto {
-  @ApiProperty({ example: 'HumanExperiences distribution' })
-  @IsString()
-  @Length(1, 200)
-  name: string;
+  @ApiProperty({ format: 'uuid', description: 'The Strategy this machine runs' })
+  @IsUUID()
+  strategyId: string;
 
-  @ApiProperty({ description: 'HumanExperiences user ID' })
+  @ApiProperty({ example: 'baraa-macbook', description: 'The machine this Workflow runs on' })
   @IsString()
   @Length(1, 100)
-  owner: string;
+  machineId: string;
 
   @ApiProperty({ type: WorkflowResourcesRequestDto })
   @ValidateNested()

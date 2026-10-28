@@ -76,7 +76,8 @@ export class TaskService {
   }
 
   /**
-   * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs.
+   * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs: the
+   * Unit's state gates the run, and the Strategy names the owner.
    */
   async findTaskWithLineage(taskId: string): Promise<TaskEntity | null> {
     return this.tasks.findOne({

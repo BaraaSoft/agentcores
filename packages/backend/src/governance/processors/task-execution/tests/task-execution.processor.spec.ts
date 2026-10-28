@@ -10,7 +10,6 @@ import type { BlockerDecision } from '../../../../reasoning/task/types/blocker-d
 import type { PlannedStep } from '../../../../reasoning/task/types/planned-step';
 import type { TaskReasoningInput } from '../../../../reasoning/task/types/task-reasoning-input';
 import type { ReportingService } from '../../../../reporting/reporting.service';
-import type { WorkflowService } from '../../../../workflow/workflow.service';
 import type { TaskEntity } from '../../../entities/task.entity';
 import type { MetricsService } from '../../../services/metrics.service';
 import type { TaskService } from '../../../services/task.service';
@@ -55,8 +54,14 @@ function setup() {
     jobId: 'job-1',
     status: 'pending',
     action: 'Reply to the top thread on r/AICompanion',
-    job: { objective: 'Engage with r/AICompanion', unitOfWorkId: 'unit-1' },
+    job: {
+      objective: 'Engage with r/AICompanion',
+      unitOfWorkId: 'unit-1',
+      unitOfWork: { state: 'running', strategy: { owner: 'owner-1' } },
+    },
   } as unknown as TaskEntity;
+  const paused = (status = 'pending') =>
+    ({ ...task, status, job: { ...task.job, unitOfWork: { ...task.job.unitOfWork, state: 'paused' } } }) as unknown as TaskEntity;
 
   const execution = { runTask: jest.fn<Promise<ExecutionResult>, Parameters<ExecutionProvider['runTask']>>() };
   const taskQueue = { add: jest.fn().mockResolvedValue(undefined) };
@@ -65,7 +70,6 @@ function setup() {
     planNextStep: jest.fn<Promise<PlannedStep>, [TaskReasoningInput]>(),
     decideOnBlocker: jest.fn<Promise<BlockerDecision>, [TaskReasoningInput]>(),
   };
-  const workflows = { findWorkflowById: jest.fn().mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'running' }) };
   const tasks = {
     findTaskWithLineage: jest.fn().mockResolvedValue(task),
     markTaskRunning: jest.fn().mockResolvedValue(true),
@@ -92,7 +96,6 @@ function setup() {
     taskQueue as unknown as Queue<TaskExecutionJobData>,
     jobQueue as unknown as Queue<JobExecutionJobData>,
     reasoning as unknown as TaskReasoningService,
-    workflows as unknown as WorkflowService,
     tasks as unknown as TaskService,
     metrics as unknown as MetricsService,
     memory as unknown as MemoryRetrievalService,
@@ -105,11 +108,11 @@ function setup() {
   return {
     run,
     task,
+    paused,
     execution,
     taskQueue,
     jobQueue,
     reasoning,
-    workflows,
     tasks,
     metrics,
     memory,
@@ -120,9 +123,9 @@ function setup() {
 }
 
 describe('TaskExecutionProcessor', () => {
-  it('skips the Task when the Workflow is not running', async () => {
+  it("skips the Task when its Unit of Work is not running", async () => {
     const t = setup();
-    t.workflows.findWorkflowById.mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'paused' });
+    t.tasks.findTaskWithLineage.mockResolvedValue(t.paused());
 
     expect(await t.run()).toBeNull();
     expect(t.tasks.markTaskRunning).not.toHaveBeenCalled();
@@ -161,10 +164,9 @@ describe('TaskExecutionProcessor', () => {
     expect(outcome?.status).toBe('complete');
   });
 
-  it('puts a deferred Task that comes due while the Workflow is paused back to pending, without running it', async () => {
+  it('puts a deferred Task that comes due while its Unit of Work is paused back to pending, without running it', async () => {
     const t = setup();
-    t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, status: 'deferred' });
-    t.workflows.findWorkflowById.mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'paused' });
+    t.tasks.findTaskWithLineage.mockResolvedValue(t.paused('deferred'));
 
     expect(await t.run()).toBeNull();
     expect(t.tasks.markTaskPending).toHaveBeenCalledWith(TASK_ID);
