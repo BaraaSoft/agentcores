@@ -35,6 +35,7 @@ import { EVALUATIONS_UNIT_NAME, JOB_NAME_MAX_LENGTH, MAX_JUDGING_ATTEMPTS } from
  *  3.      └─ judge { evaluationId }                          (one message per Job)
  *  4.         ├─ scored          → recordScore                → scored    ✓ done
  *  5.         └─ needs_evidence  → placeJob + parkForEvidence  → awaiting_evidence
+ *                 (only for the owner's own results; judgeJob searches the web itself)
  *  6.            └─ the evidence Job runs on the job-execution queue, like any other Job
  *  7.               └─ it closes: JobExecutionProcessor.resumeEvaluation → judging
  *  8.                  └─ judge { evaluationId }               (step 3 again, evidence in hand)

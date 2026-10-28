@@ -1,6 +1,6 @@
 import type { ReasoningModelClient } from '../../reasoning-model.client';
 import type { TaskOutcome } from '../../job/types/task-outcome';
-import { JUDGE_JOB_MAX_TOKENS, MAX_JOB_SCORE, MIN_JOB_SCORE } from '../evaluation-reasoning.constants';
+import { JUDGE_JOB_MAX_SEARCHES, JUDGE_JOB_MAX_TOKENS, MAX_JOB_SCORE, MIN_JOB_SCORE } from '../evaluation-reasoning.constants';
 import { EvaluationReasoningService } from '../evaluation-reasoning.service';
 import { JOB_JUDGEMENT_OUTPUT_SCHEMA } from '../schemas/job-judgement-output.schema';
 import type { JudgeJobInput } from '../types/judge-job-input';
@@ -79,6 +79,16 @@ describe('EvaluationReasoningService', () => {
       expect(userPrompt).toContain('* Upvotes (reddit_upvotes): target 50');
       expect(userPrompt).toContain('1. [complete] Post a text-only intro in r/AICompanion\n   Result: Posted; 3 upvotes so far.');
       expect(userPrompt).toContain('<EVIDENCE_GATHERED>\nNone requested yet.\n</EVIDENCE_GATHERED>');
+    });
+
+    it('may search the web to work out what good looks like', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(SCORED);
+
+      await t.service.judgeJob(JOB);
+
+      expect(t.call().webSearch).toEqual({ maxSearches: JUDGE_JOB_MAX_SEARCHES });
+      expect(t.call().systemPrompt).toContain('search\n  the web and find out');
     });
 
     it('says the Job is still open when it has no outcome yet', async () => {

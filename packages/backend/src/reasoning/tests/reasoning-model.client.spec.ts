@@ -6,11 +6,17 @@ import type { ReasoningTool } from '../types/reasoning-tool';
 
 const SCHEMA = z.object({ answer: z.string() });
 
-function setup(reply: { stop_reason: string; parsed_output: unknown }) {
+function setup(reply: { stop_reason: string; parsed_output: unknown; content?: unknown }) {
   const parse = jest.fn().mockResolvedValue(reply);
   const client = new ReasoningModelClient({ messages: { parse } } as unknown as Anthropic, { modelId: 'opus', effort: 'high' });
-  const run = () =>
-    client.completeStructured({ systemPrompt: 'You decide.', userPrompt: 'Decide.', maxTokens: 4000, schema: SCHEMA });
+  const run = (webSearch?: { maxSearches: number }) =>
+    client.completeStructured({
+      systemPrompt: 'You decide.',
+      userPrompt: 'Decide.',
+      maxTokens: 4000,
+      schema: SCHEMA,
+      webSearch,
+    });
   return { parse, run };
 }
 
@@ -78,6 +84,43 @@ describe('ReasoningModelClient', () => {
       const t = setup(reply);
 
       await expect(t.run()).rejects.toThrow(`stop reason: ${reply.stop_reason}`);
+    });
+
+    it('offers no web search unless the call asks for one', async () => {
+      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+
+      await t.run();
+
+      expect(t.parse.mock.calls[0][0].tools).toBeUndefined();
+    });
+
+    it('lets the model search the web, capped at the number of searches asked for', async () => {
+      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+
+      await t.run({ maxSearches: 3 });
+
+      expect(t.parse.mock.calls[0][0].tools).toEqual([
+        { type: 'web_search_20260318', name: 'web_search', max_uses: 3 },
+      ]);
+    });
+
+    it('carries on from its own work when a search pauses the turn', async () => {
+      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+      const searching = [{ type: 'server_tool_use', name: 'web_search' }];
+      t.parse.mockResolvedValueOnce({ stop_reason: 'pause_turn', content: searching, parsed_output: null });
+
+      expect(await t.run({ maxSearches: 3 })).toEqual({ answer: 'yes' });
+
+      expect(t.parse.mock.calls[1][0].messages).toEqual([
+        { role: 'user', content: 'Decide.' },
+        { role: 'assistant', content: searching },
+      ]);
+    });
+
+    it('gives up on a turn that keeps pausing without answering', async () => {
+      const t = setup({ stop_reason: 'pause_turn', parsed_output: null, content: [] });
+
+      await expect(t.run({ maxSearches: 3 })).rejects.toThrow('paused more than');
     });
   });
 

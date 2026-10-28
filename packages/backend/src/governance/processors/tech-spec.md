@@ -308,7 +308,7 @@ The right-hand column is the state the judgement is left in.
 | 2 | `JobEvaluationProcessor.sweep` | `createEvaluation` for each Job with activity that day | `judging` |
 | 3 | `JobEvaluationProcessor.sweep` | One `judge` message per Job | `judging` |
 | 4 | `JobEvaluationProcessor.judge` | `judgeJob` → **scored**: `recordScore` | `scored` ✓ |
-| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob`, then `parkForEvidence` | `awaiting_evidence` |
+| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob` to read the real outcome, then `parkForEvidence` | `awaiting_evidence` |
 | 6 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
 | 7 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `judge` message | `judging` |
 | 8 | `JobEvaluationProcessor.judge` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
@@ -318,6 +318,10 @@ day's work for one Workflow; `{ kind: 'judge', workflowId, evaluationId }` is on
 the payload rather than being read from the clock, so a retry judges the day it was meant to. A `judge`
 message says only *which* judgement to work on — how far along it is lives in the row's `state`, which is
 why steps 4 and 8 are the same code path.
+
+**Most judgements never reach step 5.** `judgeJob` can search the web within its own call, so when the
+evaluator is unsure what good looks like for this kind of work it settles that there and then. Step 5 is
+only for what no search can reach: the real outcome of the owner's own work, behind their own login.
 
 **Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
 any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to

@@ -79,7 +79,7 @@ flowchart TB
 | `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
 | `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
-| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Unit's criteria, gathered evidence | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
+| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Unit's criteria, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
 directly below it.** The Strategy reasoner never sees a Task; the Task reasoner never sees a screenshot.
@@ -179,21 +179,29 @@ how its own work landed.
 
 | | |
 | --- | --- |
-| Who picks the standard | The model does. The objective's own bar first, then the Unit's success criteria, then the test that kind of work deserves — stated back in `rubric` |
+| Who picks the standard | The model does. The objective's own bar first, then the Unit's success criteria, then the test that kind of work deserves — stated back in `rubric`. Where it has no sound basis for any of those, it searches the web for how the work is done well rather than marking on instinct |
 | How the scale is held | Anchored in the prompt: 1–3 not met, 4–6 partly, 7–8 met, 9–10 exceeded *with evidence*. Without anchors a 1–10 scale collapses to "everything is a 7" |
 | Who the feedback is for | The next planner, not the owner. `whatGood` and `whatBad` name the decision, not the outcome: "led with a question, which pulled replies", not "the post did well" |
 | What `objectiveSummary` is for | Finding this Job again. Written in general terms — kind of work, medium, intent — because it is the text the planner's search is matched against |
 
-**When the outcome is not on record, it does not guess.** A post judged minutes after it went up has no
-engagement yet. Rather than inventing a number, the evaluator returns an `EvidenceRequest`: a real Job,
-filed under the Strategy's Evaluations Unit, that goes and reads the figures through the execution layer.
-The judgement parks until that Job closes and is then marked on what came back. One round only — the
-second call is told the evidence is in and must mark on it.
+**When it does not know, it does not guess — it goes and finds out.** A judgement can be short of two
+different things, and what is missing decides how it is fetched.
+
+| What is missing | How it is fetched | Why that way |
+| --- | --- | --- |
+| **The standard.** The evaluator cannot say what good would have looked like for this kind of work | It searches the web mid-judgement, up to `JUDGE_JOB_MAX_SEARCHES` times, and answers in the same call | This is public knowledge. Sending a Job out for it would cost a planning round and a browser session to learn something a search answers in seconds |
+| **The outcome.** A post judged minutes after it went up has no engagement yet | It returns an `EvidenceRequest`, which becomes a real Job under the Strategy's Evaluations Unit. The judgement parks until that Job closes, then marks on what came back | No search can read this. The figures sit behind the owner's own login and only a Job on their machine can open them |
+
+Searching for the standard is for **aspiration, not imitation**: the feedback says what would have lifted
+the Job towards it — the angle, the shape, the level of craft — and never tells the planner to reproduce
+what it found. The next Job has to be the agent's own work, as good as the best of its kind.
+
+Evidence is one round only — the second call is told the evidence is in and must mark on it.
 
 ```mermaid
 flowchart LR
-    Judge["judgeJob"] -->|scored| Store["1–10 + whatGood / whatBad<br/>+ objectiveSummary vector"]
-    Judge -->|needs_evidence| Errand["Evidence Job<br/>reads views, likes, replies, a file"]
+    Judge["judgeJob<br/>(may search the web)"] -->|scored| Store["1–10 + whatGood / whatBad<br/>+ objectiveSummary vector"]
+    Judge -->|needs_evidence| Errand["Evidence Job<br/>reads the real outcome<br/>on the owner's machine"]
     Errand -->|closes| Judge
     Store --> Planner["planJobs reads the closest past objectives"]
 ```
@@ -314,6 +322,12 @@ zod schema as the JSON schema output format (`output_config.format`). The model 
 answer in that shape; the SDK parses the answer into `parsed_output`. A reply that stops for any reason
 other than `end_turn` (cut off at `maxTokens`, refused) throws, so the caller's queue retry handles it.
 `maxTokens` covers thinking and the answer together; it stays under the SDK's non-streaming limit.
+
+A call that passes `webSearch` also offers the model the web, capped at `maxSearches`. The API runs those
+searches itself, so nothing is executed here and the structured answer still comes back from the same call.
+Long searching can end a reply with `pause_turn` instead of an answer; the client hands the model its own
+work back so it carries on where it stopped, up to `MAX_PAUSED_TURNS`. `webSearch` says only that searching
+is allowed, never how, so a model client for another provider can satisfy it its own way.
 
 **How a tool loop works.** `runToolLoop` calls `messages.create` with adaptive thinking and the tools
 (`strict: true`, input schemas from zod). Each turn's content goes back as the assistant message, so

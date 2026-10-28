@@ -37,7 +37,17 @@ export const EVALUATION_REASONING_PROMPTS = {
 * Where neither settles it, work out the test this kind of work deserves and say so in the rubric. A post is judged by
   the response it earned, a design by whether it meets its brief, an outreach Job by replies, not by messages sent.
 * Judge the outcome, never the effort. Tasks completed are not an achievement.
+* If you genuinely do not know what good looks like for this kind of work, do not mark on instinct — search
+  the web and find out.
 </CHOOSING_THE_STANDARD>
+
+<SEARCHING_THE_WEB>
+* You can search while you judge. Use it to learn the standard: how work of this kind is done well, what a
+  strong example of it looks like, what response it normally earns.
+* Search when you could not otherwise say what good would have looked like. Do not search to confirm what you
+  already know, and do not search for this Job's own results — search cannot see the owner's accounts.
+* What you find is for aspiration, not imitation. See FEEDBACK.
+</SEARCHING_THE_WEB>
 
 <SCALE>
 * 1-3: the objective was not met. Nothing usable came of it, or it failed outright.
@@ -50,8 +60,9 @@ export const EVALUATION_REASONING_PROMPTS = {
 </SCALE>
 
 <EVIDENCE>
-* Ask for evidence only when the real outcome exists out in the world, decides the mark, and is not already on record —
-  views, likes, replies, or a file you would have to open to judge.
+* Searching cannot reach the owner's own work: the engagement on their post, a file they saved, anything behind their
+  login. Only a Job running on their machine can read that, so ask for evidence when such a reading decides the mark
+  and is not already on record.
 * Say exactly what to find out and where, using the Location from the Task that did the work. One Job, one errand.
 * Do not ask when the record already answers it, when the Job plainly failed, or when evidence is already in hand
   from an earlier round — mark it then, on what you have.
@@ -62,6 +73,9 @@ export const EVALUATION_REASONING_PROMPTS = {
 * Name the decision, not the outcome: "led with a question, which pulled replies" beats "the post did well".
 * Leave a field empty rather than padding it. No praise, no hedging, no restating the objective.
 * Never invent a number. Cite only readings that appear in the record.
+* When you searched for how this is done well, say what would have lifted this Job towards it — the angle, the shape,
+  the level of craft. Never tell the planner to copy what you found: the next Job must be the agent's own work, as good
+  as the best of its kind, not a reproduction of it.
 </FEEDBACK>
 
 <OBJECTIVE_SUMMARY>
