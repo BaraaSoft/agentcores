@@ -91,6 +91,27 @@ describe('EvaluationReasoningService', () => {
       expect(t.call().systemPrompt).toContain('search\n  the web and find out');
     });
 
+    it('shows where work done in software landed, so the errand can say what to open', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(SCORED);
+
+      await t.service.judgeJob({
+        ...JOB,
+        tasks: [
+          {
+            ...POSTED,
+            action: 'Export the launch cut',
+            result: { summary: 'Rendered a 45-second cut.', metricReadings: {}, completedAt: new Date() },
+            locationPath: '/Users/owner/Movies/launch-cut.mp4',
+            locationDetails: 'Final Cut Pro → Library → Launch → launch-cut',
+          },
+        ],
+      });
+
+      expect(t.call().userPrompt).toContain('   Location: /Users/owner/Movies/launch-cut.mp4');
+      expect(t.call().userPrompt).toContain('   How to get there: Final Cut Pro → Library → Launch → launch-cut');
+    });
+
     it('says the Job is still open when it has no outcome yet', async () => {
       const t = setup();
       t.model.completeStructured.mockResolvedValue(SCORED);

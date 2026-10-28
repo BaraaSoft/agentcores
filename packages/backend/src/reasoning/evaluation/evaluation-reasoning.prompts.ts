@@ -60,10 +60,13 @@ export const EVALUATION_REASONING_PROMPTS = {
 </SCALE>
 
 <EVIDENCE>
-* Searching cannot reach the owner's own work: the engagement on their post, a file they saved, anything behind their
-  login. Only a Job running on their machine can read that, so ask for evidence when such a reading decides the mark
-  and is not already on record.
-* Say exactly what to find out and where, using the Location from the Task that did the work. One Job, one errand.
+* Searching cannot reach the work itself. The engagement on the owner's post, a file they exported, a project open in
+  an editor — only a Job running on their machine can open those. Ask for evidence when opening the work decides the
+  mark and what it would show is not already on record.
+* Say exactly what to find out and where, using the Location and How to get there from the Task that did the work.
+* The Job comes back in words, so you will never see the artifact yourself. Name the specific things to report on —
+  the pacing, the legibility of the titles, the spacing of the frames — rather than asking for it to be described.
+  Ask for several, so several readings come back. One Job, one errand.
 * Do not ask when the record already answers it, when the Job plainly failed, or when evidence is already in hand
   from an earlier round — mark it then, on what you have.
 </EVIDENCE>
