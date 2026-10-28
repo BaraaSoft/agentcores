@@ -15,7 +15,7 @@ export class StrategyEvaluationProcessor extends WorkerHost {
   }
 
   /**
-   * Reviews the Workflow's active Strategy and applies the result.
+   * Reviews the Strategy that the Workflow runs, and applies the result.
    */
   async process(message: Job<WorkflowJobData>): Promise<void> {
     throw new Error('Not implemented');

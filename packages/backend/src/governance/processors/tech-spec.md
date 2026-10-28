@@ -140,7 +140,7 @@ stateDiagram-v2
     running --> escalated: needs the owner
     running --> deferred: temporary gate (rate limit, cooldown)
     deferred --> running: delay is up
-    deferred --> pending: delay is up, Workflow paused
+    deferred --> pending: delay is up, Unit of Work paused
     escalated --> pending: owner approves
     escalated --> failed: owner rejects
     complete --> [*]: reviewed by Job reasoning
@@ -208,11 +208,11 @@ a resume, or after an escalation is resolved.
 
 ```mermaid
 flowchart TD
-    Start(["job-execution: { workflowId, jobId }"]) --> Running{"Workflow running?"}
-    Running -- no --> Stop1(["do nothing"])
-    Running -- yes --> Open{"Job exists<br/>and is open?"}
+    Start(["job-execution: { workflowId, jobId }"]) --> Open{"Job exists<br/>and is open?"}
     Open -- no --> Stop2(["do nothing"])
-    Open -- yes --> Needs{"no Tasks yet, or a<br/>finished Task unreviewed?"}
+    Open -- yes --> Running{"its Unit of Work<br/>running?"}
+    Running -- no --> Stop1(["do nothing"])
+    Running -- yes --> Needs{"no Tasks yet, or a<br/>finished Task unreviewed?"}
     Needs -- no --> Current
     Needs -- yes --> Attempts{"reviewingAttempts + 1<br/>> MAX_REVIEWING_ATTEMPTS?"}
     Attempts -- yes --> Close
@@ -256,7 +256,7 @@ how each ending moves the Job.
 flowchart TD
     Start(["task-execution: { workflowId, taskId }"]) --> Status{"Task pending<br/>or deferred?"}
     Status -- no --> Skip(["skip: already handled"])
-    Status -- yes --> Running{"Workflow running?"}
+    Status -- yes --> Running{"its Unit of Work<br/>running?"}
     Running -- no --> Paused["deferred → pending<br/>(pending stays pending)"] --> Skip2(["skip: resumes with its Job"])
     Running -- yes --> Claim{"markTaskRunning<br/>claimed?"}
     Claim -- no --> Skip3(["skip: another worker has it"])
@@ -356,8 +356,9 @@ the kind the planner most needs to learn from.
 simply because its failure text mentioned the same place. Embeddings come from `embedding/`, a small model
 running in this process: no API key, and nothing leaves the machine. Vectors are stored as a float array
 and cast to pgvector in the query, which keeps the column inside what TypeORM can generate migrations for.
-Search is always scoped to one Workflow, so what the agent learns for one owner never reaches another's
-planning.
+Search is always scoped to one owner, so what the agent learns for one owner never reaches another's
+planning. It is scoped by owner rather than by Strategy, so a new 30-day cycle still learns from the ones
+before it.
 
 ---
 
@@ -408,10 +409,16 @@ state, so there is no review.
 takes. If the owner approves, Task 2 goes back to `pending` and the Job is queued again, which queues
 Task 2. If they reject, Task 2 is `failed` and the Job is queued for review, so Job reasoning plans around it.
 
-**Pause and resume.** On pause, queued Tasks are skipped and stay pending; a deferred Task whose delay
-ends during the pause goes back to pending; a Job queued for review does nothing and keeps its unreviewed
-Task. A Task already running finishes. On resume, the orchestrator queues the Workflow's startable Jobs,
-and each is reviewed or picks up at its current Task.
+**Pause and resume.** Pausing is per Unit of Work: its `state` is `running` or `paused`, and the Job
+and Task processors read it from the Job's own Unit, so pausing one theme of work leaves the others
+running. On pause, queued Tasks are skipped and stay pending; a deferred Task whose delay ends during the
+pause goes back to pending; a Job queued for review does nothing and keeps its unreviewed Task. A Task
+already running finishes. On resume, the Unit's startable Jobs are queued again, and each is reviewed or
+picks up at its current Task.
+
+Evaluation has no pause gate. Judging only reads finished work, and a judgement skipped while paused
+would stay in `judging` with nothing to queue it again. Its one action on the screen is the evidence Job,
+which the Job processor gates on its own Unit like any other Job.
 
 **Duplicate delivery.** A Task delivered twice runs once: the second delivery sees it is no longer
 pending or deferred and skips. A Job queued twice reviews its finished Task once (the second delivery

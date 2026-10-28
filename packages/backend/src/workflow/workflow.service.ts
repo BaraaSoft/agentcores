@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkflowEntity } from './entities/workflow.entity';
 import type { CreateWorkflowInput } from './types/create-workflow-input';
-import type { SetActiveStrategyInput } from './types/set-active-strategy-input';
 import type { UpdateWorkflowStateInput } from './types/update-workflow-state-input';
 
 /**
@@ -18,7 +17,7 @@ export class WorkflowService {
   ) {}
 
   /**
-   * Creates a new Workflow in the `paused` state with no active Strategy.
+   * Creates a new Workflow in the `paused` state, running its Strategy on one machine.
    */
   async createWorkflow(input: CreateWorkflowInput): Promise<WorkflowEntity> {
     throw new NotImplementedException();
@@ -42,13 +41,6 @@ export class WorkflowService {
    * Moves a Workflow to `running`, `paused`, or `evaluating`.
    */
   async updateWorkflowState(input: UpdateWorkflowStateInput): Promise<WorkflowEntity> {
-    throw new NotImplementedException();
-  }
-
-  /**
-   * Switches the Workflow to a newly planned Strategy.
-   */
-  async setActiveStrategy(input: SetActiveStrategyInput): Promise<void> {
     throw new NotImplementedException();
   }
 }

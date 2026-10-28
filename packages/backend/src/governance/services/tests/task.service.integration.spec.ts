@@ -32,7 +32,7 @@ describeWithDatabase('TaskService (Postgres)', () => {
   });
 
   async function jobWithTasks(statuses: readonly TaskStatus[], isAwaitingReview = false) {
-    const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+    const { workflow, strategy } = await seeder.strategyWithWorkflow();
     const unit = await seeder.unit(strategy.id, 'Community engagement');
     const job = await seeder.job(unit.id);
     const tasks = await seeder.tasks(workflow.id, job.id, statuses, isAwaitingReview);

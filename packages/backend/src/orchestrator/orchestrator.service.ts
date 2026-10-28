@@ -80,7 +80,7 @@ export class OrchestratorService implements OnApplicationBootstrap {
   /**
    * Plans and saves a fresh 30-day Strategy, learning from past evaluations: Strategy reasoning
    * proposes its Units, then Unit reasoning proposes each Unit's Jobs, filed through
-   * `JobService.placeJob`. Makes it the Workflow's active Strategy.
+   * `JobService.placeJob`. A Workflow is then opened to run it on this machine.
    */
   private async planStrategy(workflow: WorkflowEntity): Promise<StrategyEntity> {
     throw new NotImplementedException();

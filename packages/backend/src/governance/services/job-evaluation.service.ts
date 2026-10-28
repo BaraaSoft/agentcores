@@ -123,7 +123,7 @@ export class JobEvaluationService {
 
   /**
    * The scored Jobs whose objective is closest in meaning to `input.objective`, nearest first. The
-   * search is scoped to one Workflow, so what the agent learnt for one owner never reaches another's
+   * search is scoped to one owner, so what the agent learnt for one owner never reaches another's
    * planning. Cosine distance is computed by pgvector over the stored objective vectors.
    */
   async searchPastEvaluations(input: SearchJobEvaluationsInput): Promise<JobEvaluationEntity[]> {
@@ -131,7 +131,7 @@ export class JobEvaluationService {
     const query = this.evaluations
       .createQueryBuilder('evaluation')
       .innerJoinAndSelect('evaluation.job', 'job')
-      .where('evaluation.workflowId = :workflowId', { workflowId: input.workflowId })
+      .where('evaluation.owner = :owner', { owner: input.owner })
       .andWhere('evaluation.state = :scored', { scored: 'scored' })
       .andWhere('evaluation.objectiveEmbedding IS NOT NULL');
     if (input.maxScore !== undefined) {

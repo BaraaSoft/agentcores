@@ -9,6 +9,7 @@ import { JobEvaluationService } from '../job-evaluation.service';
 import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
 
 const DATE = '2026-10-26';
+const OWNER = 'owner-1';
 
 /**
  * Embeds by direction rather than by meaning: each text is placed at a fixed angle, so texts at
@@ -58,18 +59,18 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
 
   const reload = (evaluationId: string) => dataSource.getRepository(JobEvaluationEntity).findOneByOrFail({ id: evaluationId });
 
-  /** One Workflow with a Job under it, ready to be judged. */
+  /** One owner's Strategy with a Job under it, ready to be judged. */
   async function openEvaluation(jobName = 'Engage r/AICompanion') {
-    const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+    const { strategy } = await seeder.strategyWithWorkflow();
     const unit = await seeder.unit(strategy.id, 'Community engagement');
     const job = await seeder.job(unit.id, jobName);
     const evaluation = await service.createEvaluation({
-      workflowId: workflow.id,
+      owner: OWNER,
       jobId: job.id,
       unitOfWorkId: unit.id,
       evaluationDate: DATE,
     });
-    return { workflow, unit, job, evaluation };
+    return { unit, job, evaluation };
   }
 
   function score(evaluationId: string, objectiveSummary: string, scoreOutOfTen = 4) {
@@ -91,10 +92,10 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
     });
 
     it('returns the judgement already opened rather than a second one for the same day', async () => {
-      const { workflow, unit, job, evaluation } = await openEvaluation();
+      const { unit, job, evaluation } = await openEvaluation();
 
       const again = await service.createEvaluation({
-        workflowId: workflow.id,
+        owner: OWNER,
         jobId: job.id,
         unitOfWorkId: unit.id,
         evaluationDate: DATE,
@@ -105,10 +106,10 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
     });
 
     it('judges the same Job again on another day', async () => {
-      const { workflow, unit, job } = await openEvaluation();
+      const { unit, job } = await openEvaluation();
 
       await service.createEvaluation({
-        workflowId: workflow.id,
+        owner: OWNER,
         jobId: job.id,
         unitOfWorkId: unit.id,
         evaluationDate: '2026-10-27',
@@ -178,9 +179,9 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
   });
 
   describe('searchPastEvaluations', () => {
-    /** Three scored Jobs in one Workflow, at increasing distance from the forum-post objective. */
-    async function scoredWorkflow() {
-      const { workflow, unit } = await openEvaluation('Post an intro');
+    /** Three scored Jobs of one owner, at increasing distance from the forum-post objective. */
+    async function scoredJobs() {
+      const { unit } = await openEvaluation('Post an intro');
       const summaries = [
         'Introduce a product to a small online community through a text post',
         'Reply to comments on an existing community thread',
@@ -189,21 +190,21 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
       for (const [index, objectiveSummary] of summaries.entries()) {
         const job = await seeder.job(unit.id, `Job ${index}`);
         const evaluation = await service.createEvaluation({
-          workflowId: workflow.id,
+          owner: OWNER,
           jobId: job.id,
           unitOfWorkId: unit.id,
           evaluationDate: DATE,
         });
         await score(evaluation.id, objectiveSummary, index + 2);
       }
-      return { workflow, unit };
+      return { unit };
     }
 
     it('returns the closest objectives first', async () => {
-      const { workflow } = await scoredWorkflow();
+      await scoredJobs();
 
       const found = await service.searchPastEvaluations({
-        workflowId: workflow.id,
+        owner: OWNER,
         objective: 'Share a product announcement in a niche discussion forum',
         limit: 3,
       });
@@ -216,10 +217,10 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
     });
 
     it('returns at most the limit asked for', async () => {
-      const { workflow } = await scoredWorkflow();
+      await scoredJobs();
 
       const found = await service.searchPastEvaluations({
-        workflowId: workflow.id,
+        owner: OWNER,
         objective: 'Share a product announcement in a niche discussion forum',
         limit: 1,
       });
@@ -229,10 +230,10 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
     });
 
     it('narrows to the Jobs that went badly when asked for a ceiling', async () => {
-      const { workflow } = await scoredWorkflow();
+      await scoredJobs();
 
       const found = await service.searchPastEvaluations({
-        workflowId: workflow.id,
+        owner: OWNER,
         objective: 'Share a product announcement in a niche discussion forum',
         limit: 3,
         maxScore: 2,
@@ -241,12 +242,12 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
       expect(found.map((evaluation) => evaluation.score)).toEqual([2]);
     });
 
-    it('never crosses into another owner\u2019s Workflow', async () => {
-      await scoredWorkflow();
-      const other = await seeder.workflowWithActiveStrategy();
+    it('never crosses into another owner\u2019s work', async () => {
+      await scoredJobs();
+      await seeder.strategyWithWorkflow('owner-2');
 
       const found = await service.searchPastEvaluations({
-        workflowId: other.workflow.id,
+        owner: 'owner-2',
         objective: 'Share a product announcement in a niche discussion forum',
         limit: 3,
       });
@@ -254,11 +255,24 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
       expect(found).toEqual([]);
     });
 
-    it('skips judgements that were never scored', async () => {
-      const { workflow } = await openEvaluation();
+    it('learns from the owner\u2019s earlier Strategies too', async () => {
+      await scoredJobs();
+      await seeder.strategyWithWorkflow();
 
       const found = await service.searchPastEvaluations({
-        workflowId: workflow.id,
+        owner: OWNER,
+        objective: 'Share a product announcement in a niche discussion forum',
+        limit: 1,
+      });
+
+      expect(found[0].objectiveSummary).toBe('Introduce a product to a small online community through a text post');
+    });
+
+    it('skips judgements that were never scored', async () => {
+      await openEvaluation();
+
+      const found = await service.searchPastEvaluations({
+        owner: OWNER,
         objective: 'Share a product announcement in a niche discussion forum',
         limit: 3,
       });

@@ -6,7 +6,6 @@ import type { JobExecutionJobData } from '../../../queue/types/job-execution-job
 import { EvaluationReasoningService } from '../../../reasoning/evaluation/evaluation-reasoning.service';
 import type { EvidenceRequest } from '../../../reasoning/evaluation/types/evidence-request';
 import type { GatheredEvidence } from '../../../reasoning/evaluation/types/gathered-evidence';
-import { WorkflowService } from '../../../workflow/workflow.service';
 import type { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEvaluationService } from '../../services/job-evaluation.service';
 import { JobService } from '../../services/job.service';
@@ -55,7 +54,6 @@ export class JobEvaluationProcessor extends WorkerHost {
     @InjectQueue(JOB_EXECUTION_QUEUE)
     private readonly jobQueue: Queue<JobExecutionJobData>,
     private readonly evaluationReasoning: EvaluationReasoningService,
-    private readonly workflows: WorkflowService,
     private readonly evaluations: JobEvaluationService,
     private readonly jobs: JobService,
     private readonly tasks: TaskService,
@@ -65,13 +63,14 @@ export class JobEvaluationProcessor extends WorkerHost {
 
   /**
    * Runs whichever of the two kinds of message was queued — a day's `sweep` or one Job's `judge`.
-   * Does nothing while the Workflow is not `running`.
+   *
+   * There is no pause gate here. Judging only reads work that is already done, and a judgement
+   * skipped while paused would stay in `judging` with nothing to queue it again. The one part of
+   * evaluation that acts on the screen is the evidence Job, and the Job processor gates that on its
+   * own Unit of Work like any other Job.
    */
   async process(message: Job<JobEvaluationJobData>): Promise<void> {
     const data = message.data;
-    const workflow = await this.workflows.findWorkflowById(data.workflowId);
-    if (workflow?.state !== 'running') return;
-
     if (data.kind === 'sweep') return this.sweep(data.workflowId, data.evaluationDate);
     return this.judge(data.workflowId, data.evaluationId);
   }
@@ -85,7 +84,7 @@ export class JobEvaluationProcessor extends WorkerHost {
     const jobs = await this.jobs.listJobsWithActivityOn({ workflowId, evaluationDate });
     for (const job of jobs) {
       const evaluation = await this.evaluations.createEvaluation({
-        workflowId,
+        owner: job.unitOfWork.strategy.owner,
         jobId: job.id,
         unitOfWorkId: job.unitOfWorkId,
         evaluationDate,

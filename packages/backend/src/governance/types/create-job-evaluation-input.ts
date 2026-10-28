@@ -3,7 +3,8 @@
  * call returns the row the first one made, so a retried sweep never judges a Job twice.
  */
 export interface CreateJobEvaluationInput {
-  readonly workflowId: string;
+  /** The owner of the Job's Strategy. */
+  readonly owner: string;
   readonly jobId: string;
   readonly unitOfWorkId: string;
   /** The day being judged, as `YYYY-MM-DD`. */

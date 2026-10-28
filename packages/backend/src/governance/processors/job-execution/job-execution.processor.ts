@@ -8,8 +8,6 @@ import type { JobExecutionJobData } from '../../../queue/types/job-execution-job
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import { JobReasoningService } from '../../../reasoning/job/job-reasoning.service';
 import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
-import type { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
-import { WorkflowService } from '../../../workflow/workflow.service';
 import type { JobEntity } from '../../entities/job.entity';
 import type { TaskEntity } from '../../entities/task.entity';
 import { JobEvaluationService } from '../../services/job-evaluation.service';
@@ -27,7 +25,7 @@ import {
 /** Tasks Job reasoning sees as history: everything that finished or was dropped. */
 const HISTORY_STATUSES: readonly TaskStatus[] = ['complete', 'failed', 'cancelled'];
 
-type JobRun = { readonly workflow: WorkflowEntity; readonly job: JobEntity; readonly safeContext: string };
+type JobRun = { readonly workflowId: string; readonly job: JobEntity; readonly safeContext: string };
 
 /**
  * Moves a Job forward in two separate steps. **Reviewing** judges each finished Task in one structured
@@ -47,7 +45,6 @@ export class JobExecutionProcessor extends WorkerHost {
     @InjectQueue(JOB_EVALUATION_QUEUE)
     private readonly evaluationQueue: Queue<JobEvaluationJobData>,
     private readonly jobReasoning: JobReasoningService,
-    private readonly workflows: WorkflowService,
     private readonly jobs: JobService,
     private readonly tasks: TaskService,
     private readonly evaluations: JobEvaluationService,
@@ -58,21 +55,20 @@ export class JobExecutionProcessor extends WorkerHost {
 
   /**
    * Plans the Job if it has no Tasks, or reviews its finished Task awaiting review; then queues its
-   * current Task if it is pending. Does nothing while the Workflow is not `running` or once the Job is closed.
+   * current Task if it is pending. Does nothing while the Job's Unit of Work is not `running` or once
+   * the Job is closed.
    */
   async process(message: Job<JobExecutionJobData>): Promise<void> {
     const { workflowId, jobId } = message.data;
-    const workflow = await this.workflows.findWorkflowById(workflowId);
-    if (workflow?.state !== 'running') return;
-
     const job = await this.jobs.findJobById(jobId);
     if (job === null || job.outcomeStatus !== null) return;
+    if (job.unitOfWork.state !== 'running') return;
 
     const tasks = await this.tasks.listTasks(jobId);
     const unreviewed = tasks.length === 0 ? null : await this.tasks.findUnreviewedTask(jobId);
     if (tasks.length === 0 || unreviewed !== null) {
       const isClosed = await this.withReviewingAttempts(job, async () => {
-        const run = await this.startRun(workflow, job);
+        const run = await this.startRun(workflowId, job);
         return unreviewed === null
           ? this.planTasks(run, tasks, 'This is a new Job: write its first plan.', '')
           : this.reviewJob(run, tasks, unreviewed);
@@ -120,13 +116,13 @@ export class JobExecutionProcessor extends WorkerHost {
     return isClosed;
   }
 
-  private async startRun(workflow: WorkflowEntity, job: JobEntity): Promise<JobRun> {
+  private async startRun(workflowId: string, job: JobEntity): Promise<JobRun> {
     const context = await this.memory.retrieveSafeContext({
-      owner: workflow.owner,
+      owner: job.unitOfWork.strategy.owner,
       query: job.objective,
       limit: JOB_CONTEXT_RECORD_LIMIT,
     });
-    return { workflow, job, safeContext: context.promptBlock };
+    return { workflowId, job, safeContext: context.promptBlock };
   }
 
   /**
@@ -190,7 +186,7 @@ export class JobExecutionProcessor extends WorkerHost {
     });
     if (actions.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
 
-    await this.tasks.replaceRemainingTasks({ workflowId: run.workflow.id, jobId: run.job.id, actions });
+    await this.tasks.replaceRemainingTasks({ workflowId: run.workflowId, jobId: run.job.id, actions });
     return false;
   }
 

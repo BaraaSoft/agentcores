@@ -9,7 +9,7 @@ import { StrategyEntity } from '../../entities/strategy.entity';
 import { TaskEntity } from '../../entities/task.entity';
 import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 
-/** Every entity the governance services touch, including the Workflow they hang off. */
+/** Every entity the governance services touch, including the Workflow that runs the Strategy. */
 export const GOVERNANCE_ENTITIES = [
   WorkflowEntity,
   StrategyEntity,
@@ -21,8 +21,8 @@ export const GOVERNANCE_ENTITIES = [
 ];
 
 /**
- * Seeds and clears governance rows for integration specs: a running Workflow whose active
- * Strategy is created first, then Units, Jobs, and Tasks under it.
+ * Seeds and clears governance rows for integration specs: a Strategy and the running Workflow that
+ * runs it are created first, then Units, Jobs, and Tasks under the Strategy.
  */
 @Injectable()
 export class GovernanceSeeder {
@@ -36,19 +36,20 @@ export class GovernanceSeeder {
     await this.dataSource.query(`TRUNCATE ${tables} CASCADE`);
   }
 
-  async workflowWithActiveStrategy(): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
-    const workflows = this.dataSource.getRepository(WorkflowEntity);
-    const workflow = await workflows.save(
-      workflows.create({ name: 'Distribution', owner: 'owner-1', resources: {} as WorkflowResources, state: 'running' }),
-    );
-    const strategy = await this.strategy(workflow.id);
-    await workflows.update(workflow.id, { activeStrategyId: strategy.id });
-    return { workflow: { ...workflow, activeStrategyId: strategy.id }, strategy };
+  /**
+   * A Strategy for `owner`, and one running Workflow that runs it on a machine.
+   */
+  async strategyWithWorkflow(owner = 'owner-1'): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
+    const strategy = await this.strategy(owner);
+    const workflow = await this.dataSource
+      .getRepository(WorkflowEntity)
+      .save({ strategyId: strategy.id, machineId: 'machine-1', resources: {} as WorkflowResources, state: 'running' });
+    return { workflow, strategy };
   }
 
-  async strategy(workflowId: string): Promise<StrategyEntity> {
+  async strategy(owner = 'owner-1'): Promise<StrategyEntity> {
     return this.dataSource.getRepository(StrategyEntity).save({
-      workflowId,
+      owner,
       name: 'October',
       startDate: new Date('2026-10-01T00:00:00Z'),
       endDate: new Date('2026-10-31T00:00:00Z'),

@@ -6,7 +6,6 @@ import type { JobExecutionJobData } from '../../../../queue/types/job-execution-
 import type { TaskExecutionJobData } from '../../../../queue/types/task-execution-job-data';
 import type { JobReasoningService } from '../../../../reasoning/job/job-reasoning.service';
 import type { JobReview } from '../../../../reasoning/job/types/job-review';
-import type { WorkflowService } from '../../../../workflow/workflow.service';
 import type { JobEvaluationService } from '../../../services/job-evaluation.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
@@ -45,15 +44,15 @@ function setup() {
     reviewJob: jest.fn().mockResolvedValue(review()),
     planTasks: jest.fn().mockResolvedValue(['Open r/AICompanion', 'Reply']),
   };
-  const workflows = { findWorkflowById: jest.fn().mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'running' }) };
+  const job = {
+    id: JOB_ID,
+    name: 'Engage r/AICompanion',
+    objective: 'Join the conversation on r/AICompanion',
+    unitOfWork: { name: 'Community engagement', state: 'running', strategy: { owner: 'owner-1' } },
+    outcomeStatus: null,
+  };
   const jobs = {
-    findJobById: jest.fn().mockResolvedValue({
-      id: JOB_ID,
-      name: 'Engage r/AICompanion',
-      objective: 'Join the conversation on r/AICompanion',
-      unitOfWork: { name: 'Community engagement' },
-      outcomeStatus: null,
-    }),
+    findJobById: jest.fn().mockResolvedValue(job),
     closeJob: jest.fn().mockResolvedValue(true),
     recordReviewingAttempt: jest.fn().mockResolvedValue(1),
     resetReviewingAttempts: jest.fn().mockResolvedValue(undefined),
@@ -77,7 +76,6 @@ function setup() {
     taskQueue as unknown as Queue<TaskExecutionJobData>,
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
     jobReasoning as unknown as JobReasoningService,
-    workflows as unknown as WorkflowService,
     jobs as unknown as JobService,
     tasks as unknown as TaskService,
     evaluations as unknown as JobEvaluationService,
@@ -93,7 +91,7 @@ function setup() {
   };
   const savedActions = () => tasks.replaceRemainingTasks.mock.calls[0]?.[0].actions;
 
-  return { run, reviewing, savedActions, taskQueue, evaluationQueue, jobReasoning, workflows, jobs, tasks, evaluations, memory };
+  return { run, reviewing, savedActions, taskQueue, evaluationQueue, jobReasoning, job, jobs, tasks, evaluations, memory };
 }
 
 describe('JobExecutionProcessor', () => {
@@ -365,13 +363,14 @@ describe('JobExecutionProcessor', () => {
     expect(t.taskQueue.add).not.toHaveBeenCalled();
   });
 
-  it('does nothing while the Workflow is paused', async () => {
+  it("does nothing while the Job's Unit of Work is paused", async () => {
     const t = setup();
-    t.workflows.findWorkflowById.mockResolvedValue({ id: WORKFLOW_ID, owner: 'owner-1', state: 'paused' });
+    t.jobs.findJobById.mockResolvedValue({ ...t.job, unitOfWork: { ...t.job.unitOfWork, state: 'paused' } });
 
     await t.run();
 
-    expect(t.jobs.findJobById).not.toHaveBeenCalled();
+    expect(t.tasks.listTasks).not.toHaveBeenCalled();
+    expect(t.jobReasoning.planTasks).not.toHaveBeenCalled();
     expect(t.taskQueue.add).not.toHaveBeenCalled();
   });
 });

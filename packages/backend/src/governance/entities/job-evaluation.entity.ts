@@ -12,17 +12,18 @@ import { JobEntity } from './job.entity';
  */
 @Entity('job_evaluations')
 @Index(['jobId', 'evaluationDate'], { unique: true })
-@Index(['workflowId', 'state'])
+@Index(['owner', 'state'])
 export class JobEvaluationEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   /**
-   * Denormalised from the Job's Strategy so the search for past Jobs stays inside one owner's
-   * Workflow: what the agent learnt for one owner must never leak into another's planning.
+   * Denormalised from the Job's Strategy so the search for past Jobs stays inside one owner's work:
+   * what the agent learnt for one owner must never leak into another's planning. It is the owner, not
+   * the Strategy, so a new 30-day cycle still learns from the cycles before it.
    */
-  @Column({ type: 'uuid' })
-  workflowId: string;
+  @Column({ type: 'varchar', length: 100 })
+  owner: string;
 
   @Column({ type: 'uuid' })
   jobId: string;

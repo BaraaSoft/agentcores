@@ -33,9 +33,9 @@ export class StrategyService {
   }
 
   /**
-   * Returns evaluations of the Workflow's past Strategies, newest first.
+   * Returns evaluations of the owner's past Strategies, newest first.
    */
-  async listPastEvaluations(workflowId: string, limit = DEFAULT_HISTORY_LIMIT): Promise<StrategyEvaluation[]> {
+  async listPastEvaluations(owner: string, limit = DEFAULT_HISTORY_LIMIT): Promise<StrategyEvaluation[]> {
     throw new NotImplementedException();
   }
 

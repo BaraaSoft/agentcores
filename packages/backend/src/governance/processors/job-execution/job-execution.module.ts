@@ -3,7 +3,6 @@ import { Module } from '@nestjs/common';
 import { MemoryModule } from '../../../memory/memory.module';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
-import { WorkflowModule } from '../../../workflow/workflow.module';
 import { GovernanceModule } from '../../governance.module';
 import { JobExecutionProcessor } from './job-execution.processor';
 
@@ -16,7 +15,6 @@ import { JobExecutionProcessor } from './job-execution.processor';
     GovernanceModule,
     ReasoningModule,
     MemoryModule,
-    WorkflowModule,
   ],
   providers: [JobExecutionProcessor],
 })

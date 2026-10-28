@@ -37,7 +37,7 @@ describeWithDatabase('JobService (Postgres)', () => {
 
   describe('listStartableJobs and countActiveJobs', () => {
     async function workflowWithJobs(jobs: Record<string, readonly TaskStatus[]>, awaitingReview: readonly string[] = []) {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
       const ids: Record<string, string> = {};
       for (const [name, statuses] of Object.entries(jobs)) {
@@ -85,11 +85,11 @@ describeWithDatabase('JobService (Postgres)', () => {
       expect(await service.countActiveJobs(workflow.id)).toBe(3);
     });
 
-    it('skips deprecated Units and Strategies that are not active', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+    it('skips deprecated Units and Strategies the Workflow does not run', async () => {
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const deprecated = await seeder.unit(strategy.id, 'Old theme', 0, true);
       await seeder.job(deprecated.id, 'In a deprecated Unit');
-      const oldStrategy = await seeder.strategy(workflow.id);
+      const oldStrategy = await seeder.strategy();
       await seeder.job((await seeder.unit(oldStrategy.id, 'Last month')).id, 'In an old Strategy');
       const active = await seeder.job((await seeder.unit(strategy.id, 'Current theme')).id, 'Startable');
 
@@ -99,7 +99,7 @@ describeWithDatabase('JobService (Postgres)', () => {
     });
 
     it('puts Units with a larger share first, then older Jobs, up to the limit', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const small = await seeder.unit(strategy.id, 'Small', 30);
       const large = await seeder.unit(strategy.id, 'Large', 70);
       await seeder.job(small.id, 'Small first');
@@ -118,7 +118,7 @@ describeWithDatabase('JobService (Postgres)', () => {
       (await service.listJobsWithActivityOn({ workflowId, evaluationDate })).map((job) => job.name);
 
     it('finds Jobs whose Task was reviewed that day, open or closed', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
       const open = await seeder.job(unit.id, 'Still running');
       await seeder.tasks(workflow.id, open.id, ['complete', 'pending']);
@@ -131,14 +131,14 @@ describeWithDatabase('JobService (Postgres)', () => {
     });
 
     it('leaves out Jobs spun up to gather evidence for an evaluation', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
       const judged = await seeder.job(unit.id, 'Post an intro');
       await seeder.tasks(workflow.id, judged.id, ['complete']);
       const evidence = await seeder.job(unit.id, 'Read the upvotes');
       await seeder.tasks(workflow.id, evidence.id, ['complete']);
       await dataSource.getRepository(JobEvaluationEntity).save({
-        workflowId: workflow.id,
+        owner: strategy.owner,
         jobId: judged.id,
         unitOfWorkId: unit.id,
         evaluationDate: today(),
@@ -149,7 +149,7 @@ describeWithDatabase('JobService (Postgres)', () => {
     });
 
     it('finds nothing on a day with no activity', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
       const job = await seeder.job(unit.id, 'Post an intro');
       await seeder.tasks(workflow.id, job.id, ['complete']);
@@ -160,7 +160,7 @@ describeWithDatabase('JobService (Postgres)', () => {
 
   describe('closeJob', () => {
     it('records the outcome once and cancels the Tasks that had not started', async () => {
-      const { workflow, strategy } = await seeder.workflowWithActiveStrategy();
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
       const job = await seeder.job((await seeder.unit(strategy.id, 'Community engagement')).id);
       await seeder.tasks(workflow.id, job.id, ['complete', 'pending', 'pending']);
 
@@ -181,7 +181,7 @@ describeWithDatabase('JobService (Postgres)', () => {
 
   describe('reviewing attempts', () => {
     it('counts attempts atomically and resets them', async () => {
-      const { strategy } = await seeder.workflowWithActiveStrategy();
+      const { strategy } = await seeder.strategyWithWorkflow();
       const job = await seeder.job((await seeder.unit(strategy.id, 'Community engagement')).id);
 
       const counts = await Promise.all([service.recordReviewingAttempt(job.id), service.recordReviewingAttempt(job.id)]);
@@ -194,7 +194,7 @@ describeWithDatabase('JobService (Postgres)', () => {
 
   describe('placeJob', () => {
     it('files the Job under the Unit with the same name, ignoring case and spaces', async () => {
-      const { strategy } = await seeder.workflowWithActiveStrategy();
+      const { strategy } = await seeder.strategyWithWorkflow();
       const unit = await seeder.unit(strategy.id, 'Community engagement');
 
       const job = await service.placeJob({
@@ -207,7 +207,7 @@ describeWithDatabase('JobService (Postgres)', () => {
     });
 
     it('creates a new Unit with a 0% share only when none matches', async () => {
-      const { strategy } = await seeder.workflowWithActiveStrategy();
+      const { strategy } = await seeder.strategyWithWorkflow();
       await seeder.unit(strategy.id, 'Community engagement', 100);
       await seeder.unit(strategy.id, 'Launch posts', 0, true);
 

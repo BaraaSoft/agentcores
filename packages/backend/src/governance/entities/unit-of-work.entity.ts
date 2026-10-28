@@ -1,4 +1,4 @@
-import type { Metric } from '@ahe/agent-core';
+import type { Metric, UnitOfWorkState } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { JobEntity } from './job.entity';
 import { StrategyEntity } from './strategy.entity';
@@ -28,6 +28,10 @@ export class UnitOfWorkEntity {
   /** 0–100. Active Units in one Strategy sum to 100. */
   @Column({ type: 'int' })
   allocationPercentage: number;
+
+  /** Only a `running` Unit's Jobs and Tasks are carried out; a `paused` Unit's queued work is skipped. */
+  @Column({ type: 'varchar', length: 20, default: 'running' })
+  state: UnitOfWorkState;
 
   /** Deprecated Units keep their history but get no new Jobs. */
   @Column({ type: 'boolean', default: false })
