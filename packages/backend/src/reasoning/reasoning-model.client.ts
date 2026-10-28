@@ -7,6 +7,9 @@ import type { ReasoningModelSettings } from './types/reasoning-model-settings';
 import type { ReasoningTool } from './types/reasoning-tool';
 import type { ToolLoopInput } from './types/tool-loop-input';
 
+/** How many times a call that searches the web may hand the turn back unfinished before we give up. */
+const MAX_PAUSED_TURNS = 5;
+
 /**
  * Thin wrapper around the Anthropic API for a reasoning model. Calls are text-only, with adaptive
  * thinking; screenshots never reach this client. Strategy and Unit reasoning use it with the default
@@ -21,22 +24,39 @@ export class ReasoningModelClient {
 
   /**
    * Sends one prompt and returns the reply parsed against `input.schema`. The schema is sent as the
-   * output format, so the model can think first and still must answer in that shape. Throws when the
-   * reply is cut off, refused, or doesn't match.
+   * output format, so the model can think first and still must answer in that shape. With
+   * `input.webSearch` it may also look things up before answering; the API runs those searches itself,
+   * which is why no tool has to be executed here. Throws when the reply is cut off, refused, or doesn't match.
    */
   async completeStructured<TOutput>(input: CompletionInput<TOutput>): Promise<TOutput> {
-    const message = await this.anthropic.messages.parse({
-      model: this.settings.modelId,
-      max_tokens: input.maxTokens,
-      system: input.systemPrompt,
-      messages: [{ role: 'user', content: input.userPrompt }],
-      thinking: { type: 'adaptive' },
-      output_config: { effort: this.settings.effort, format: zodOutputFormat(input.schema) },
-    });
-    if (message.stop_reason !== 'end_turn' || message.parsed_output === null) {
-      throw new Error(`Reasoning model gave no structured answer (stop reason: ${message.stop_reason ?? 'unknown'})`);
+    const tools =
+      input.webSearch === undefined
+        ? undefined
+        : [{ type: 'web_search_20260318' as const, name: 'web_search' as const, max_uses: input.webSearch.maxSearches }];
+    const messages: MessageParam[] = [{ role: 'user', content: input.userPrompt }];
+
+    for (let pause = 0; pause <= MAX_PAUSED_TURNS; pause++) {
+      const message = await this.anthropic.messages.parse({
+        model: this.settings.modelId,
+        max_tokens: input.maxTokens,
+        system: input.systemPrompt,
+        messages,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: this.settings.effort, format: zodOutputFormat(input.schema) },
+        tools,
+      });
+      // Searching can run long enough that the API hands the turn back unfinished. Returning its own
+      // work lets it pick up where it stopped instead of starting the judgement again.
+      if (message.stop_reason === 'pause_turn') {
+        messages.push({ role: 'assistant', content: message.content });
+        continue;
+      }
+      if (message.stop_reason !== 'end_turn' || message.parsed_output === null) {
+        throw new Error(`Reasoning model gave no structured answer (stop reason: ${message.stop_reason ?? 'unknown'})`);
+      }
+      return message.parsed_output;
     }
-    return message.parsed_output;
+    throw new Error(`Reasoning model paused more than ${MAX_PAUSED_TURNS} times without answering`);
   }
 
   /**
