@@ -2,6 +2,7 @@ import type { GoldStandards, JobOutcomeStatus, TaskStatus, WorkflowResources } f
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
+import { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEntity } from '../../entities/job.entity';
 import { MetricSnapshotEntity } from '../../entities/metric-snapshot.entity';
 import { StrategyEntity } from '../../entities/strategy.entity';
@@ -9,7 +10,15 @@ import { TaskEntity } from '../../entities/task.entity';
 import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 
 /** Every entity the governance services touch, including the Workflow they hang off. */
-export const GOVERNANCE_ENTITIES = [WorkflowEntity, StrategyEntity, UnitOfWorkEntity, JobEntity, TaskEntity, MetricSnapshotEntity];
+export const GOVERNANCE_ENTITIES = [
+  WorkflowEntity,
+  StrategyEntity,
+  UnitOfWorkEntity,
+  JobEntity,
+  TaskEntity,
+  MetricSnapshotEntity,
+  JobEvaluationEntity,
+];
 
 /**
  * Seeds and clears governance rows for integration specs: a running Workflow whose active

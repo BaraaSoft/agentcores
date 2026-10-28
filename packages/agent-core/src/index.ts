@@ -18,6 +18,8 @@ export type { UnitOfWork } from './governance/unit-of-work';
 export type { Job } from './governance/job';
 export { JOB_OUTCOME_STATUSES } from './governance/job-outcome-status';
 export type { JobOutcomeStatus } from './governance/job-outcome-status';
+export { JOB_EVALUATION_STATES } from './governance/job-evaluation-state';
+export type { JobEvaluationState } from './governance/job-evaluation-state';
 export { TASK_STATUSES } from './governance/task-status';
 export type { TaskStatus } from './governance/task-status';
 export type { TaskResult } from './governance/task-result';

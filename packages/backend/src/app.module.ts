@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { DatabaseModule } from './database/database.module';
+import { EmbeddingModule } from './embedding/embedding.module';
 import { GovernanceModule } from './governance/governance.module';
+import { JobEvaluationModule } from './governance/processors/job-evaluation/job-evaluation.module';
 import { JobExecutionModule } from './governance/processors/job-execution/job-execution.module';
 import { TaskExecutionModule } from './governance/processors/task-execution/task-execution.module';
 import { IdentityModule } from './identity/identity.module';
@@ -24,6 +26,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     DatabaseModule,
     QueueModule,
     ReasoningModule,
+    EmbeddingModule,
     MemoryModule,
     IdentityModule,
     WorkflowModule,
@@ -31,6 +34,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     ReportingModule,
     JobExecutionModule,
     TaskExecutionModule,
+    JobEvaluationModule,
     OrchestratorModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }],
