@@ -321,7 +321,9 @@ why steps 4 and 8 are the same code path.
 
 **Most judgements never reach step 5.** `judgeJob` can search the web within its own call, so when the
 evaluator is unsure what good looks like for this kind of work it settles that there and then. Step 5 is
-only for what no search can reach: the real outcome of the owner's own work, behind their own login.
+only for what no search can reach — the work itself: a logged-in account, a file that was exported, a
+project open in an editor. The Task that did the work recorded where it lives, so the errand can say what
+to open.
 
 **Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
 any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to

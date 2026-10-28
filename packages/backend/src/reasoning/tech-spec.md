@@ -190,11 +190,23 @@ different things, and what is missing decides how it is fetched.
 | What is missing | How it is fetched | Why that way |
 | --- | --- | --- |
 | **The standard.** The evaluator cannot say what good would have looked like for this kind of work | It searches the web mid-judgement, up to `JUDGE_JOB_MAX_SEARCHES` times, and answers in the same call | This is public knowledge. Sending a Job out for it would cost a planning round and a browser session to learn something a search answers in seconds |
-| **The outcome.** A post judged minutes after it went up has no engagement yet | It returns an `EvidenceRequest`, which becomes a real Job under the Strategy's Evaluations Unit. The judgement parks until that Job closes, then marks on what came back | No search can read this. The figures sit behind the owner's own login and only a Job on their machine can open them |
+| **The work itself.** A post judged minutes after it went up has no engagement yet; a video or a design cannot be judged from the fact that it was exported | It returns an `EvidenceRequest`, which becomes a real Job under the Strategy's Evaluations Unit. The judgement parks until that Job closes, then marks on what came back | No search can reach this. A logged-in account, a file on disk, a project open in an editor — only a Job on the owner's machine opens any of them |
 
 Searching for the standard is for **aspiration, not imitation**: the feedback says what would have lifted
 the Job towards it — the angle, the shape, the level of craft — and never tells the planner to reproduce
 what it found. The next Job has to be the agent's own work, as good as the best of its kind.
+
+**Work that lives in a file is reachable because the location travels with the Task.** A Task that renders
+a video or edits a design reports `locationPath` (the absolute file path, or the app name) and
+`locationDetails` (the steps to reach a view inside software), and both are printed into the evaluator's
+prompt as `Location:` and `How to get there:`. The evaluator quotes them into the errand, so the evidence
+Job knows what to open and where.
+
+What the evaluator cannot do is look at it. Nothing above the Task level ever sees a screenshot, so an
+exported cut comes back as words. Two things make that workable: the errand is told to **name the specific
+things to report on** rather than ask for a description, and `GatheredEvidence` carries one entry per Task,
+so an errand that asks about several aspects comes back as several readings rather than one summary
+stretched over all of them.
 
 Evidence is one round only — the second call is told the evidence is in and must mark on it.
 

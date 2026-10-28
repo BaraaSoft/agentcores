@@ -1,7 +1,8 @@
 /**
- * The Job cannot be judged from what is on record, and the missing part is behind the owner's own
- * login — the engagement on their post, a file they saved — so searching the web cannot reach it. The
- * evaluator asks for a Job that reads it on their machine, then judges again.
+ * The Job cannot be judged from what is on record, and the missing part is the work itself: the
+ * engagement on a post, a file that was exported, a project sitting in an editor. No search reaches
+ * any of those, so the evaluator asks for a Job that opens it on the owner's machine and reports back
+ * on the specific things the mark turns on, then judges again on what came back.
  */
 export interface EvidenceRequest {
   readonly verdict: 'needs_evidence';
