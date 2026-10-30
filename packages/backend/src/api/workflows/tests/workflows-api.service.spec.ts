@@ -1,0 +1,57 @@
+import { NotFoundException } from '@nestjs/common';
+import type { OrchestratorService } from '../../../orchestrator/orchestrator.service';
+import type { WorkflowService } from '../../../workflow/workflow.service';
+import { WorkflowResponseDto } from '../dtos/workflow-response.dto';
+import { WorkflowsApiService } from '../workflows-api.service';
+
+const RESOURCES = { reasoningModel: 'opus', executionModel: 'sonnet', maxConcurrentJobs: 2, budgetLimit: 500 } as const;
+const WORKFLOW = {
+  id: 'wf-1',
+  strategyId: 'strategy-1',
+  machineId: 'baraa-macbook',
+  state: 'paused',
+  resources: RESOURCES,
+  strategy: { id: 'strategy-1', owner: 'owner-1' },
+  createdAt: new Date(),
+};
+const RESPONSE = { id: 'wf-1', strategyId: 'strategy-1', machineId: 'baraa-macbook', state: 'paused', resources: RESOURCES };
+
+function setup(found: unknown = WORKFLOW) {
+  const workflows = {
+    createWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
+    findWorkflowById: jest.fn().mockResolvedValue(found),
+  };
+  const orchestrator = {
+    startWorkflow: jest.fn().mockResolvedValue({ ...WORKFLOW, state: 'running' }),
+    pauseWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
+  };
+  const service = new WorkflowsApiService(workflows as unknown as WorkflowService, orchestrator as unknown as OrchestratorService);
+  return { service, workflows, orchestrator };
+}
+
+describe('WorkflowsApiService', () => {
+  it('creates a Workflow and returns only the public fields', async () => {
+    const t = setup();
+    const body = { strategyId: 'strategy-1', machineId: 'baraa-macbook', resources: RESOURCES };
+
+    const created = await t.service.createWorkflow(body);
+
+    expect(t.workflows.createWorkflow).toHaveBeenCalledWith(body);
+    expect(created).toBeInstanceOf(WorkflowResponseDto);
+    expect(created).toEqual(RESPONSE);
+  });
+
+  it('gets a Workflow, and answers 404 when it does not exist', async () => {
+    expect(await setup().service.getWorkflow('wf-1')).toEqual(RESPONSE);
+    await expect(setup(null).service.getWorkflow('wf-x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('starts and pauses through the orchestrator', async () => {
+    const t = setup();
+
+    expect(await t.service.startWorkflow('wf-1')).toMatchObject({ id: 'wf-1', state: 'running' });
+    expect(await t.service.pauseWorkflow('wf-1')).toMatchObject({ id: 'wf-1', state: 'paused' });
+    expect(t.orchestrator.startWorkflow).toHaveBeenCalledWith('wf-1');
+    expect(t.orchestrator.pauseWorkflow).toHaveBeenCalledWith('wf-1');
+  });
+});

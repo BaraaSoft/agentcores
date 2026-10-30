@@ -63,6 +63,16 @@ export class JobEvaluationService {
   }
 
   /**
+   * The evaluations of the Jobs in these Units in every state, keyed by Job ID — how the API shows the
+   * progress of each evaluation, including the ones not scored yet.
+   */
+  async listEvaluationsByJob(unitOfWorkIds: readonly string[]): Promise<Map<string, JobEvaluationEntity>> {
+    if (unitOfWorkIds.length === 0) return new Map();
+    const evaluations = await this.evaluations.findBy({ unitOfWorkId: In([...unitOfWorkIds]) });
+    return new Map(evaluations.map((evaluation) => [evaluation.jobId, evaluation]));
+  }
+
+  /**
    * The evaluation waiting on `evidenceJobId`, if that Job was spun up for one. This is how a
    * parked judgement is found again once its evidence Job closes.
    */

@@ -114,6 +114,21 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
     });
   });
 
+  describe('listEvaluationsByJob', () => {
+    it('returns the evaluations of the given Units in every state, keyed by Job', async () => {
+      const { unit, job, evaluation } = await openEvaluation('Post an intro');
+      await score(evaluation.id, 'Reply to comments on an existing community thread', 6);
+      const unscored = await seeder.job(unit.id, 'Not scored yet');
+      await service.createEvaluation({ owner: OWNER, jobId: unscored.id, unitOfWorkId: unit.id });
+
+      const evaluations = await service.listEvaluationsByJob([unit.id]);
+
+      expect(evaluations.get(job.id)).toMatchObject({ state: 'scored', score: 6 });
+      expect(evaluations.get(unscored.id)).toMatchObject({ state: 'evaluating', score: null });
+      expect(await service.listEvaluationsByJob([])).toEqual(new Map());
+    });
+  });
+
   describe('the states a judgement moves through', () => {
     it('records the score, the feedback, and the objective vector', async () => {
       const { evaluation } = await openEvaluation();

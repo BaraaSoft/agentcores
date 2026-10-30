@@ -6,11 +6,11 @@ import { DAILY_REPORT_QUEUE, JOB_EXECUTION_QUEUE } from '../queue/queue.constant
 import { DailyReportEntity } from './entities/daily-report.entity';
 import { EscalationEntity } from './entities/escalation.entity';
 import { DailyReportProcessor } from './processors/daily-report.processor';
-import { ReportingController } from './reporting.controller';
 import { ReportingService } from './reporting.service';
 
 /**
- * Daily reports and escalations — the owner's view into what the agent is doing.
+ * Daily reports and escalations — the owner's view into what the agent is doing. Its routes live in
+ * `ApiModule`.
  */
 @Module({
   imports: [
@@ -18,7 +18,6 @@ import { ReportingService } from './reporting.service';
     BullModule.registerQueue({ name: DAILY_REPORT_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
     GovernanceModule,
   ],
-  controllers: [ReportingController],
   providers: [ReportingService, DailyReportProcessor],
   exports: [ReportingService],
 })

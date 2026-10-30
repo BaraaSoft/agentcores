@@ -1,10 +1,10 @@
 import { WORKFLOW_STATES } from '@ahe/agent-core';
 import type { WorkflowResources, WorkflowState } from '@ahe/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
-import type { WorkflowEntity } from '../entities/workflow.entity';
+import type { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
 
 /**
- * Public shape of a Workflow returned by the API.
+ * Public shape of a Workflow, returned by the create, get, start, and pause routes.
  */
 export class WorkflowResponseDto {
   @ApiProperty({ format: 'uuid' })
