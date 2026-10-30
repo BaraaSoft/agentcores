@@ -1,5 +1,6 @@
-# Local infrastructure for AHE. Ports are offset from cipher-monorepo
+# Local infrastructure for AHE.
 # (5432 / 6379) so both stacks can run side by side.
+# The backend runs on the host (`pnpm dev`), not here: the agent must control the Mac's own screen.
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -11,6 +12,11 @@ services:
       - "5433:5432"
     volumes:
       - ./.docker-data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ahe -d ahe"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   redis:
     image: redis:7-alpine
@@ -18,3 +24,19 @@ services:
       - "6380:6379"
     volumes:
       - ./.docker-data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrations:
+    build:
+      context: .
+      dockerfile: packages/migrations/Dockerfile
+    environment:
+      DATABASE_URL: postgres://ahe:ahe@postgres:5432/ahe
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
