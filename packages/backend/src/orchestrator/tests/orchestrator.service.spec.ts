@@ -15,6 +15,7 @@ import { OrchestratorService } from '../orchestrator.service';
 const NOW = new Date('2026-10-30T10:00:00Z');
 const PLAN = {
   decision: 'plan' as const,
+  title: 'One clean cut',
   rationale: 'Start simple.',
   jobs: [{ name: 'Cut', objective: 'Cut the footage', orderType: 'ordered' as const }],
 };
@@ -121,9 +122,29 @@ describe('OrchestratorService', () => {
       await t.schedule();
 
       expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(
-        expect.objectContaining({ unitName: name, workType, canFinish: false, earlierUnits: [] }),
+        expect.objectContaining({ unitOfWorkName: name, workType, canFinish: false, earlierUnitsOfWork: [] }),
       );
-      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith({ strategyId: 'strategy-1', sequence: 1, name, jobs: PLAN.jobs });
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith({
+        strategyId: 'strategy-1',
+        sequence: 1,
+        name,
+        title: 'One clean cut',
+        rationale: 'Start simple.',
+        jobs: PLAN.jobs,
+      });
+    });
+
+    it('shows the planner the idea each earlier Unit of Work tested and why', async () => {
+      const t = setup('one_off');
+      Object.assign(t.addUnitOfWork('complete'), { title: 'Long intro', rationale: 'Tell the full story first.' });
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(
+        expect.objectContaining({
+          earlierUnitsOfWork: [expect.objectContaining({ name: 'Unit 1', title: 'Long intro', rationale: 'Tell the full story first.' })],
+        }),
+      );
     });
 
     it('opens nothing while a Unit of Work is still open', async () => {
@@ -161,7 +182,7 @@ describe('OrchestratorService', () => {
 
       const result = await t.schedule();
 
-      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ unitName: 'Attempt 2', canFinish: true }));
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ unitOfWorkName: 'Attempt 2', canFinish: true }));
       expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
       expect(t.unitsOfWork.createUnitOfWork).not.toHaveBeenCalled();
       expect(result.skippedReason).toBe('Strategy complete');

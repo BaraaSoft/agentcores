@@ -7,11 +7,11 @@ function renderActions(actions: readonly string[]): string {
   return actions.length === 0 ? 'None.' : actions.map((action, index) => `${index + 1}. ${action}`).join('\n');
 }
 
-function renderJob(input: { jobName: string; objective: string; unitName: string; safeContext: string }): string {
+function renderJob(input: { jobName: string; objective: string; unitOfWorkName: string; safeContext: string }): string {
   return `<JOB>
 Name: ${input.jobName}
 Objective: ${input.objective}
-Unit of Work: ${input.unitName}
+Unit of Work: ${input.unitOfWorkName}
 </JOB>
 
 <OWNER_CONTEXT>

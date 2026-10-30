@@ -13,13 +13,13 @@ import type { JobEvaluationJobData } from '../queue/types/job-evaluation-job-dat
 import type { JobExecutionJobData } from '../queue/types/job-execution-job-data';
 import type { JobEvaluation } from '../reasoning/evaluation/types/job-evaluation';
 import { StrategyReasoningService } from '../reasoning/strategy/strategy-reasoning.service';
-import type { PastUnit } from '../reasoning/strategy/types/past-unit';
-import type { PlanUnitInput } from '../reasoning/strategy/types/plan-unit-input';
+import type { EarlierUnitOfWork } from '../reasoning/strategy/types/earlier-unit-of-work';
+import type { PlanUnitOfWorkInput } from '../reasoning/strategy/types/plan-unit-of-work-input';
 import type { WorkflowEntity } from '../workflow/entities/workflow.entity';
 import { WorkflowService } from '../workflow/workflow.service';
 import {
   CONTINUOUS_EVALUATION_DELAY_MS,
-  PAST_UNITS_OF_WORK_LIMIT,
+  EARLIER_UNITS_OF_WORK_LIMIT,
   RELATED_EVALUATIONS_LIMIT,
   SCHEDULING_INTERVAL_MS,
   UNIT_OF_WORK_NAME_PREFIXES,
@@ -195,7 +195,8 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
    *    the outcome and score of each Job, and scored Jobs from the owner's other Strategies. It either
    *    answers `done` (only `one_off`, after the first attempt), which completes the Strategy, or returns
    *    the Jobs of the next Unit of Work.
-   * 4. Saves the new Unit of Work as `open` with its Jobs (`'opened'`). Step 5 queues the ready Jobs.
+   * 4. Saves the new Unit of Work as `open` with its Jobs, and the planner's `title` (the idea it tests)
+   *    and `rationale` (why) (`'opened'`). Step 5 queues the ready Jobs.
    */
   private async openNextUnitOfWork(strategy: StrategyEntity): Promise<NextUnitOfWork> {
     const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(strategy.id);
@@ -214,30 +215,37 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     const plan = await this.strategyReasoning.planUnitOfWork(await this.planInput(strategy, unitsOfWork, name));
     if (plan.decision === 'done') return this.complete(strategy, plan.rationale);
 
-    await this.unitsOfWork.createUnitOfWork({ strategyId: strategy.id, sequence, name, jobs: plan.jobs });
-    this.logger.log(`Strategy ${strategy.id}: opened ${name} with ${plan.jobs.length} Jobs. ${plan.rationale}`);
+    await this.unitsOfWork.createUnitOfWork({
+      strategyId: strategy.id,
+      sequence,
+      name,
+      title: plan.title,
+      rationale: plan.rationale,
+      jobs: plan.jobs,
+    });
+    this.logger.log(`Strategy ${strategy.id}: opened ${name} "${plan.title}" with ${plan.jobs.length} Jobs.`);
     return 'opened';
   }
 
   private async planInput(
     strategy: StrategyEntity,
     unitsOfWork: readonly UnitOfWorkEntity[],
-    unitName: string,
-  ): Promise<PlanUnitInput> {
+    unitOfWorkName: string,
+  ): Promise<PlanUnitOfWorkInput> {
     return {
       strategyName: strategy.name,
       objective: strategy.objective,
       workType: strategy.workType,
-      unitName,
-      unitLimit: strategy.workType === 'one_off' ? strategy.maxAttempts : strategy.versionCount,
+      unitOfWorkName,
+      unitOfWorkLimit: strategy.workType === 'one_off' ? strategy.maxAttempts : strategy.versionCount,
       canFinish: strategy.workType === 'one_off' && unitsOfWork.length > 0,
-      earlierUnits: await this.pastUnitsOfWork(unitsOfWork.slice(-PAST_UNITS_OF_WORK_LIMIT)),
+      earlierUnitsOfWork: await this.earlierUnitsOfWork(unitsOfWork.slice(-EARLIER_UNITS_OF_WORK_LIMIT)),
       relatedEvaluations: await this.relatedEvaluations(strategy, unitsOfWork),
     };
   }
 
-  /** The earlier Units of Work with each Job's outcome and evaluation, oldest first. */
-  private async pastUnitsOfWork(unitsOfWork: readonly UnitOfWorkEntity[]): Promise<PastUnit[]> {
+  /** The earlier Units of Work with the idea each tested, and each Job's outcome and evaluation, oldest first. */
+  private async earlierUnitsOfWork(unitsOfWork: readonly UnitOfWorkEntity[]): Promise<EarlierUnitOfWork[]> {
     const unitOfWorkIds = unitsOfWork.map((unitOfWork) => unitOfWork.id);
     const [jobs, evaluations] = await Promise.all([
       this.jobs.listJobsInUnits(unitOfWorkIds),
@@ -245,6 +253,8 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     ]);
     return unitsOfWork.map((unitOfWork) => ({
       name: unitOfWork.name,
+      title: unitOfWork.title,
+      rationale: unitOfWork.rationale,
       status: unitOfWork.status,
       jobs: jobs
         .filter((job) => job.unitOfWorkId === unitOfWork.id)
@@ -271,7 +281,7 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     const found = await this.evaluations.searchPastEvaluations({
       owner: strategy.owner,
       objective: strategy.objective,
-      limit: RELATED_EVALUATIONS_LIMIT + ownUnitOfWorkIds.size * PAST_UNITS_OF_WORK_LIMIT,
+      limit: RELATED_EVALUATIONS_LIMIT + ownUnitOfWorkIds.size * EARLIER_UNITS_OF_WORK_LIMIT,
     });
     return found
       .filter((evaluation) => !ownUnitOfWorkIds.has(evaluation.unitOfWorkId) && evaluation.score !== null)

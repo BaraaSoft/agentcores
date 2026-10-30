@@ -6,7 +6,7 @@ import type { TaskOutcome } from './task-outcome';
 export interface JobReviewInput {
   readonly jobName: string;
   readonly objective: string;
-  readonly unitName: string;
+  readonly unitOfWorkName: string;
   /** Owner context from the safe memory zone, already rendered as text. */
   readonly safeContext: string;
   /** The Task that just finished (complete or failed) — the one to react to. */

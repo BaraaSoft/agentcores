@@ -1,9 +1,9 @@
 import type { StrategyWorkType } from '@ahe/agent-core';
 import type { JobEvaluation } from '../evaluation/types/job-evaluation';
 import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB } from '../job/job-reasoning.constants';
-import { MAX_JOBS_PER_UNIT } from './strategy-reasoning.constants';
-import type { PastJob, PastUnit } from './types/past-unit';
-import type { PlanUnitInput } from './types/plan-unit-input';
+import { MAX_JOBS_PER_UNIT_OF_WORK } from './strategy-reasoning.constants';
+import type { EarlierJob, EarlierUnitOfWork } from './types/earlier-unit-of-work';
+import type { PlanUnitOfWorkInput } from './types/plan-unit-of-work-input';
 
 const WORK_TYPE_LINES: Record<StrategyWorkType, (limit: number | null) => string> = {
   continuous: () => 'continuous — ongoing work with no end. Each Unit is one round of experiments.',
@@ -11,7 +11,7 @@ const WORK_TYPE_LINES: Record<StrategyWorkType, (limit: number | null) => string
   multi_version: (limit) => `multi_version — ${limit ?? '?'} versions of one deliverable, made one after another. Each Unit is one version.`,
 };
 
-function renderJob(job: PastJob, index: number): string {
+function renderJob(job: EarlierJob, index: number): string {
   const lines = [`${index + 1}. [${job.outcomeStatus ?? 'open'}] (${job.orderType}) ${job.name}`, `   Objective: ${job.objective}`];
   if (job.outcomeSummary !== null) lines.push(`   Ended: ${job.outcomeSummary}`);
   if (job.evaluation === null) {
@@ -24,11 +24,17 @@ function renderJob(job: PastJob, index: number): string {
   return lines.join('\n');
 }
 
-function renderUnits(units: readonly PastUnit[]): string {
-  if (units.length === 0) return 'None — this is the first Unit of the Strategy.';
-  return units
-    .map((unit) => `${unit.name} (${unit.status})\n${unit.jobs.length === 0 ? 'No Jobs.' : unit.jobs.map(renderJob).join('\n')}`)
-    .join('\n\n');
+function renderUnitOfWork(unitOfWork: EarlierUnitOfWork): string {
+  const heading = unitOfWork.title === '' ? unitOfWork.name : `${unitOfWork.name}: ${unitOfWork.title}`;
+  const lines = [`${heading} (${unitOfWork.status})`];
+  if (unitOfWork.rationale !== '') lines.push(`Why: ${unitOfWork.rationale}`);
+  lines.push(unitOfWork.jobs.length === 0 ? 'No Jobs.' : unitOfWork.jobs.map(renderJob).join('\n'));
+  return lines.join('\n');
+}
+
+function renderUnitsOfWork(unitsOfWork: readonly EarlierUnitOfWork[]): string {
+  if (unitsOfWork.length === 0) return 'None — this is the first Unit of the Strategy.';
+  return unitsOfWork.map(renderUnitOfWork).join('\n\n');
 }
 
 function renderRelated(evaluations: readonly JobEvaluation[]): string {
@@ -68,8 +74,14 @@ export const STRATEGY_REASONING_PROMPTS = {
   different direction from the versions before it, informed by how they were marked.
 </WORK_TYPES>
 
+<TITLE>
+* Give the Unit a title: the one idea it tests, under 80 characters. "Shorter hook, post at 9am instead of 3am" —
+  not "Attempt 2" or "More content". Each earlier Unit below shows its title, why it was chosen, and its marks,
+  so you can tell which ideas worked.
+</TITLE>
+
 <JOBS>
-* Write at most ${MAX_JOBS_PER_UNIT} Jobs. Fewer, sharper Jobs beat many thin ones.
+* Write at most ${MAX_JOBS_PER_UNIT_OF_WORK} Jobs. Fewer, sharper Jobs beat many thin ones.
 * A Job has one clear outcome: what to produce or achieve, where, and how anyone could tell it is done.
   "Publish a 600-word article on the owner's Medium about local-first AI, with a cover image" — not "work on content".
 * Say where the work happens: the site, the app, the folder. The agent works through the owner's own screen.
@@ -90,20 +102,20 @@ export const STRATEGY_REASONING_PROMPTS = {
 * Answer "done" only when the rules for this Unit allow it, and only when the earlier marks show the outcome the owner
   asked for has been met. A finished attempt with a weak mark is not done: plan the next attempt.
 </DONE>`,
-    user: (input: PlanUnitInput): string => `<STRATEGY>
+    user: (input: PlanUnitOfWorkInput): string => `<STRATEGY>
 Name: ${input.strategyName}
 Objective: ${input.objective}
-Work type: ${WORK_TYPE_LINES[input.workType](input.unitLimit)}
+Work type: ${WORK_TYPE_LINES[input.workType](input.unitOfWorkLimit)}
 </STRATEGY>
 
-<THIS_UNIT>
-Planning: ${input.unitName}
+<THIS_UNIT_OF_WORK>
+Planning: ${input.unitOfWorkName}
 ${input.canFinish ? 'You may answer "done" if the outcome is met.' : 'You must plan Jobs; "done" is not allowed for this Unit.'}
-</THIS_UNIT>
+</THIS_UNIT_OF_WORK>
 
-<EARLIER_UNITS>
-${renderUnits(input.earlierUnits)}
-</EARLIER_UNITS>
+<EARLIER_UNITS_OF_WORK>
+${renderUnitsOfWork(input.earlierUnitsOfWork)}
+</EARLIER_UNITS_OF_WORK>
 
 <SIMILAR_PAST_JOBS>
 ${renderRelated(input.relatedEvaluations)}

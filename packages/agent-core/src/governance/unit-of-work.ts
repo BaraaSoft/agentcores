@@ -14,6 +14,10 @@ export interface UnitOfWork {
   readonly sequence: number;
   /** e.g. "Round 3", "Attempt 2", "Version 1". */
   readonly name: string;
+  /** The idea it tests, written by the planner, e.g. "Shorter hook, post at 9am". */
+  readonly title: string;
+  /** Why the planner chose that idea. */
+  readonly rationale: string;
   readonly jobs: readonly Job[];
   readonly status: UnitOfWorkStatus;
   /** When its Jobs may be evaluated; null while the Unit is open. */

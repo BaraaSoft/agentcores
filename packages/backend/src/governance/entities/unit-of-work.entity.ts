@@ -29,6 +29,14 @@ export class UnitOfWorkEntity {
   @Column({ type: 'varchar', length: 200 })
   name: string;
 
+  /** The idea this Unit of Work tests, written by the planner, e.g. "Shorter hook, post at 9am". */
+  @Column({ type: 'varchar', length: 200, default: '' })
+  title: string;
+
+  /** Why the planner chose that idea, given what the earlier Units of Work taught. */
+  @Column({ type: 'text', default: '' })
+  rationale: string;
+
   @Column({ type: 'varchar', length: 20, default: 'open' })
   status: UnitOfWorkStatus;
 
