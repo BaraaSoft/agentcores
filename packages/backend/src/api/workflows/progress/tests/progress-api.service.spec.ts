@@ -22,8 +22,28 @@ const STRATEGY = {
 };
 
 const UNITS_OF_WORK = [
-  { id: 'unit-1', sequence: 1, name: 'Attempt 1', status: 'complete', evaluateAfter: CREATED, createdAt: CREATED, state: 'running' },
-  { id: 'unit-2', sequence: 2, name: 'Attempt 2', status: 'open', evaluateAfter: null, createdAt: CREATED, state: 'running' },
+  {
+    id: 'unit-1',
+    sequence: 1,
+    name: 'Attempt 1',
+    title: 'Long intro, hook at 8 seconds',
+    rationale: 'Start with the full story.',
+    status: 'complete',
+    evaluateAfter: CREATED,
+    createdAt: CREATED,
+    state: 'running',
+  },
+  {
+    id: 'unit-2',
+    sequence: 2,
+    name: 'Attempt 2',
+    title: 'Hook in the first 3 seconds',
+    rationale: 'Attempt 1 lost viewers before the hook.',
+    status: 'open',
+    evaluateAfter: null,
+    createdAt: CREATED,
+    state: 'running',
+  },
 ];
 
 function job(id: string, unitOfWorkId: string, outcomeStatus: string | null) {
@@ -79,6 +99,10 @@ describe('ProgressApiService', () => {
     expect(first.evaluation).toEqual({ state: 'scored', score: 8, whatGood: 'Clear.', whatBad: 'Late.', rubric: 'Upvotes.' });
     expect(second.evaluation).toMatchObject({ state: 'evaluating', score: null });
     expect(progress.unitsOfWork[1].jobs[0]).toMatchObject({ outcomeStatus: null, evaluation: null });
+    expect(progress.unitsOfWork[1]).toMatchObject({
+      title: 'Hook in the first 3 seconds',
+      rationale: 'Attempt 1 lost viewers before the hook.',
+    });
   });
 
   it('reads the Jobs and evaluations of all the Units of Work in one call each', async () => {

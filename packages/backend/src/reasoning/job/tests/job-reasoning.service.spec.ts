@@ -16,7 +16,7 @@ import type { TaskOutcome } from '../types/task-outcome';
 const JOB = {
   jobName: 'Engage r/AICompanion',
   objective: 'Join the conversation on r/AICompanion',
-  unitName: 'Community engagement',
+  unitOfWorkName: 'Community engagement',
   safeContext: 'Voice: warm, short.',
 };
 

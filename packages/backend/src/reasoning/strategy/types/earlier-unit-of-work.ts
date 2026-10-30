@@ -1,10 +1,10 @@
 import type { JobOrderType, JobOutcomeStatus, UnitOfWorkStatus } from '@ahe/agent-core';
 
 /**
- * One Job of an earlier Unit, as the planner reads it: what it tried, how it ended, and how it was
+ * One Job of an earlier Unit of Work, as the planner reads it: what it tried, how it ended, and how it was
  * marked. `evaluation` is null until the Job has been scored — a `continuous` round is evaluated a day late.
  */
-export interface PastJob {
+export interface EarlierJob {
   readonly name: string;
   readonly objective: string;
   readonly orderType: JobOrderType;
@@ -14,10 +14,15 @@ export interface PastJob {
 }
 
 /**
- * An earlier Unit of the same Strategy, with its Jobs in order.
+ * An earlier Unit of Work of the same Strategy: the idea it tested, why, and its Jobs in order.
  */
-export interface PastUnit {
+export interface EarlierUnitOfWork {
+  /** e.g. "Attempt 1". */
   readonly name: string;
+  /** The idea it tested, e.g. "Long intro, hook at 8 seconds". */
+  readonly title: string;
+  /** Why the planner chose that idea. */
+  readonly rationale: string;
   readonly status: UnitOfWorkStatus;
-  readonly jobs: readonly PastJob[];
+  readonly jobs: readonly EarlierJob[];
 }

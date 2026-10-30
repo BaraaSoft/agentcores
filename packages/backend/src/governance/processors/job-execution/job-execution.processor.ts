@@ -202,7 +202,7 @@ export class JobExecutionProcessor extends WorkerHost {
     return {
       jobName: run.job.name,
       objective: run.job.objective,
-      unitName: run.job.unitOfWork.name,
+      unitOfWorkName: run.job.unitOfWork.name,
       safeContext: run.safeContext,
     };
   }

@@ -3,12 +3,18 @@ import * as z from 'zod/v4';
 
 /**
  * What `planUnitOfWork` must answer. Sent as the JSON schema output format, so every field is required;
- * `jobs` comes back empty for `done`, and the service turns the flat answer into a `UnitPlan`.
+ * `jobs` comes back empty for `done`, and the service turns the flat answer into a `UnitOfWorkPlan`.
  */
-export const UNIT_PLAN_OUTPUT_SCHEMA = z.object({
+export const UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA = z.object({
   decision: z
     .enum(['plan', 'done'])
     .describe('"plan": here are the Jobs for this Unit. "done": the outcome is already met — only when the rules allow it.'),
+  title: z
+    .string()
+    .describe(
+      'The idea this Unit of Work tests, in one line under 80 characters, e.g. "Shorter hook, post at 9am instead of 3am". ' +
+        'Empty for "done".',
+    ),
   rationale: z
     .string()
     .describe('Two or three sentences: what this Unit tries and why, given what earlier Units taught. For "done", why the outcome is met.'),

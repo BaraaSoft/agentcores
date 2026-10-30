@@ -6,7 +6,7 @@ import type { TaskOutcome } from './task-outcome';
 export interface JobPlanningInput {
   readonly jobName: string;
   readonly objective: string;
-  readonly unitName: string;
+  readonly unitOfWorkName: string;
   /** Owner context from the safe memory zone, already rendered as text. */
   readonly safeContext: string;
   /** Why planning runs: the first plan, the review's revision notes, or an empty plan. */

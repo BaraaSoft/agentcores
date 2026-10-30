@@ -7,7 +7,7 @@ export const SCHEDULING_INTERVAL_MS = 60_000;
 export const CONTINUOUS_EVALUATION_DELAY_MS = 24 * 60 * 60 * 1000;
 
 /** Earlier Units of Work of the Strategy the planner reads, most recent ones. */
-export const PAST_UNITS_OF_WORK_LIMIT = 5;
+export const EARLIER_UNITS_OF_WORK_LIMIT = 5;
 
 /** Evaluations of similar Jobs from the owner's other Strategies the planner reads. */
 export const RELATED_EVALUATIONS_LIMIT = 5;

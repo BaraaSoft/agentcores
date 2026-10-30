@@ -8,5 +8,9 @@ export interface CreateUnitOfWorkInput {
   readonly strategyId: string;
   readonly sequence: number;
   readonly name: string;
+  /** The idea the Unit of Work tests, written by the planner. */
+  readonly title: string;
+  /** Why the planner chose that idea. */
+  readonly rationale: string;
   readonly jobs: readonly PlannedJob[];
 }

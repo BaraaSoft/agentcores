@@ -39,6 +39,8 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
         strategyId: strategy.id,
         sequence: 1,
         name: 'Attempt 1',
+        title: 'One clean cut',
+        rationale: 'Start simple.',
         jobs: [
           { name: 'Cut', objective: 'Cut the footage', orderType: 'ordered' },
           { name: 'Music', objective: 'Pick a track', orderType: 'unordered' },
@@ -46,7 +48,15 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
         ],
       });
 
-      expect(unit).toMatchObject({ sequence: 1, name: 'Attempt 1', status: 'open', state: 'running', evaluateAfter: null });
+      expect(unit).toMatchObject({
+        sequence: 1,
+        name: 'Attempt 1',
+        title: 'One clean cut',
+        rationale: 'Start simple.',
+        status: 'open',
+        state: 'running',
+        evaluateAfter: null,
+      });
       const jobs = await dataSource.getRepository(JobEntity).find({ where: { unitOfWorkId: unit.id }, order: { name: 'ASC' } });
       expect(jobs.map((job) => [job.name, job.orderType, job.orderNumber])).toEqual([
         ['Cut', 'ordered', 1],
@@ -64,6 +74,8 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
           strategyId: strategy.id,
           sequence: 1,
           name: 'Round 1 again',
+          title: '',
+          rationale: '',
           jobs: [{ name: 'Post', objective: 'Post', orderType: 'unordered' }],
         }),
       ).rejects.toThrow();

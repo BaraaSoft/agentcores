@@ -17,6 +17,12 @@ export class UnitOfWorkProgressResponseDto {
   @ApiProperty({ example: 'Attempt 2' })
   name: string;
 
+  @ApiProperty({ example: 'Shorter hook, post at 9am instead of 3am', description: 'The idea this Unit of Work tests' })
+  title: string;
+
+  @ApiProperty({ description: 'Why the agent chose that idea, given what the earlier Units of Work taught' })
+  rationale: string;
+
   @ApiProperty({ enum: UNIT_OF_WORK_STATUSES })
   status: UnitOfWorkStatus;
 
@@ -34,6 +40,8 @@ export class UnitOfWorkProgressResponseDto {
       id: entity.id,
       sequence: entity.sequence,
       name: entity.name,
+      title: entity.title,
+      rationale: entity.rationale,
       status: entity.status,
       evaluateAfter: entity.evaluateAfter,
       createdAt: entity.createdAt,

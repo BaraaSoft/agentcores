@@ -246,11 +246,13 @@ When every evaluation of the Unit is `scored` or `failed`, the Unit is `complete
 `StrategyReasoningService.planUnitOfWork` writes the Jobs of a new Unit in one structured call. It reads:
 
 - the Strategy's objective and work type, and which round, attempt, or version this is;
-- the earlier Units of this Strategy (the last five), with each Job's objective, outcome, and evaluation —
-  the score, what was good, and what was bad;
+- the earlier Units of this Strategy (the last five), each with the idea it tested and why, and each Job's
+  objective, outcome, and evaluation — the score, what was good, and what was bad;
 - up to five evaluations of similar Jobs from the owner's other Strategies, found by objective.
 
-It answers with up to `MAX_JOBS_PER_UNIT` Jobs, each with a name, an objective, and an order type. For
+It answers with a `title` (the one idea the Unit tests, e.g. "Shorter hook, post at 9am"), a `rationale`
+(why), and up to `MAX_JOBS_PER_UNIT_OF_WORK` Jobs, each with a name, an objective, and an order type. The
+`name` stays the fixed label ("Attempt 2"); the `title` and `rationale` are stored beside it. For
 the second and later attempts of a `one_off` Strategy it may answer `done` instead, when the earlier
 evaluations show the outcome is met. The orchestrator saves the Unit and its Jobs in one transaction, so a
 crash never leaves an open Unit with no Jobs.

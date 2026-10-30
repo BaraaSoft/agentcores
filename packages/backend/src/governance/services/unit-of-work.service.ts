@@ -26,7 +26,13 @@ export class UnitOfWorkService {
     return this.unitsOfWork.manager.transaction(async (manager) => {
       const unitOfWork = await manager
         .getRepository(UnitOfWorkEntity)
-        .save({ strategyId: input.strategyId, sequence: input.sequence, name: input.name });
+        .save({
+          strategyId: input.strategyId,
+          sequence: input.sequence,
+          name: input.name,
+          title: input.title,
+          rationale: input.rationale,
+        });
       let orderNumber = 0;
       await manager.getRepository(JobEntity).save(
         input.jobs.map((job) => ({

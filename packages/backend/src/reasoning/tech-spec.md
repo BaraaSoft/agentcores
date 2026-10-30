@@ -74,7 +74,7 @@ flowchart TB
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
-| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs | `UnitPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
+| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
 | `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 | `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
@@ -108,8 +108,8 @@ sequenceDiagram
     participant DB as Governance services
 
     Note over O: no Unit is open, and the work type's stop rule allows another
-    O->>S: planUnitOfWork(objective, workType, earlierUnits with marks, similar past Jobs)
-    S-->>O: UnitPlan { jobs: name · objective · ordered | unordered } or done
+    O->>S: planUnitOfWork(objective, workType, earlierUnitsOfWork with marks, similar past Jobs)
+    S-->>O: UnitOfWorkPlan { title · rationale · jobs: name · objective · ordered | unordered } or done
     O->>DB: createUnitOfWork — the Unit and its Jobs in one write
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
@@ -237,16 +237,21 @@ no separate review step: learning happens between Units.
 flowchart BT
     Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason · location"]
     TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed<br/>score 1–10 · whatGood · whatBad"]
-    JobEval --> Past["PastUnit<br/>each Job's outcome and mark, up to the last 5 Units"]
-    Past --> Plan["UnitPlan<br/>the next Unit's Jobs, or done"]
+    JobEval --> Past["EarlierUnitOfWork<br/>the idea it tested and why,<br/>each Job's outcome and mark, up to the last 5 Units"]
+    Past --> Plan["UnitOfWorkPlan<br/>the next idea, why, and its Jobs, or done"]
 ```
 
 | Input | What it carries |
 | --- | --- |
-| `objective`, `workType`, `unitName`, `unitLimit` | What the owner wants, how the work is shaped, and which Unit this is ("Attempt 2 of at most 3") |
-| `earlierUnits` | The Strategy's last `PAST_UNITS_OF_WORK_LIMIT` Units, each Job with its order type, outcome, and mark. A recent `continuous` round may not be evaluated yet; the planner learns from its outcomes and plans anyway |
+| `objective`, `workType`, `unitOfWorkName`, `unitOfWorkLimit` | What the owner wants, how the work is shaped, and which Unit this is ("Attempt 2 of at most 3") |
+| `earlierUnitsOfWork` | The Strategy's last `EARLIER_UNITS_OF_WORK_LIMIT` Units, each with its `title` (the idea it tested) and `rationale` (why), and each Job with its order type, outcome, and mark. A recent `continuous` round may not be evaluated yet; the planner learns from its outcomes and plans anyway |
 | `relatedEvaluations` | Scored Jobs from the owner's other Strategies with a similar objective, by vector search |
 | `canFinish` | True only for a `one_off` Strategy after its first attempt. Then the planner may answer `done` when the marks show the deliverable is good enough |
+
+**Each Unit of Work names its idea.** The answer has a `title`, the one idea the Unit tests ("Shorter hook,
+post at 9am instead of 3am"), and a `rationale`, why. Both are stored on the Unit, shown in
+`GET /workflows/:id/progress`, and shown to the planner of every later Unit, so it can tell which ideas
+worked and not only how each Job went. A blank title falls back to the first Job's name.
 
 **Each work type plans differently.** A `continuous` round keeps what is working and adds one or two new
 experiments. A `one_off` attempt fixes what the marks said was wrong with the last one. A `multi_version`
@@ -257,7 +262,7 @@ cut, then colour, then export. Ordered Jobs run one at a time in the listed orde
 of the chain is skipped. Everything else is `unordered` and runs alongside.
 
 **An unusable answer throws.** No Jobs, or `done` where it is not allowed, throws, so the orchestrator tries
-again on its next pass. Jobs with an empty objective are dropped, at most `MAX_JOBS_PER_UNIT` (8) are kept,
+again on its next pass. Jobs with an empty objective are dropped, at most `MAX_JOBS_PER_UNIT_OF_WORK` (8) are kept,
 and a blank name falls back to the objective.
 
 **Abandoned and failed read differently.** The prompt treats an abandoned Job as a signal about the idea
@@ -385,9 +390,9 @@ reasoning/
 ├── tests/                          ← reasoning.module (wiring), reasoning-model.client (structured call, tool loop)
 ├── strategy/
 │   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts · strategy-reasoning.constants.ts
-│   ├── schemas/unit-plan-output.schema.ts
+│   ├── schemas/unit-of-work-plan-output.schema.ts
 │   ├── tests/strategy-reasoning.service.spec.ts
-│   └── types/                      ← plan-unit-input, past-unit, unit-plan, planned-job
+│   └── types/                      ← plan-unit-of-work-input, earlier-unit-of-work, unit-of-work-plan, planned-job
 ├── job/
 │   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
 │   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
@@ -409,7 +414,7 @@ reasoning/
 ```
 
 Each level's types live with the level that produces them; another level that consumes them imports
-from there (e.g. `PlanUnitInput` imports `JobEvaluation` from `evaluation/types`).
+from there (e.g. `PlanUnitOfWorkInput` imports `JobEvaluation` from `evaluation/types`).
 
 ---
 
