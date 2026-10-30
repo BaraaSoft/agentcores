@@ -13,8 +13,9 @@ function tool<TInput>(definition: ReasoningTool<TInput>): ReasoningTool<TInput> 
  * The tools Job reasoning uses to edit a Job's remaining plan, over an in-memory draft. Nothing is
  * saved here: `planTasks` returns the draft and the Job processor writes it in one
  * `replaceRemainingTasks`, so a planning run that crashes halfway leaves the plan untouched.
- * The draft enforces the limits, so the model cannot plan past them. One toolset per planning run;
- * `ToolsetFactory` creates them.
+ * The Task budget is guidance in the prompt, so a Job that genuinely needs more Tasks can plan them;
+ * the draft refuses only what would pass the Job's hard limit (`maxTasks`, the room left under it).
+ * One toolset per planning run; `ToolsetFactory` creates them.
  */
 export class JobPlanningToolset {
   /** The tools to hand to Job reasoning. */
@@ -51,14 +52,14 @@ export class JobPlanningToolset {
       }),
       tool({
         name: 'add_task',
-        description: `Insert a Task at a position, or append it when position is null. The plan holds at most ${this.maxTasks} Tasks.`,
+        description: 'Insert a Task at a position, or append it when position is null.',
         inputSchema: z.object({
           action,
           position: position('to insert before').nullable(),
         }),
         endsLoop: false,
         run: (input) => {
-          if (this.draft.length >= this.maxTasks) throw new ReasoningToolError(`The plan is full (${this.maxTasks} Tasks).`);
+          if (this.draft.length >= this.maxTasks) throw new ReasoningToolError(this.fullMessage());
           const at = input.position === null ? this.draft.length : this.index(input.position, true);
           this.draft.splice(at, 0, this.text(input.action));
           return this.view();
@@ -109,13 +110,20 @@ export class JobPlanningToolset {
         endsLoop: true,
         run: () => {
           if (this.draft.length > this.maxTasks) {
-            throw new ReasoningToolError(`The plan has ${this.draft.length} Tasks; remove ${this.draft.length - this.maxTasks}.`);
+            throw new ReasoningToolError(`${this.fullMessage()} Remove ${this.draft.length - this.maxTasks}.`);
           }
           this.finished = true;
           return `Plan saved with ${this.draft.length} Tasks.`;
         },
       }),
     ];
+  }
+
+  private fullMessage(): string {
+    return (
+      `The plan is full: the Job's hard limit leaves room for ${this.maxTasks} Tasks. ` +
+      'Keep the Tasks that finish the objective and drop the rest.'
+    );
   }
 
   private view(): string {

@@ -1,68 +1,77 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import type { UnitReallocation } from '../../reasoning/strategy/types/unit-reallocation';
+import { LessThanOrEqual, Repository } from 'typeorm';
+import { JobEntity } from '../entities/job.entity';
 import { UnitOfWorkEntity } from '../entities/unit-of-work.entity';
 import type { CreateUnitOfWorkInput } from '../types/create-unit-of-work-input';
-import type { FindMatchingUnitInput } from '../types/find-matching-unit-input';
 
 /**
- * Persistence of Units of Work, plus the allocation rules: active Units in a Strategy
- * always sum to 100%, and deprecated Units receive no new Jobs.
+ * Persistence of Units of Work. A Unit only groups Jobs: the orchestrator opens one with its planned
+ * Jobs, and moves it `open → evaluating → complete`. Each move is conditional on the status it expects,
+ * so a scheduling pass can run twice without moving a Unit twice.
  */
 @Injectable()
 export class UnitOfWorkService {
   constructor(
     @InjectRepository(UnitOfWorkEntity)
-    private readonly units: Repository<UnitOfWorkEntity>,
+    private readonly unitsOfWork: Repository<UnitOfWorkEntity>,
   ) {}
 
   /**
-   * Creates a Unit. Callers should first try `findMatchingUnit` — new Units are a last resort.
+   * Opens a Unit with its Jobs in one transaction, so a crash never leaves an open Unit with no Jobs.
+   * Ordered Jobs are numbered 1, 2, 3, … in the order given. A second Unit with the same `sequence`
+   * fails on the unique index, which is what stops two passes opening the same Unit.
    */
   async createUnitOfWork(input: CreateUnitOfWorkInput): Promise<UnitOfWorkEntity> {
-    return this.units.save(
-      this.units.create({
-        strategyId: input.strategyId,
-        name: input.name,
-        successCriteria: [...input.successCriteria],
-        allocationPercentage: input.allocationPercentage,
-      }),
-    );
+    return this.unitsOfWork.manager.transaction(async (manager) => {
+      const unitOfWork = await manager
+        .getRepository(UnitOfWorkEntity)
+        .save({ strategyId: input.strategyId, sequence: input.sequence, name: input.name });
+      let orderNumber = 0;
+      await manager.getRepository(JobEntity).save(
+        input.jobs.map((job) => ({
+          unitOfWorkId: unitOfWork.id,
+          name: job.name,
+          objective: job.objective,
+          orderType: job.orderType,
+          orderNumber: job.orderType === 'ordered' ? ++orderNumber : null,
+        })),
+      );
+      return unitOfWork;
+    });
   }
 
   /**
-   * Finds the active Unit a Job belongs to, or null when none fits. Matches on the Unit name
-   * within the Strategy, ignoring case and surrounding spaces; `jobObjective` is not used yet.
+   * Every Unit of the Strategy, oldest first.
    */
-  async findMatchingUnit(input: FindMatchingUnitInput): Promise<UnitOfWorkEntity | null> {
-    return this.units
-      .createQueryBuilder('unit')
-      .where('unit.strategyId = :strategyId', { strategyId: input.strategyId })
-      .andWhere('unit.isDeprecated = false')
-      .andWhere('LOWER(TRIM(unit.name)) = LOWER(TRIM(:name))', { name: input.unitName })
-      .orderBy('unit.createdAt', 'ASC')
-      .getOne();
+  async listUnitsOfWork(strategyId: string): Promise<UnitOfWorkEntity[]> {
+    return this.unitsOfWork.find({ where: { strategyId }, order: { sequence: 'ASC' } });
   }
 
   /**
-   * Lists the non-deprecated Units of a Strategy.
+   * The Strategy's `evaluating` Units whose `evaluateAfter` has passed, oldest first.
    */
-  async listActiveUnits(strategyId: string): Promise<UnitOfWorkEntity[]> {
-    throw new NotImplementedException();
+  async listUnitsOfWorkDueForEvaluation(strategyId: string, now = new Date()): Promise<UnitOfWorkEntity[]> {
+    return this.unitsOfWork.find({
+      where: { strategyId, status: 'evaluating', evaluateAfter: LessThanOrEqual(now) },
+      order: { sequence: 'ASC' },
+    });
   }
 
   /**
-   * Applies new effort shares and rescales the rest so the total stays 100%.
+   * Moves an open Unit to `evaluating`, to be evaluated once `evaluateAfter` has passed. Returns false
+   * when it was not open.
    */
-  async reallocateUnits(reallocations: readonly UnitReallocation[]): Promise<void> {
-    throw new NotImplementedException();
+  async markEvaluating(unitOfWorkId: string, evaluateAfter: Date): Promise<boolean> {
+    const update = await this.unitsOfWork.update({ id: unitOfWorkId, status: 'open' }, { status: 'evaluating', evaluateAfter });
+    return (update.affected ?? 0) > 0;
   }
 
   /**
-   * Retires underperforming Units; their allocation is redistributed to the others.
+   * Moves an evaluated Unit to `complete`. Returns false when it was not `evaluating`.
    */
-  async deprecateUnits(unitIds: readonly string[]): Promise<void> {
-    throw new NotImplementedException();
+  async markComplete(unitOfWorkId: string): Promise<boolean> {
+    const update = await this.unitsOfWork.update({ id: unitOfWorkId, status: 'evaluating' }, { status: 'complete' });
+    return (update.affected ?? 0) > 0;
   }
 }

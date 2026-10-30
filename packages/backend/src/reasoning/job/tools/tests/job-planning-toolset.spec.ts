@@ -1,7 +1,7 @@
 import { ReasoningToolError } from '../../../reasoning-tool.error';
 import { JobPlanningToolset } from '../job-planning-toolset';
 
-function setup(remaining: string[] = ['Open', 'Reply'], maxTasks = 4) {
+function setup(remaining: string[] = ['Open', 'Reply'], maxTasks = 60) {
   const toolset = new JobPlanningToolset(remaining, maxTasks);
   const call = (name: string, input: object = {}) => {
     const tool = toolset.tools.find((each) => each.name === name)!;
@@ -50,17 +50,27 @@ describe('JobPlanningToolset', () => {
     expect(t.toolset.actions).toEqual(['Open', 'Reply']);
   });
 
-  it('refuses to grow the plan past its limit', () => {
+  it('lets the plan grow past the soft budget, up to the room left under the hard limit', () => {
+    const t = setup([]);
+    for (let index = 1; index <= 30; index++) t.call('add_task', { action: `Step ${index}`, position: null });
+
+    expect(t.call('finish_plan', { rationale: 'A long edit.' })).toBe('Plan saved with 30 Tasks.');
+  });
+
+  it('refuses a Task past the hard limit and says why', () => {
     const t = setup(['Open'], 2);
     t.call('add_task', { action: 'Reply', position: null });
 
-    expect(() => t.call('add_task', { action: 'More', position: null })).toThrow('The plan is full (2 Tasks).');
+    expect(() => t.call('add_task', { action: 'More', position: null })).toThrow(
+      "The plan is full: the Job's hard limit leaves room for 2 Tasks.",
+    );
+    expect(t.toolset.actions).toEqual(['Open', 'Reply']);
   });
 
-  it('refuses to finish a plan that starts over its limit until Tasks are removed', () => {
+  it('refuses to finish a plan over the hard limit until Tasks are removed', () => {
     const t = setup(['A', 'B', 'C'], 2);
 
-    expect(() => t.call('finish_plan', { rationale: 'Fits.' })).toThrow('remove 1');
+    expect(() => t.call('finish_plan', { rationale: 'Fits.' })).toThrow('Remove 1.');
     t.call('remove_task', { position: 3 });
     expect(t.call('finish_plan', { rationale: 'Fits.' })).toBe('Plan saved with 2 Tasks.');
   });

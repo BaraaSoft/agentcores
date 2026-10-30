@@ -26,6 +26,12 @@ export class WorkflowResponseDto {
    * Maps a persisted Workflow to its API representation.
    */
   static fromEntity(entity: WorkflowEntity): WorkflowResponseDto {
-    throw new Error('Not implemented');
+    return Object.assign(new WorkflowResponseDto(), {
+      id: entity.id,
+      strategyId: entity.strategyId,
+      machineId: entity.machineId,
+      state: entity.state,
+      resources: entity.resources,
+    });
   }
 }

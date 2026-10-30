@@ -11,37 +11,34 @@ import { JobEvaluationService } from '../../services/job-evaluation.service';
 import { JobService } from '../../services/job.service';
 import { TaskService } from '../../services/task.service';
 import { toTaskOutcome } from '../to-task-outcome';
-import { EVALUATIONS_UNIT_NAME, JOB_NAME_MAX_LENGTH, MAX_JUDGING_ATTEMPTS } from './job-evaluation.constants';
+import { JOB_NAME_MAX_LENGTH, MAX_JUDGING_ATTEMPTS } from './job-evaluation.constants';
 
 /**
- * Marks the agent's own work. Once a day the **sweep** finds every Job that saw activity and opens a
- * judgement for each; **judging** then marks one Job out of 10 and records what was good and what was
- * not, in words the planner can act on.
+ * Marks the agent's own work. The orchestrator opens one judgement for each Job of a Unit of Work once
+ * the Unit is due — straight after its last Job closes for an artifact, a day later for ongoing work
+ * whose response takes time — and sends one `evaluate` message per Job. Evaluating marks the Job out of 10
+ * and records what was good and what was not, in words the planner of the next Unit can act on.
  *
  * When the real outcome is not on record — how a post actually landed, whether a design meets its
- * brief — the evaluator does not guess. It files a Job to go and read it, parks the judgement, and
- * finishes the mark when that Job closes. Evidence Jobs are never themselves evaluated, so this
- * cannot feed on itself.
- *
- * A Job is marked again on later days whenever it sees fresh activity, because engagement arrives
- * long after the work is done.
+ * brief — the evaluator does not guess. It files a Job in the same Unit to go and read it, parks the
+ * judgement, and finishes the mark when that Job closes. Evidence Jobs are never themselves evaluated,
+ * so this cannot feed on itself.
  *
  * The whole round trip, and which state each step expects to find:
  *
  * ```text
- *  1. sweep  { workflowId, evaluationDate }   ← the daily cron, one message per Workflow
- *  2.   └─ per Job with activity: createEvaluation            → judging
- *  3.      └─ judge { evaluationId }                          (one message per Job)
- *  4.         ├─ scored          → recordScore                → scored    ✓ done
- *  5.         └─ needs_evidence  → placeJob + parkForEvidence  → awaiting_evidence
- *                 (only for the owner's own results; judgeJob searches the web itself)
- *  6.            └─ the evidence Job runs on the job-execution queue, like any other Job
- *  7.               └─ it closes: JobExecutionProcessor.resumeEvaluation → judging
- *  8.                  └─ judge { evaluationId }               (step 3 again, evidence in hand)
- *  9.                     └─ scored → recordScore              → scored    ✓ done
+ *  1. the orchestrator: the Unit is due → createEvaluation per Job → evaluating
+ *  2.   └─ evaluate { evaluationId }                       (one message per Job)
+ *  3.      ├─ scored          → recordScore                → scored    ✓ done
+ *  4.      └─ needs_evidence  → createJob + parkForEvidence → awaiting_evidence
+ *              (only for the work itself; judgeJob searches the web for the standard)
+ *  5.         └─ the evidence Job runs on the job-execution queue, like any other Job
+ *  6.            └─ it closes: JobExecutionProcessor.resumeEvaluation → evaluating
+ *  7.               └─ evaluate { evaluationId }            (step 2 again, evidence in hand)
+ *  8.                  └─ scored → recordScore              → scored    ✓ done
  * ```
  *
- * Steps 5 to 8 are the only part that leaves this file, and the hand-off goes out through the Job
+ * Steps 4 to 7 are the only part that leaves this file, and the hand-off goes out through the Job
  * queue and comes back through the evaluation queue. Two things make that safe to repeat: every
  * transition is conditional on the state it expects, and the judgement is parked *before* its
  * evidence Job is queued, so the Job can never close looking for a judgement that is not yet waiting.
@@ -62,49 +59,28 @@ export class JobEvaluationProcessor extends WorkerHost {
   }
 
   /**
-   * Runs whichever of the two kinds of message was queued — a day's `sweep` or one Job's `judge`.
+   * Judges the one Job the message names.
    *
    * There is no pause gate here. Judging only reads work that is already done, and a judgement
-   * skipped while paused would stay in `judging` with nothing to queue it again. The one part of
+   * skipped while paused would stay in `evaluating` with nothing to queue it again. The one part of
    * evaluation that acts on the screen is the evidence Job, and the Job processor gates that on its
    * own Unit of Work like any other Job.
    */
   async process(message: Job<JobEvaluationJobData>): Promise<void> {
-    const data = message.data;
-    if (data.kind === 'sweep') return this.sweep(data.workflowId, data.evaluationDate);
-    return this.judge(data.workflowId, data.evaluationId);
+    return this.evaluate(message.data.workflowId, message.data.evaluationId);
   }
 
   /**
-   * Step 1–3. Opens a judgement for every Job that did something on `evaluationDate` and fans out one
-   * `judge` message per Job. Re-running the sweep for the same day is safe: it finds the judgements it
-   * already opened and skips any that have moved on, whether scored, failed, or parked on evidence.
-   */
-  private async sweep(workflowId: string, evaluationDate: string): Promise<void> {
-    const jobs = await this.jobs.listJobsWithActivityOn({ workflowId, evaluationDate });
-    for (const job of jobs) {
-      const evaluation = await this.evaluations.createEvaluation({
-        owner: job.unitOfWork.strategy.owner,
-        jobId: job.id,
-        unitOfWorkId: job.unitOfWorkId,
-        evaluationDate,
-      });
-      if (evaluation.state !== 'judging') continue;
-      await this.evaluationQueue.add(evaluation.id, { kind: 'judge', workflowId, evaluationId: evaluation.id });
-    }
-  }
-
-  /**
-   * Step 4–5, and step 8 when the evidence is back — the same entry point serves both, because what
+   * Steps 2–4, and step 7 when the evidence is back — the same entry point serves both, because what
    * tells them apart is the row, not the message: a judgement that has already been out for evidence
    * carries an `evidenceJobId`, and `gatheredEvidence` puts what came back in front of the model.
    *
-   * Only acts on a judgement still in `judging`, so a message delivered twice does nothing the second
+   * Only acts on a judgement still in `evaluating`, so a message delivered twice does nothing the second
    * time. Gives up after `MAX_JUDGING_ATTEMPTS` throws, so one unmarkable Job never blocks the rest.
    */
-  private async judge(workflowId: string, evaluationId: string): Promise<void> {
+  private async evaluate(workflowId: string, evaluationId: string): Promise<void> {
     const evaluation = await this.evaluations.findEvaluationById(evaluationId);
-    if (evaluation === null || evaluation.state !== 'judging') return;
+    if (evaluation === null || evaluation.state !== 'evaluating') return;
 
     if ((await this.evaluations.recordJudgingAttempt(evaluationId)) > MAX_JUDGING_ATTEMPTS) {
       await this.evaluations.failEvaluation(evaluationId, `judging threw ${MAX_JUDGING_ATTEMPTS} times`);
@@ -116,8 +92,7 @@ export class JobEvaluationProcessor extends WorkerHost {
     const judgement = await this.evaluationReasoning.judgeJob({
       jobName: job.name,
       objective: job.objective,
-      unitName: job.unitOfWork.name,
-      successCriteria: job.unitOfWork.successCriteria,
+      strategyObjective: job.unitOfWork.strategy.objective,
       outcomeStatus: job.outcomeStatus,
       outcomeSummary: job.outcomeSummary,
       tasks: tasks.map(toTaskOutcome),
@@ -133,14 +108,15 @@ export class JobEvaluationProcessor extends WorkerHost {
   }
 
   /**
-   * Steps 5–6. Files the Job that will go and read the real outcome, under the Strategy's Evaluations
-   * Unit, parks the judgement on it, and starts it. That Job then runs on the `job-execution` queue
-   * like any other — nothing about it is special until it closes, which is where step 7 picks up.
+   * Steps 4–5. Files the Job that will go and read the real outcome, in the Unit being judged, parks
+   * the judgement on it, and starts it. The orchestrator still starts Jobs in a `evaluating` Unit, so a
+   * restart picks it up even if this queue write is lost. That Job then runs on the `job-execution` queue
+   * like any other — nothing about it is special until it closes, which is where step 6 picks up.
    *
    * **The order of the last two writes matters.** Parking comes first, so the evidence Job cannot
    * close and go looking for a judgement that has not been recorded as waiting yet.
    *
-   * One evidence round only: by step 8 the evaluator has been told the evidence is in, so asking a
+   * One evidence round only: by step 7 the evaluator has been told the evidence is in, so asking a
    * second time means it cannot settle this Job at all.
    */
   private async requestEvidence(
@@ -152,13 +128,10 @@ export class JobEvaluationProcessor extends WorkerHost {
       await this.evaluations.failEvaluation(evaluation.id, 'the evidence it asked for did not settle the mark');
       return;
     }
-    const evidenceJob = await this.jobs.placeJob({
-      strategyId: evaluation.job.unitOfWork.strategyId,
-      plannedJob: {
-        name: request.evidenceJobName.slice(0, JOB_NAME_MAX_LENGTH),
-        objective: this.evidenceObjective(request),
-        unitName: EVALUATIONS_UNIT_NAME,
-      },
+    const evidenceJob = await this.jobs.createJob({
+      unitOfWorkId: evaluation.unitOfWorkId,
+      name: request.evidenceJobName.slice(0, JOB_NAME_MAX_LENGTH),
+      objective: this.evidenceObjective(request),
     });
     if (!(await this.evaluations.parkForEvidence(evaluation.id, evidenceJob.id))) return;
     const jobId = evidenceJob.id;

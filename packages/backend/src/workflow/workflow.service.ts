@@ -1,4 +1,4 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkflowEntity } from './entities/workflow.entity';
@@ -20,27 +20,33 @@ export class WorkflowService {
    * Creates a new Workflow in the `paused` state, running its Strategy on one machine.
    */
   async createWorkflow(input: CreateWorkflowInput): Promise<WorkflowEntity> {
-    throw new NotImplementedException();
+    return this.workflows.save(
+      this.workflows.create({ strategyId: input.strategyId, machineId: input.machineId, resources: input.resources }),
+    );
   }
 
   /**
-   * Returns the Workflow, or null when it doesn't exist.
+   * Returns the Workflow with its Strategy loaded, or null when it doesn't exist.
    */
   async findWorkflowById(workflowId: string): Promise<WorkflowEntity | null> {
-    throw new NotImplementedException();
+    return this.workflows.findOne({ where: { id: workflowId }, relations: { strategy: true } });
   }
 
   /**
-   * Returns every Workflow in a given state (the orchestrator uses this to find `running` ones).
+   * Returns every Workflow in a given state, each with its Strategy loaded (the orchestrator uses this
+   * to find the `running` ones).
    */
   async listWorkflowsByState(state: WorkflowEntity['state']): Promise<WorkflowEntity[]> {
-    throw new NotImplementedException();
+    return this.workflows.find({ where: { state }, relations: { strategy: true }, order: { createdAt: 'ASC' } });
   }
 
   /**
-   * Moves a Workflow to `running`, `paused`, or `evaluating`.
+   * Moves a Workflow to `running` or `paused`, and returns it with its Strategy loaded.
    */
   async updateWorkflowState(input: UpdateWorkflowStateInput): Promise<WorkflowEntity> {
-    throw new NotImplementedException();
+    await this.workflows.update({ id: input.workflowId }, { state: input.state });
+    const workflow = await this.findWorkflowById(input.workflowId);
+    if (workflow === null) throw new NotFoundException(`Workflow ${input.workflowId} not found`);
+    return workflow;
   }
 }

@@ -1,19 +1,22 @@
 import type { Job } from './job';
-import type { Metric } from './metric';
 import type { UnitOfWorkState } from './unit-of-work-state';
+import type { UnitOfWorkStatus } from './unit-of-work-status';
 
 /**
- * A theme of related Jobs (e.g. "Reddit Community Presence") with its own
- * success criteria, measured daily. Only created when a Job fits no existing Unit.
+ * One round, attempt, or version of a Strategy's work: a group of Jobs and nothing more. The
+ * orchestrator creates it, the planner fills it with Jobs, and it is evaluated as a whole once all its
+ * Jobs are closed, so the next Unit can learn from it.
  */
 export interface UnitOfWork {
   readonly id: string;
   readonly strategyId: string;
+  /** 1 for the first Unit of the Strategy, then 2, 3, … */
+  readonly sequence: number;
+  /** e.g. "Round 3", "Attempt 2", "Version 1". */
   readonly name: string;
-  readonly successCriteria: readonly Metric[];
   readonly jobs: readonly Job[];
-  /** Share of the Strategy's effort, 0–100. All active Units sum to 100. */
-  readonly allocationPercentage: number;
+  readonly status: UnitOfWorkStatus;
+  /** When its Jobs may be evaluated; null while the Unit is open. */
+  readonly evaluateAfter: Date | null;
   readonly state: UnitOfWorkState;
-  readonly isDeprecated: boolean;
 }

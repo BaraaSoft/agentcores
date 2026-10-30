@@ -3,15 +3,16 @@ import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, Primary
 import { JobEntity } from './job.entity';
 
 /**
- * One day's judgement of one Job: a score out of 10 and precise feedback on what was good and what
- * was not. A Job is judged again on a later day when it sees new activity — engagement arrives long
- * after a post goes up — so there is one row per Job per day, not one per Job.
+ * The judgement of one Job: a score out of 10 and precise feedback on what was good and what was not.
+ * The orchestrator opens it once the Job's Unit of Work has closed and waited long enough for the
+ * results to show, so there is exactly one per Job.
  *
- * These rows are the agent's memory of its own work: the planner searches them by objective before
- * planning a new Job, so it can avoid what went badly and repeat what went well.
+ * These rows are the agent's memory of its own work: the planner reads them before it plans the next
+ * Unit, so it can avoid what went badly and repeat what went well.
  */
 @Entity('job_evaluations')
-@Index(['jobId', 'evaluationDate'], { unique: true })
+@Index(['jobId'], { unique: true })
+@Index(['unitOfWorkId', 'state'])
 @Index(['owner', 'state'])
 export class JobEvaluationEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -20,7 +21,7 @@ export class JobEvaluationEntity {
   /**
    * Denormalised from the Job's Strategy so the search for past Jobs stays inside one owner's work:
    * what the agent learnt for one owner must never leak into another's planning. It is the owner, not
-   * the Strategy, so a new 30-day cycle still learns from the cycles before it.
+   * the Strategy, so a new Strategy still learns from the owner's earlier ones.
    */
   @Column({ type: 'varchar', length: 100 })
   owner: string;
@@ -35,11 +36,7 @@ export class JobEvaluationEntity {
   @Column({ type: 'uuid' })
   unitOfWorkId: string;
 
-  /** The day being judged, as a calendar date; the Job may be judged again on later days. */
-  @Column({ type: 'date' })
-  evaluationDate: string;
-
-  @Column({ type: 'varchar', length: 20, default: 'judging' })
+  @Column({ type: 'varchar', length: 20, default: 'evaluating' })
   state: JobEvaluationState;
 
   /** 1–10 against the objective; null until the judgement is settled. */

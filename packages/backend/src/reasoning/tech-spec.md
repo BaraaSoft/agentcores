@@ -1,16 +1,18 @@
 # Reasoning layer
 
 The thinking half of AHE's [two-tier split](../../../../docs/base/02-system-architecture.md): every
-planning, judging, and deciding call to Opus goes through this module. It is split into **one reasoner per
-governance level** — Strategy, Unit of Work, Job, Task — plus the **evaluator** that marks finished work,
-each calling the model through a model client configured for its level, over one shared Anthropic instance.
+planning, evaluating, and deciding call to Opus goes through this module. It is split into **one reasoner per
+governance level that decides something** — Strategy, Job, Task — plus the **evaluator** that marks
+finished work, each calling the model through a model client configured for its level, over one shared
+Anthropic instance. A Unit of Work only groups Jobs, so it has no reasoner: the Strategy planner fills each
+Unit with Jobs.
 
 - [Where it sits](#where-it-sits)
 - [The reasoners](#the-reasoners)
 - [Planning flows down](#planning-flows-down)
 - [Job review and planning](#job-review-and-planning)
 - [Marking finished work](#marking-finished-work)
-- [Results flow up](#results-flow-up)
+- [Planning the next Unit](#planning-the-next-unit)
 - [The Task level and the execution layer](#the-task-level-and-the-execution-layer)
 - [Model clients and config](#model-clients-and-config)
 - [Rules every reasoner follows](#rules-every-reasoner-follows)
@@ -24,16 +26,14 @@ each calling the model through a model client configured for its level, over one
 ```mermaid
 flowchart TB
     subgraph Above["Layer above — callers"]
-        Orch["orchestrator/OrchestratorService<br/>plans each new Strategy"]
+        Orch["orchestrator/OrchestratorService<br/>opens each Unit of Work"]
         JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>plans a Job, reviews each finished Task"]
-        Evaluation["governance/StrategyEvaluationService<br/>rolls results up at cycle end"]
-        JobEval["governance/processors/job-evaluation/JobEvaluationProcessor<br/>marks each day's work"]
+        JobEval["governance/processors/job-evaluation/JobEvaluationProcessor<br/>marks each Job of an evaluated Unit"]
         TaskExec["governance/processors/task-execution/TaskExecutionProcessor<br/>the Task loop"]
     end
 
     subgraph Reasoning["ReasoningModule"]
         S["StrategyReasoningService"]
-        U["UnitReasoningService"]
         J["JobReasoningService"]
         T["TaskReasoningService"]
         E["EvaluationReasoningService"]
@@ -41,7 +41,7 @@ flowchart TB
         JClient["JobReasoningModelClient"]
         TClient["TaskReasoningModelClient"]
         SDK["Anthropic SDK<br/>(one shared instance)"]
-        S & U & E --> Client
+        S & E --> Client
         J --> JClient
         T --> TClient
         Client & JClient & TClient --> SDK
@@ -52,16 +52,15 @@ flowchart TB
         Execution["@ahe/execution — Sonnet/Haiku<br/>computer use (reached via the Task loop)"]
     end
 
-    Orch --> S & U
+    Orch --> S
     JobExec --> J
     JobEval --> E
-    Evaluation --> U & S
     TaskExec --> T
     SDK --> Anthropic
     TaskExec -. "ExecutionTask / ExecutionResult" .-> Execution
 ```
 
-- **Above:** the orchestrator, the governance processors, and the evaluation service call the reasoners. They load data, apply the
+- **Above:** the orchestrator and the governance processors call the reasoners. They load data, apply the
   [autonomy rules](../../../../docs/base/03-governance-model.md#autonomy-rules), and save the results; the reasoners
   only decide.
 - **Below:** the reasoners call only their model client (`ReasoningModelClient` or a level subclass),
@@ -75,30 +74,29 @@ flowchart TB
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
-| `StrategyReasoningService` | The 30-day cycle | `planStrategy`, `reviewStrategy` | Gold standards, past evaluations, **Unit reviews** | `StrategyPlan` (Units + effort shares), `StrategyReview` | `OrchestratorService`, `StrategyEvaluationService` |
-| `UnitReasoningService` | One theme of work | `planJobs`, `reviewUnit` | Success criteria, Unit metrics, **Job evaluations** | `UnitJobPlan`, `UnitReview` (grow / keep / shrink / deprecate) | `OrchestratorService`, `StrategyEvaluationService` |
+| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs | `UnitPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
 | `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
-| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Unit's criteria, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
+| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
 directly below it.** The Strategy reasoner never sees a Task; the Task reasoner never sees a screenshot.
 
-| | Strategy | Unit | Job | Task |
-| --- | --- | --- | --- | --- |
-| Cadence | Once per cycle | When a Unit needs Jobs; cycle end | When a Job starts, after every finished Task | Every step of a Task |
-| Volume | Very low | Low | Medium | High — the hot path |
+| | Strategy | Job | Task |
+| --- | --- | --- | --- |
+| Cadence | Once per Unit of Work | When a Job starts, after every finished Task | Every step of a Task |
+| Volume | Very low | Medium | High — the hot path |
 
-The evaluator sits beside the Job level rather than on it: it runs once a day over the Jobs that saw
-activity, so its volume follows how much work the agent did that day.
+The evaluator sits beside the Job level rather than on it: it runs once per Job, after the Job's Unit has
+finished, so its volume follows how much work the agent did.
 
 ---
 
 ## Planning flows down
 
-Planning walks down the hierarchy one level at a time. A new Strategy plans its Units and then each
-Unit's Jobs in one pass; the orchestrator starts Jobs; a Job plans its own Tasks and revises the plan
-after each one finishes.
+Planning walks down the hierarchy one level at a time. The orchestrator opens one Unit of Work at a time
+and the Strategy planner fills it with Jobs; the orchestrator starts Jobs; a Job plans its own Tasks and
+revises the plan after each one finishes.
 
 ```mermaid
 sequenceDiagram
@@ -106,19 +104,13 @@ sequenceDiagram
     participant O as Orchestrator
     participant JW as Job worker
     participant S as StrategyReasoning
-    participant U as UnitReasoning
     participant J as JobReasoning
     participant DB as Governance services
 
-    Note over O: new Workflow, or the last cycle was reviewed
-    O->>S: planStrategy(goldStandards, safeContext, previousEvaluations)
-    S-->>O: StrategyPlan { units + allocation }
-    O->>DB: createStrategy + createUnitOfWork per Unit
-    loop each Unit
-        O->>U: planJobs(unit, existingJobObjectives, safeContext)
-        U-->>O: UnitJobPlan { jobs }
-        O->>DB: JobService.placeJob — matching Unit, new Unit only if none fits
-    end
+    Note over O: no Unit is open, and the work type's stop rule allows another
+    O->>S: planUnitOfWork(objective, workType, earlierUnits with marks, similar past Jobs)
+    S-->>O: UnitPlan { jobs: name · objective · ordered | unordered } or done
+    O->>DB: createUnitOfWork — the Unit and its Jobs in one write
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
         JW->>J: reviewJob(job, safeContext, latestOutcome, history, remainingActions)
@@ -128,7 +120,7 @@ sequenceDiagram
         end
     end
     opt no Tasks yet, or the review says revise
-        JW->>J: planTasks(job, reason, history, remainingActions, maxTasks)
+        JW->>J: planTasks(job, reason, history, remainingActions, tasksStarted)
         J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
         J-->>JW: the edited plan (actions)
         JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty
@@ -153,19 +145,24 @@ cancelled Tasks included, so dropped work stays visible) and the remaining plan:
 
 | `decision` | Meaning | What the Job processor does |
 | --- | --- | --- |
-| `continue` | The plan still fits | Keeps it. With nothing left to run, the Job stays open and idle for now (see `docs/todo.md`) |
+| `continue` | The plan still fits | Keeps it. With nothing left to run, calls `planTasks` to plan what is left, so the Job never sits idle |
 | `revise` | The plan should change | Calls `planTasks` with `revisionNotes` as the reason |
 | `met` | The objective is achieved | Closes the Job as `success` with `summary` |
 | `abandon` | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` with `rationale` |
 
-`planTasks` gets the reason it was called, the history, the current plan, and the Task limit. It gets a new
-`JobPlanningToolset` from `ToolsetFactory.createJobPlanningToolset` — tools over an in-memory draft that
-enforce the limit — runs the loop with its tools, and returns the draft. The toolset is local to that call,
+`planTasks` gets the reason it was called, the history, the current plan, and how many Tasks have started. It
+gets a new `JobPlanningToolset` from `ToolsetFactory.createJobPlanningToolset` — tools over an in-memory
+draft — runs the loop with its tools, and returns the draft. The Task budget (`TASK_BUDGET_PER_JOB`, about 20
+per Job, and about 5 added per revision) is **soft**: the prompt states it, and the model may go over it
+when the objective genuinely needs more Tasks, saying why in its rationale. Only the hard limit
+`MAX_TASKS_PER_JOB` (60, three times the budget) is enforced: the toolset gets the room left under it and
+`add_task` refuses past that, and the prompt states the limit so the model plans the most important work
+first. The toolset is local to that call,
 so no draft is shared between Jobs. The Job processor saves the result in one
 write, so a run that crashes halfway changes nothing. Saving is governance's job; the module stays a leaf.
 
 Job reasoning never declares `failed`: **failed means "we couldn't do it"** and is set by the system — too
-many failed Tasks in a row, an empty plan, or the Task cap (see the
+many failed Tasks in a row, an empty plan, or the hard Task limit (see the
 [processors spec](../governance/processors/tech-spec.md#how-a-job-ends)). The review prompt tells the model
 not to abandon because Tasks keep failing, so the two outcomes stay distinct signals.
 
@@ -173,24 +170,25 @@ not to abandon because Tasks keep failing, so the two outcomes stay distinct sig
 
 ## Marking finished work
 
-`judgeJob` is the agent grading itself. Once a day, every Job that saw activity is marked out of 10 with
-one sentence on what was good and one on what was bad. Those marks are the only memory the planner has of
-how its own work landed.
+`judgeJob` is the agent grading itself. Once a Unit of Work has finished, each of its Jobs is marked out of
+10 with one sentence on what was good and one on what was bad — at once for `one_off` and `multi_version`
+work, a day later for `continuous` work so engagement can arrive. Those marks are the only memory the
+planner has of how its own work landed.
 
 | | |
 | --- | --- |
-| Who picks the standard | The model does. The objective's own bar first, then the Unit's success criteria, then the test that kind of work deserves — stated back in `rubric`. Where it has no sound basis for any of those, it searches the web for how the work is done well rather than marking on instinct |
+| Who picks the standard | The model does. The objective's own bar first, then what the Strategy as a whole is trying to achieve, then the test that kind of work deserves — stated back in `rubric`. Where it has no sound basis for any of those, it searches the web for how the work is done well rather than marking on instinct |
 | How the scale is held | Anchored in the prompt: 1–3 not met, 4–6 partly, 7–8 met, 9–10 exceeded *with evidence*. Without anchors a 1–10 scale collapses to "everything is a 7" |
 | Who the feedback is for | The next planner, not the owner. `whatGood` and `whatBad` name the decision, not the outcome: "led with a question, which pulled replies", not "the post did well" |
 | What `objectiveSummary` is for | Finding this Job again. Written in general terms — kind of work, medium, intent — because it is the text the planner's search is matched against |
 
-**When it does not know, it does not guess — it goes and finds out.** A judgement can be short of two
+**When it does not know, it does not guess — it goes and finds out.** An evaluation can be short of two
 different things, and what is missing decides how it is fetched.
 
 | What is missing | How it is fetched | Why that way |
 | --- | --- | --- |
-| **The standard.** The evaluator cannot say what good would have looked like for this kind of work | It searches the web mid-judgement, up to `JUDGE_JOB_MAX_SEARCHES` times, and answers in the same call | This is public knowledge. Sending a Job out for it would cost a planning round and a browser session to learn something a search answers in seconds |
-| **The work itself.** A post judged minutes after it went up has no engagement yet; a video or a design cannot be judged from the fact that it was exported | It returns an `EvidenceRequest`, which becomes a real Job under the Strategy's Evaluations Unit. The judgement parks until that Job closes, then marks on what came back | No search can reach this. A logged-in account, a file on disk, a project open in an editor — only a Job on the owner's machine opens any of them |
+| **The standard.** The evaluator cannot say what good would have looked like for this kind of work | It searches the web mid-evaluation, up to `JUDGE_JOB_MAX_SEARCHES` times, and answers in the same call | This is public knowledge. Sending a Job out for it would cost a planning round and a browser session to learn something a search answers in seconds |
+| **The work itself.** A post evaluated minutes after it went up has no engagement yet; a video or a design cannot be evaluated from the fact that it was exported | It returns an `EvidenceRequest`, which becomes a real Job in the Unit being evaluated. The evaluation parks until that Job closes, then marks on what came back | No search can reach this. A logged-in account, a file on disk, a project open in an editor — only a Job on the owner's machine opens any of them |
 
 Searching for the standard is for **aspiration, not imitation**: the feedback says what would have lifted
 the Job towards it — the angle, the shape, the level of craft — and never tells the planner to reproduce
@@ -210,7 +208,7 @@ objective with the key each reading must come back under.
 
 That turns prose into numbers. The errand opens the work once, rates each criterion, and reports them as
 `metricReadings` — which is a `Record<string, number>` with no size limit, unlike the 100-word summary — and
-those readings are printed straight back into the second judging pass as `Metrics: title_legibility=8`. The
+those readings are printed straight back into the second evaluating pass as `Metrics: title_legibility=8`. The
 evaluator sets the standard, the execution layer applies its eyes, and the mark comes from both.
 
 An outcome that is only a figure on a page needs no criteria, and `evidenceCriteria` is empty for it.
@@ -219,54 +217,51 @@ Evidence is one round only — the second call is told the evidence is in and mu
 
 ```mermaid
 flowchart LR
-    Judge["judgeJob<br/>(may search the web)"] -->|scored| Store["1–10 + whatGood / whatBad<br/>+ objectiveSummary vector"]
-    Judge -->|needs_evidence| Errand["Evidence Job<br/>reads the real outcome<br/>on the owner's machine"]
-    Errand -->|closes| Judge
-    Store --> Planner["planJobs reads the closest past objectives"]
+    Evaluate["judgeJob<br/>(may search the web)"] -->|scored| Store["1–10 + whatGood / whatBad<br/>+ objectiveSummary vector"]
+    Evaluate -->|needs_evidence| Errand["Evidence Job<br/>reads the real outcome<br/>on the owner's machine"]
+    Errand -->|closes| Evaluate
+    Store --> Planner["planUnitOfWork reads the marks of earlier Units<br/>and the closest past objectives"]
 ```
 
 Evidence Jobs are never themselves marked, so this cannot feed on itself.
 
 ---
 
-## Results flow up
+## Planning the next Unit
 
-At the end of a cycle, `StrategyEvaluationService` rolls results up, compressing at every level. No Job is
-judged here: each was already marked on the day it ran.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant E as StrategyEvaluationService
-    participant U as UnitReasoning
-    participant S as StrategyReasoning
-    participant DB as Governance rows
-
-    E->>DB: load Units, Unit measurements, stored job_evaluations rows
-    loop each Unit
-        Note over E: the Unit's Jobs were marked day by day; nothing is judged now
-        E->>U: reviewUnit(measurement, jobEvaluations)
-        U-->>E: UnitReview { isMeetingCriteria, summary, recommendation, proposedJobs }
-    end
-    E->>S: reviewStrategy(goldStandards, values, unitReviews)
-    S-->>E: StrategyReview { evaluation, reallocations, deprecations, newJobs }
-    E->>DB: applyReview → Workflow back to running; the orchestrator plans the next Strategy
-```
-
-What crosses each boundary:
+Results flow up through one call. When the orchestrator opens a Unit, `planUnitOfWork` reads how the Jobs of the
+Strategy's earlier Units ended and how they were marked, and writes the next Unit's Jobs from that. There is
+no separate review step: learning happens between Units.
 
 ```mermaid
 flowchart BT
     Exec["ExecutionResult<br/>(per step)"] --> TaskOut["TaskOutcome<br/>action · status · result · failure reason · location"]
-    TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed · open<br/>score 1–10 · whatGood · whatBad"]
-    JobEval --> UnitRev["UnitReview<br/>criteria met? · summary · recommendation"]
-    UnitRev --> StratRev["StrategyReview<br/>grade · reallocations · deprecations · new Jobs"]
+    TaskOut --> JobEval["JobEvaluation<br/>success · abandoned · failed<br/>score 1–10 · whatGood · whatBad"]
+    JobEval --> Past["PastUnit<br/>each Job's outcome and mark, up to the last 5 Units"]
+    Past --> Plan["UnitPlan<br/>the next Unit's Jobs, or done"]
 ```
 
-**Abandoned and failed read differently upward.** `reviewUnit` treats abandoned Jobs as a strategic
-signal about the Unit (wrong place, wrong audience — an argument to shrink or deprecate it) and failed
-Jobs as an execution signal (try different Jobs or approaches inside the Unit). `reviewStrategy` applies
-the same reading when it reallocates or deprecates Units.
+| Input | What it carries |
+| --- | --- |
+| `objective`, `workType`, `unitName`, `unitLimit` | What the owner wants, how the work is shaped, and which Unit this is ("Attempt 2 of at most 3") |
+| `earlierUnits` | The Strategy's last `PAST_UNITS_OF_WORK_LIMIT` Units, each Job with its order type, outcome, and mark. A recent `continuous` round may not be evaluated yet; the planner learns from its outcomes and plans anyway |
+| `relatedEvaluations` | Scored Jobs from the owner's other Strategies with a similar objective, by vector search |
+| `canFinish` | True only for a `one_off` Strategy after its first attempt. Then the planner may answer `done` when the marks show the deliverable is good enough |
+
+**Each work type plans differently.** A `continuous` round keeps what is working and adds one or two new
+experiments. A `one_off` attempt fixes what the marks said was wrong with the last one. A `multi_version`
+version takes a deliberately different direction from the versions before it.
+
+**Ordered Jobs are a chain.** The planner marks a Job `ordered` when it needs the result of the one before:
+cut, then colour, then export. Ordered Jobs run one at a time in the listed order; if one fails, the rest
+of the chain is skipped. Everything else is `unordered` and runs alongside.
+
+**An unusable answer throws.** No Jobs, or `done` where it is not allowed, throws, so the orchestrator tries
+again on its next pass. Jobs with an empty objective are dropped, at most `MAX_JOBS_PER_UNIT` (8) are kept,
+and a blank name falls back to the objective.
+
+**Abandoned and failed read differently.** The prompt treats an abandoned Job as a signal about the idea
+(wrong place, wrong audience) and a failed one as a signal about the approach.
 
 ---
 
@@ -313,7 +308,7 @@ sequenceDiagram
   prompt gives examples (wait it out, another flow, the official API) and the model writes its own
   `nextStep`. The Task processor only reads which field is set: `ownerRequest` escalates, `retryAfterMinutes`
   defers, `nextStep` continues, and none of them fails the Task. Moving work to another platform belongs to
-  the Unit of Work.
+  the Strategy planner.
 - **Gates are never solved.** Whatever the model plans must avoid the gate, not get past it; see
   [07 — Privacy & safety](../../../../docs/base/07-privacy-and-safety.md#platform-gates-and-accounts).
 
@@ -328,13 +323,13 @@ required one is missing.
 | Provider | Built from | Used by | Model | Effort |
 | --- | --- | --- | --- | --- |
 | `ANTHROPIC_CLIENT` | `ANTHROPIC_API_KEY` | every model client | — | — |
-| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `UnitReasoningService` | `REASONING_MODEL_ID` | high |
+| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `EvaluationReasoningService` | `REASONING_MODEL_ID` | high |
 | `JobReasoningModelClient` | `ANTHROPIC_CLIENT` + `jobModel` | `JobReasoningService` | `REASONING_JOB_MODEL_ID`, else the default | high |
 | `TaskReasoningModelClient` | `ANTHROPIC_CLIENT` + `taskModel` | `TaskReasoningService` | `REASONING_TASK_MODEL_ID`, else the default | medium (hot path) |
 
 The subclasses add no behaviour; they exist so each service injects its level's client by class. A level
-that needs its own model or effort gets a subclass and a settings entry in the config; Strategy and Unit
-run rarely, so they share the default.
+that needs its own model or effort gets a subclass and a settings entry in the config; the Strategy planner
+and the evaluator run rarely, so they share the default.
 
 **How a call works.** `completeStructured` calls `messages.parse` with adaptive thinking and the method's
 zod schema as the JSON schema output format (`output_config.format`). The model thinks first, then must
@@ -382,20 +377,17 @@ reasoning/
 ├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; every reasoner
 ├── reasoning.config.ts             ← registerAs('reasoning'): API key + model per level
 ├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
-├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and Unit use it as is
+├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and evaluation use it as is
 ├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
 ├── tools/toolset.factory.ts        ← ToolsetFactory: a new toolset per run (+ tests/)
 ├── task-outcome.prompts.ts         ← renders Task outcomes as prompt text, shared by Job and evaluation prompts
 ├── types/                          ← completion-input, tool-loop-input, reasoning-tool, reasoning-model-settings
 ├── tests/                          ← reasoning.module (wiring), reasoning-model.client (structured call, tool loop)
 ├── strategy/
-│   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts
-│   └── types/                      ← plan-strategy-input, strategy-plan, planned-unit,
-│                                      review-strategy-input, strategy-review, unit-reallocation
-├── unit-of-work/
-│   ├── unit-reasoning.service.ts · unit-reasoning.prompts.ts
-│   └── types/                      ← plan-unit-jobs-input, unit-job-plan, planned-job,
-│                                      review-unit-input, unit-review, unit-recommendation
+│   ├── strategy-reasoning.service.ts · strategy-reasoning.prompts.ts · strategy-reasoning.constants.ts
+│   ├── schemas/unit-plan-output.schema.ts
+│   ├── tests/strategy-reasoning.service.spec.ts
+│   └── types/                      ← plan-unit-input, past-unit, unit-plan, planned-job
 ├── job/
 │   ├── job-reasoning.service.ts · job-reasoning-model.client.ts · job-reasoning.constants.ts
 │   ├── job-reasoning.prompts.ts     ← system prompt + user-prompt renderer per method
@@ -417,7 +409,7 @@ reasoning/
 ```
 
 Each level's types live with the level that produces them; another level that consumes them imports
-from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/types`).
+from there (e.g. `PlanUnitInput` imports `JobEvaluation` from `evaluation/types`).
 
 ---
 
@@ -426,7 +418,7 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
 - **A new decision at a level** — add a method, its input and output types, and a prompt to that level's
   folder. Keep its input to the level's own data and the level below.
 - **A different model per level** — set `REASONING_JOB_MODEL_ID` or `REASONING_TASK_MODEL_ID`. The Task
-  level runs on every step, so it is where cost concentrates. To give Strategy or Unit their own model,
+  level runs on every step, so it is where cost concentrates. To give Strategy or evaluation their own model,
   add a subclass, a settings entry in `reasoning.config.ts`, and a factory provider, as for Job and Task.
 - **A new governance level** — add a folder with its reasoner, wire it into `ReasoningModule`, and slot it
   into the planning and review flows in governance.
@@ -435,7 +427,5 @@ from there (e.g. `ReviewStrategyInput` imports `UnitReview` from `unit-of-work/t
   each reasoner will receive its level's tools as an argument instead of importing governance, with every
   write tool enforcing the governance rules itself.
 
-`ReasoningModelClient`, `JobReasoningService`, and `EvaluationReasoningService` are implemented; the Strategy, Unit, and Task reasoners
-are still stubs (`NotImplementedException`). The Job prompts are complete; the `decideOnBlocker`,
-`reviewUnit`, and `reviewStrategy` prompts have their rules written and still end in `TODO`. The Task processor that calls the Task reasoner is implemented and unit-tested
-against fakes.
+`ReasoningModelClient`, `StrategyReasoningService`, `JobReasoningService`, and `EvaluationReasoningService`
+are implemented and unit-tested. Check `task/` for the Task reasoner's current state.

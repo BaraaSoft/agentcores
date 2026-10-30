@@ -15,6 +15,6 @@ export interface JobPlanningInput {
   readonly history: readonly TaskOutcome[];
   /** The plan being edited: actions not started yet, in order. */
   readonly remainingActions: readonly string[];
-  /** Most Tasks the plan may hold when it is finished. */
-  readonly maxTasks: number;
+  /** Tasks of the Job that have started (anything not pending or cancelled), measured against the soft budget. */
+  readonly tasksStarted: number;
 }

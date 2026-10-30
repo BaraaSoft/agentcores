@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ToolsetFactory } from '../tools/toolset.factory';
 import { JobReasoningModelClient } from './job-reasoning-model.client';
-import { PLAN_TASKS_MAX_TOKENS, PLAN_TASKS_MAX_TURNS, REVIEW_JOB_MAX_TOKENS } from './job-reasoning.constants';
+import {
+  MAX_TASKS_PER_JOB,
+  PLAN_TASKS_MAX_TOKENS,
+  PLAN_TASKS_MAX_TURNS,
+  REVIEW_JOB_MAX_TOKENS,
+} from './job-reasoning.constants';
 import { JOB_REASONING_PROMPTS } from './job-reasoning.prompts';
 import { JOB_REVIEW_SCHEMA } from './schemas/job-review.schema';
 import type { JobPlanningInput } from './types/job-planning-input';
@@ -38,7 +43,7 @@ export class JobReasoningService {
    * then returns the edited plan. Saves nothing; the caller writes the result.
    */
   async planTasks(input: JobPlanningInput): Promise<readonly string[]> {
-    const toolset = this.toolsets.createJobPlanningToolset(input.remainingActions, input.maxTasks);
+    const toolset = this.toolsets.createJobPlanningToolset(input.remainingActions, MAX_TASKS_PER_JOB - input.tasksStarted);
     await this.model.runToolLoop({
       systemPrompt: JOB_REASONING_PROMPTS.planTasks.system,
       userPrompt: JOB_REASONING_PROMPTS.planTasks.user(input),

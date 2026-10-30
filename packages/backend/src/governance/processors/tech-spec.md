@@ -2,9 +2,10 @@
 
 The BullMQ workers that move work through governance: the **Job processor** plans a Job, reviews every
 Task it finishes, and starts the next one; the **Task processor** runs one Task at a time on screen; the
-**Job evaluation processor** marks each day's finished work out of 10; and the **Strategy evaluation
-processor** reviews a cycle when its 30 days are up. This document explains how Jobs and Tasks move: who
-queues what, when a Job may go on, when it must wait, and how it ends.
+**Job evaluation processor** marks each finished Job out of 10 once its Unit of Work is evaluated. This
+document explains how Jobs and Tasks move: who queues what, when a Job may go on, when it must wait, and how
+it ends. When a Unit is opened and when it is evaluated is the orchestrator's job — see
+[orchestrator/tech-spec.md](../../orchestrator/tech-spec.md).
 
 - [Where they sit](#where-they-sit)
 - [The processors](#the-processors)
@@ -31,39 +32,33 @@ the reasoners these processors call in [reasoning/tech-spec.md](../../reasoning/
 flowchart LR
     Orch["OrchestratorService<br/>every minute"]
     Owner["Owner<br/>answers an escalation"]
-    Cron["Daily cycle check"]
-    EvalCron["Daily marking, 20:00"]
 
     subgraph Queues["BullMQ"]
         JQ["job-execution"]
         TQ["task-execution"]
-        SQ["strategy-evaluation"]
         EQ["job-evaluation"]
     end
 
     subgraph Processors["governance/processors"]
         JP["JobExecutionProcessor<br/>plan · review · start"]
         TP["TaskExecutionProcessor<br/>concurrency 1"]
-        SP["StrategyEvaluationProcessor"]
-        EP["JobEvaluationProcessor<br/>sweep · judge"]
+        EP["JobEvaluationProcessor<br/>evaluate"]
     end
 
     DB[("Governance services<br/>Task status + review = source of truth")]
 
     Orch -- "startable Jobs" --> JQ
+    Orch -- "a Unit's Jobs, once it is due for evaluating" --> EQ
     Owner -- "resolveEscalation" --> JQ
-    Cron --> SQ
     JQ --> JP
     JP -- "current Task, if pending" --> TQ
     TQ --> TP
     TP -- "complete / failed → review the Job" --> JQ
     TP -- "deferred → same Task, delayed" --> TQ
-    SQ --> SP
-    EvalCron --> EQ
     EQ --> EP
     EP -- "evidence Job" --> JQ
     JP -- "an evidence Job closed" --> EQ
-    JP & TP & SP & EP <--> DB
+    JP & TP & EP <--> DB
 ```
 
 The queues only carry work; they hold no rules. **Whether a Job may move on is decided by its Tasks in
@@ -78,11 +73,11 @@ twice, or out of order without breaking it.
 | --- | --- | --- | --- | --- | --- |
 | `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
 | `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1** — one screen, one mouse | **none** — a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
-| `JobEvaluationProcessor` | `job-evaluation` | `{ kind: 'sweep', workflowId, evaluationDate }` or `{ kind: 'judge', workflowId, evaluationId }` | default | 3, exponential backoff | `EvaluationReasoningService.judgeJob` |
-| `StrategyEvaluationProcessor` | `strategy-evaluation` | `{ workflowId }` | default | 3, exponential backoff | `StrategyEvaluationService` |
+| `JobEvaluationProcessor` | `job-evaluation` | `{ workflowId, evaluationId }` | default | 3, exponential backoff | `EvaluationReasoningService.judgeJob` |
 
 The Job queue uses the Job's ID as the queue job ID and removes entries on completion, so a Job already
-waiting is never queued twice, and the same Job can be queued again later.
+waiting is never queued twice, and the same Job can be queued again later. The orchestrator queues a
+evaluation the same way, with the evaluation's ID.
 
 ---
 
@@ -111,7 +106,10 @@ The rule lives in the services:
 - `TaskService.findUnreviewedTask(jobId)` returns the finished Task awaiting review, if any.
 - `TaskService.findNextPendingTask(jobId)` returns the current Task when it is `pending` and nothing awaits
   review, otherwise null.
-- `JobService.listStartableJobs` returns open Jobs that are new, need review, or are ready.
+- `JobService.listStartableJobs` returns open Jobs that are new, need review, or are ready, in a running
+  Unit that is `open` or `evaluating`. An `ordered` Job is held back until every ordered Job before it in its
+  Unit has succeeded; `unordered` Jobs run alongside. When an ordered Job closes without success, the
+  orchestrator closes the ordered Jobs after it as `abandoned` (`skipStepsAfterFailure`).
 
 Example — a Job whose plan was revised after Task 2 failed:
 
@@ -179,25 +177,37 @@ A Job closes once, through `JobService.closeJob`, which records `outcomeStatus`,
 | --- | --- | --- | --- |
 | `success` | The objective was met | Job reasoning | The review's decision is `met` |
 | `abandoned` | **We decided to stop** — a strategic signal | Job reasoning | The review's decision is `abandon` |
-| `failed` | **We couldn't do it** — an execution signal | The system | `MAX_CONSECUTIVE_FAILURES` failed Tasks in a row, the plan is empty, `MAX_TASKS_PER_JOB` reached, or Job reasoning itself kept throwing (`MAX_REVIEWING_ATTEMPTS`) |
+| `failed` | **We couldn't do it** — an execution signal | The system | `MAX_CONSECUTIVE_FAILURES` failed Tasks in a row, the plan is empty, `MAX_TASKS_PER_JOB` Tasks started ("Needs more Tasks: …"), or Job reasoning itself kept throwing (`MAX_REVIEWING_ATTEMPTS`) |
 
 Job reasoning never chooses `failed`; it can only stop by abandoning, and the prompt tells it not to
-abandon because Tasks keep failing. The Unit and Strategy reviews read the two differently: many
-abandoned Jobs argue against the Unit itself (wrong place, wrong audience), while failed Jobs argue for
-different Jobs or approaches inside the Unit.
+abandon because Tasks keep failing. The Strategy planner sees each outcome when it writes the next Unit:
+an abandoned Job argues against the idea (wrong place, wrong audience), while a failed one argues for a
+different approach to it.
 
-Guardrails on every plan (`job-execution.constants.ts`):
+Hard guardrails (`job-execution.constants.ts`):
 
 | Constant | Value | Effect |
 | --- | --- | --- |
-| `MAX_TASKS_PER_JOB` | 20 | Started + planned Tasks never exceed it; reaching it without success closes the Job as failed |
-| `MAX_TASKS_ADDED_PER_REVIEW` | 5 | A replan after a review may grow the remaining plan by at most this many Tasks; the planning tools refuse more |
 | `MAX_CONSECUTIVE_FAILURES` | 3 | That many failed Tasks in a row close the Job as failed, whatever the plan says |
 | `MAX_REVIEWING_ATTEMPTS` | 6 | Job reasoning attempts in a row (queue retries included) that may throw; the next attempt closes the Job as failed without calling reasoning |
 
 `Job.reviewingAttempts` is incremented atomically before every Job reasoning call and reset once the plan
 is applied. Without it, a Job whose plan or review keeps throwing would stay startable — it has no Tasks,
 or an unreviewed one — and the orchestrator would pay for a reasoning call every pass, forever.
+
+**The Task budget is soft; the Task limit is hard.** Both live in `reasoning/job/job-reasoning.constants.ts`,
+and both prompts state them with the count of Tasks started so far.
+
+| Constant | Value | Kind | Effect |
+| --- | --- | --- | --- |
+| `TASK_BUDGET_PER_JOB` | 20 | soft | Job reasoning plans around it and may go over when the objective genuinely needs more Tasks, such as a long video edit, saying why |
+| `TASKS_ADDED_PER_REVISION` | 5 | soft | A revision usually adds no more than this beyond the current plan |
+| `MAX_TASKS_PER_JOB` | 60 (3 × the budget) | hard | `add_task` refuses a Task past the room left under it. When planning is needed with 60 Tasks started, the Job closes as `failed` with the summary "Needs more Tasks: started all 60 Tasks a Job may run, and the objective is not met yet." |
+
+The hard limit only catches a runaway Job: one whose Tasks keep succeeding while the objective is never met.
+It reuses `failed` rather than a new outcome, because it is the same signal — "we couldn't do it" — and the
+summary already says why. The Strategy planner is told to size Jobs to the budget and split bigger work into
+ordered Jobs.
 
 ---
 
@@ -222,9 +232,11 @@ flowchart TD
     Streak -- yes --> Close
     Streak -- no --> Review["JobReasoning.reviewJob<br/>latest Task + history + remaining plan"]
     Review -- "met · abandon" --> Close
-    Review -- "continue" --> Reviewed["markTaskReviewed"] --> Current
+    Review -- "continue" --> Left{"a Task<br/>left to run?"}
+    Left -- yes --> Reviewed["markTaskReviewed"] --> Current
+    Left -- "no: the plan ran out" --> Plan
     Review -- "revise" --> Plan["JobReasoning.planTasks<br/>tools edit a draft → finish_plan"]
-    Plan -- "draft empty,<br/>or Task cap reached" --> Close["JobService.closeJob<br/>(cancels pending Tasks)<br/>markTaskReviewed"] --> Stop3(["done"])
+    Plan -- "draft empty, or the<br/>hard Task limit reached" --> Close["JobService.closeJob<br/>(cancels pending Tasks)<br/>markTaskReviewed"] --> Stop3(["done"])
     Plan -- "draft has Tasks" --> Replace["TaskService.replaceRemainingTasks<br/>markTaskReviewed"] --> Current
     Current{"current Task pending?"} -- yes --> Queue["queue that Task<br/>on task-execution"]
     Current -- "no (running, deferred,<br/>escalated)" --> Stop4(["do nothing"])
@@ -233,10 +245,14 @@ flowchart TD
 - **Review, then plan only if needed.** Every finished Task gets one `reviewJob` call (`continue`,
   `revise`, `met`, `abandon`). Most reviews say `continue` and cost nothing more. Job reasoning sees each
   Task's action, status, and compressed result or failure reason — never its steps.
+- **A plan that ran out is written again.** A `continue` review with no Task left would leave the Job open
+  with nothing to run, and its Unit could never be evaluated. The processor plans what is left instead; an
+  empty plan closes the Job as `failed`.
 - **Planning edits a draft.** `JobReasoningService.planTasks` gives the model `view_plan`, `add_task`,
   `update_task`, `remove_task`, `move_task`, and `finish_plan` over an in-memory copy of the remaining
   plan (see the [reasoning spec](../../reasoning/tech-spec.md#job-review-and-planning)) and returns it.
-  The tools enforce the Task limit; a bad call returns an error the model can fix. The returned plan
+  The tools refuse only what would pass the hard Task limit, bad positions, and empty actions; a bad call
+  returns an error the model can fix. The returned plan
   replaces every Task not started yet in one write: an identical plan writes nothing; otherwise the
   pending Tasks are cancelled and the new plan is appended. A crash mid-planning saves nothing.
 - **The review is stamped last.** `markTaskReviewed` runs after the plan or closure is saved; if the
@@ -281,83 +297,82 @@ flowchart TD
 
 ## Job evaluation processor
 
-This is the agent marking its own homework. At 20:00 the **sweep** finds every Job of the Workflow that
-saw activity that day and opens one judgement per Job; **judging** then marks each out of 10 and stores one
-sentence on what was good and one on what was bad, for the planner to read before it writes a Job like it.
+This is the agent marking its own homework. Once every Job of a Unit of Work has closed, the orchestrator
+moves the Unit to `evaluating`. When its wait is over — at once for `one_off` and `multi_version` work, 24 hours
+later for `continuous` work, so engagement has time to arrive — the orchestrator opens one evaluation per
+Job and queues it. **Evaluating** then marks each Job out of 10 and stores one sentence on what was good and
+one on what was bad, for the planner to read before it writes the next Unit.
 
 ```mermaid
 flowchart TD
-    Sweep(["sweep: { workflowId, evaluationDate }"]) --> Find["Jobs whose Task was reviewed that day,<br/>or that closed that day — open or closed"]
-    Find --> Open["createEvaluation per Job<br/>(unique on jobId + evaluationDate)"]
-    Open --> Judge(["judge: { evaluationId }"])
-    Judge --> Verdict{"judgeJob"}
+    Due(["orchestrator: an evaluating Unit is due"]) --> Open["createEvaluation per closed Job<br/>(one per Job — unique on jobId)"]
+    Open --> Evaluate(["evaluate: { workflowId, evaluationId }"])
+    Evaluate --> Verdict{"judgeJob"}
     Verdict -- scored --> Score["score 1–10 + whatGood + whatBad<br/>+ the objective vector"]
-    Verdict -- needs_evidence --> Errand["file an evidence Job<br/>under the Evaluations Unit"]
+    Verdict -- needs_evidence --> Errand["file an evidence Job<br/>in the Unit being evaluated"]
     Errand --> Park["state → awaiting_evidence"]
-    Park -.-> Closed["that Job closes"] -.-> Judge
+    Park -.-> Closed["that Job closes"] -.-> Evaluate
 ```
 
 ### The round trip, step by step
 
 Two queues are involved and the work crosses between them twice, so it is worth reading once in order.
-The right-hand column is the state the judgement is left in.
+The right-hand column is the state the evaluation is left in.
 
 | # | Who runs | What happens | State after |
 | --- | --- | --- | --- |
-| 1 | Daily cron | One `sweep` message per Workflow, carrying the date | — |
-| 2 | `JobEvaluationProcessor.sweep` | `createEvaluation` for each Job with activity that day | `judging` |
-| 3 | `JobEvaluationProcessor.sweep` | One `judge` message per Job | `judging` |
-| 4 | `JobEvaluationProcessor.judge` | `judgeJob` → **scored**: `recordScore` | `scored` ✓ |
-| 5 | `JobEvaluationProcessor.judge` | `judgeJob` → **needs_evidence**: `placeJob` to read the real outcome, criteria rendered into its objective, then `parkForEvidence` | `awaiting_evidence` |
-| 6 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
-| 7 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `judge` message | `judging` |
-| 8 | `JobEvaluationProcessor.judge` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
+| 1 | `OrchestratorService` | The Unit is due: `createEvaluation` for each of its closed Jobs | `evaluating` |
+| 2 | `OrchestratorService` | One `evaluate` message per evaluation still `evaluating` | `evaluating` |
+| 3 | `JobEvaluationProcessor` | `judgeJob` → **scored**: `recordScore` | `scored` ✓ |
+| 4 | `JobEvaluationProcessor` | `judgeJob` → **needs_evidence**: `createJob` in the evaluated Unit to read the real outcome, criteria rendered into its objective, then `parkForEvidence` | `awaiting_evidence` |
+| 5 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
+| 6 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `evaluate` message | `evaluating` |
+| 7 | `JobEvaluationProcessor` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
+| 8 | `OrchestratorService` | Every evaluation of the Unit is `scored` or `failed`: the Unit is `complete` | — |
 
-**Two kinds of message on `job-evaluation`.** `{ kind: 'sweep', workflowId, evaluationDate }` is a whole
-day's work for one Workflow; `{ kind: 'judge', workflowId, evaluationId }` is one Job. The date travels in
-the payload rather than being read from the clock, so a retry judges the day it was meant to. A `judge`
-message says only *which* judgement to work on — how far along it is lives in the row's `state`, which is
-why steps 4 and 8 are the same code path.
+**One kind of message on `job-evaluation`.** `{ workflowId, evaluationId }` says only *which* evaluation to
+work on — how far along it is lives in the row's `state`, which is why steps 3 and 7 are the same code path.
+Starting an evaluation is the orchestrator's job; waking one after its evidence Job closes stays with the Job
+processor, which is the one that sees the Job close.
 
-**Most judgements never reach step 5.** `judgeJob` can search the web within its own call, so when the
-evaluator is unsure what good looks like for this kind of work it settles that there and then. Step 5 is
+**Most evaluations never reach step 4.** `judgeJob` can search the web within its own call, so when the
+evaluator is unsure what good looks like for this kind of work it settles that there and then. Step 4 is
 only for what no search can reach — the work itself: a logged-in account, a file that was exported, a
 project open in an editor. The Task that did the work recorded where it lives, so the errand can say what
 to open.
 
-**The errand carries its own standard.** When the mark turns on quality that has to be seen, the judgement
+**The errand carries its own standard.** When the mark turns on quality that has to be seen, the evaluation
 travels down as criteria: `requestEvidence` renders each `{ key, whatToExamine }` into the errand's
 objective, naming the key its reading must come back under. Planning and execution never learn there is a
-judgement behind it — everything they need is in the objective, like any other Job.
+evaluation behind it — everything they need is in the objective, like any other Job.
 
 **Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
 any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to
-tell is to ask whether a judgement is parked on it, which is what step 7 does on every Job that closes.
+tell is to ask whether an evaluation is parked on it, which is what step 6 does on every Job that closes.
 
-**The order of writes in step 5 matters.** The judgement is parked *before* its evidence Job is queued. The
-other way round, that Job could close and look for a judgement that was not yet recorded as waiting, and
-the mark would never be finished.
+**The order of writes in step 4 matters.** The evaluation is parked *before* its evidence Job is queued. The
+other way round, that Job could close and look for an evaluation that was not yet recorded as waiting, and
+the mark would never be finished. If the queue write is lost after parking, nothing strands: the evaluated
+Unit's Jobs stay startable, so the orchestrator's next pass starts the evidence Job.
 
-**A Job is marked more than once.** Engagement arrives for days after a post goes up, so any day a Job sees
-fresh activity it is judged again, and the row is keyed on `jobId + evaluationDate` rather than on the Job.
-
-**Activity means a Task of the Job was reviewed that day, or the Job closed that day.** `reviewedAt` is
-used rather than `completedAt`, because a failed Task has no completion time — and a failed Job is exactly
-the kind the planner most needs to learn from.
+**A Job is marked once,** after its Unit has finished. The 24-hour wait for `continuous` work is what lets
+engagement arrive first. Which Jobs are evaluated: closed Jobs with at least one Task that completed or failed,
+except evidence Jobs. A Job skipped because an earlier step failed never ran, so there is nothing to mark.
 
 | Guard | Why |
 | --- | --- |
-| Evidence Jobs are excluded from the sweep | Judging a Job that exists to serve a judgement would never end |
-| One evidence round per judgement | The second call is told the evidence is in; asking again means it cannot settle the Job at all |
+| Evidence Jobs are never evaluated | Evaluating a Job that exists to serve an evaluation would never end |
+| One evaluation per Job, and the queue job ID is the evaluation ID | The orchestrator repeats step 1 and 2 every pass until the Unit completes, harmlessly |
+| One evidence round per evaluation | The second call is told the evidence is in; asking again means it cannot settle the Job at all |
 | Every transition names the state it expects | A message delivered twice changes nothing the second time |
-| `MAX_JUDGING_ATTEMPTS` | One unmarkable Job never blocks the rest of the day |
+| `MAX_JUDGING_ATTEMPTS` | One unmarkable Job fails on its own and never holds its Unit in `evaluating` |
 
 **Only the objective is embedded, never the feedback** — searching over the feedback too would match a Job
 simply because its failure text mentioned the same place. Embeddings come from `embedding/`, a small model
 running in this process: no API key, and nothing leaves the machine. Vectors are stored as a float array
 and cast to pgvector in the query, which keeps the column inside what TypeORM can generate migrations for.
 Search is always scoped to one owner, so what the agent learns for one owner never reaches another's
-planning. It is scoped by owner rather than by Strategy, so a new 30-day cycle still learns from the ones
+planning. It is scoped by owner rather than by Strategy, so a new Strategy still learns from the ones
 before it.
 
 ---
@@ -372,10 +387,9 @@ before it.
 | A Task is deferred | `TaskExecutionProcessor` | The same Task, delayed by `retryAfterMinutes` | `task-execution` |
 | The owner resolves an escalation | `ReportingService.resolveEscalation` | The Task's Job (approved: resume; rejected: review the failure) | `job-execution` |
 | A Workflow resumes | `OrchestratorService` (next pass) | Its startable Jobs again | `job-execution` |
-| 20:00 daily | `OrchestratorService` (repeatable) | The day's sweep for the Workflow | `job-evaluation` |
-| The sweep finds a Job with activity | `JobEvaluationProcessor` | That Job's judgement | `job-evaluation` |
+| An evaluating Unit's wait is over (scheduling pass) | `OrchestratorService` | One evaluation per closed Job of the Unit | `job-evaluation` |
 | The evaluator needs a real-world reading | `JobEvaluationProcessor` | The evidence Job it filed | `job-execution` |
-| An evidence Job closes | `JobExecutionProcessor` | The judgement parked on it | `job-evaluation` |
+| An evidence Job closes | `JobExecutionProcessor` | The evaluation parked on it | `job-evaluation` |
 
 The orchestrator never queues Tasks, and nothing queues a Task that is not its Job's current Task. If the
 review hand-off is lost, the orchestrator's next pass finds the Job (a finished Task awaits review, so it
@@ -397,8 +411,12 @@ with the new plan.
 closes as `failed` without asking reasoning.
 
 **Not worth it.** After a few Tasks, the community turns out to be inactive → the review says `abandon`
-→ the Job closes as `abandoned`, and the Unit review reads it as a signal about the place,
+→ the Job closes as `abandoned`, and the Strategy planner reads it as a signal about the place,
 not about execution.
+
+**A step fails.** In a video edit, "cut" succeeds but "colour" fails → the orchestrator closes "export" as
+`abandoned` ("Skipped: an earlier step did not succeed."), the Unit is evaluated, and for `one_off` work the
+planner writes the next attempt from the marks.
 
 **Rate limit.** Task 2 is blocked; reasoning says "retry in 30 minutes" → Task 2 is `deferred` and
 queued again with a 30-minute delay. The orchestrator's passes skip the Job meanwhile, because its current
@@ -416,8 +434,8 @@ pause goes back to pending; a Job queued for review does nothing and keeps its u
 already running finishes. On resume, the Unit's startable Jobs are queued again, and each is reviewed or
 picks up at its current Task.
 
-Evaluation has no pause gate. Judging only reads finished work, and a judgement skipped while paused
-would stay in `judging` with nothing to queue it again. Its one action on the screen is the evidence Job,
+Evaluation has no pause gate. Evaluating only reads finished work, and an evaluation skipped while paused
+would stay in `evaluating` with nothing to queue it again. Its one action on the screen is the evidence Job,
 which the Job processor gates on its own Unit like any other Job.
 
 **Duplicate delivery.** A Task delivered twice runs once: the second delivery sees it is no longer
@@ -436,8 +454,9 @@ finds nothing unreviewed) and queues the same current Task.
   and returns false otherwise, so two workers can never both run the same Task. Every other
   `markTask*` method is guarded the same way, so a late or duplicate caller changes nothing.
 - **Closed once.** `closeJob` only changes an open Job, so a duplicate review cannot change an outcome.
-- **Bounded.** A Job never starts more than `MAX_TASKS_PER_JOB` Tasks, one review never adds more than
-  `MAX_TASKS_ADDED_PER_REVIEW`, and each finished Task is reviewed once (`reviewedAt`). A plan or review that
+- **Bounded.** Each finished Task is reviewed once (`reviewedAt`), and `MAX_CONSECUTIVE_FAILURES` stops a
+  Job that keeps failing. A Job never starts more than `MAX_TASKS_PER_JOB` Tasks; below that, Job reasoning
+  follows the soft budget. A plan or review that
   keeps throwing stops after `MAX_REVIEWING_ATTEMPTS`, so no Job loops on Job reasoning.
 - **Safe to re-queue.** Queuing a Job again is always safe; it is how reviews, resume, and resolved
   escalations work.
@@ -456,10 +475,9 @@ finds nothing unreviewed) and queues the same current Task.
   toward `maxConcurrentJobs`, so many waiting Jobs can use up the limit.
 - **The owner's note is not passed to the Task yet.** When an approval comes with a note, reasoning
   should see it when the Task runs again.
-- **Open Jobs at cycle end.** Jobs still open when the Strategy ends are judged by `evaluateJob`; whether
-  they are closed or carried into the next Strategy is not decided yet.
-- **Units have no processor.** A new Strategy plans every Unit's Jobs up front; planning more Jobs
-  mid-cycle is left for later.
+- **A lost wake-up after an evidence Job.** If the `evaluate` message in step 6 is lost, the orchestrator
+  does not queue it again, because its queue job ID is already used. The evaluation stays `evaluating` until the
+  queue entry is removed.
 
 ---
 
@@ -468,12 +486,11 @@ finds nothing unreviewed) and queues the same current Task.
 ```text
 governance/processors/
 ├── tech-spec.md                              ← this file
-├── strategy-evaluation.processor.ts          ← end-of-cycle review
 ├── to-task-outcome.ts                        ← the Task view the reasoning layer may see
 ├── job-evaluation/
 │   ├── job-evaluation.module.ts
-│   ├── job-evaluation.processor.ts           ← daily sweep, then marks each Job; parks on evidence Jobs
-│   ├── job-evaluation.constants.ts           ← attempt cap + the Evaluations Unit name
+│   ├── job-evaluation.processor.ts           ← marks one Job; parks on an evidence Job
+│   ├── job-evaluation.constants.ts           ← attempt cap
 │   └── tests/job-evaluation.processor.spec.ts
 ├── job-execution/
 │   ├── job-execution.module.ts

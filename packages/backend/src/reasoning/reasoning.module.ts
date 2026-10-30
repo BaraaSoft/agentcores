@@ -11,13 +11,12 @@ import { StrategyReasoningService } from './strategy/strategy-reasoning.service'
 import { TaskReasoningModelClient } from './task/task-reasoning-model.client';
 import { TaskReasoningService } from './task/task-reasoning.service';
 import { ToolsetFactory } from './tools/toolset.factory';
-import { UnitReasoningService } from './unit-of-work/unit-reasoning.service';
 
 type ReasoningConfig = ConfigType<typeof reasoningConfig>;
 
 /**
- * The reasoning layer, one service per governance level: Strategy, Unit of Work, Job, Task, plus the
- * evaluator that marks finished work.
+ * The reasoning layer: the Strategy planner that writes each Unit's Jobs, Job and Task reasoning, and
+ * the evaluator that marks finished work.
  * One Anthropic instance is shared; each level's model client wraps it with that level's model.
  * A leaf module: other modules call it, it calls no one.
  */
@@ -46,11 +45,10 @@ type ReasoningConfig = ConfigType<typeof reasoningConfig>;
     },
     ToolsetFactory,
     StrategyReasoningService,
-    UnitReasoningService,
     JobReasoningService,
     TaskReasoningService,
     EvaluationReasoningService,
   ],
-  exports: [StrategyReasoningService, UnitReasoningService, JobReasoningService, TaskReasoningService, EvaluationReasoningService],
+  exports: [StrategyReasoningService, JobReasoningService, TaskReasoningService, EvaluationReasoningService],
 })
 export class ReasoningModule {}
