@@ -304,7 +304,13 @@ sequenceDiagram
   instruction sent plus the `ExecutionResult` returned, unchanged, so there is no separate summary type to keep
   in sync. Screenshots stay inside `@ahe/execution`.
 - **No separate evaluation call.** `planNextStep` reads the latest result at the end of `history` and decides
-  in one call: retry, move on, or `isTaskDone`.
+  in one call: retry, move on, or `isTaskDone`. It is one structured call (`PLANNED_STEP_SCHEMA`, at most
+  `PLAN_NEXT_STEP_MAX_TOKENS`) that renders every step so far with its status, result, metrics, location,
+  and blocker. Each instruction must stand alone, because the execution agent remembers nothing between
+  steps. A done answer drops the instruction; a step that is neither done nor has an instruction throws, so
+  the Task fails and Job reasoning reviews it. A blank `platform` becomes null.
+- **`decideOnBlocker` is not built yet.** A blocked step throws, so the Task fails and Job reasoning reviews
+  it. Its draft prompt in `task-reasoning.prompts.ts` is the starting point.
 - **Every step is on screen unless it ends the Task.** `PlannedStep` has no routing flag: the step is done,
   needs the owner, or goes to the execution layer. Thinking without the screen happens inside the call.
 - **Credentials never pass through here.** The Task processor attaches the account login from `IdentityService`

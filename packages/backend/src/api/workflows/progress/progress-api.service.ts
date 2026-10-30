@@ -4,7 +4,7 @@ import { JobService } from '../../../governance/services/job.service';
 import { UnitOfWorkService } from '../../../governance/services/unit-of-work.service';
 import { WorkflowService } from '../../../workflow/workflow.service';
 import { JobProgressResponseDto } from './dtos/job-progress-response.dto';
-import { StrategyProgressResponseDto } from './dtos/strategy-progress-response.dto';
+import { StrategyResponseDto } from '../../strategies/dtos/strategy-response.dto';
 import { UnitOfWorkProgressResponseDto } from './dtos/unit-of-work-progress-response.dto';
 import { WorkflowProgressResponseDto } from './dtos/workflow-progress-response.dto';
 
@@ -35,7 +35,7 @@ export class ProgressApiService {
     return Object.assign(new WorkflowProgressResponseDto(), {
       workflowId: workflow.id,
       workflowState: workflow.state,
-      strategy: StrategyProgressResponseDto.fromEntity(workflow.strategy),
+      strategy: StrategyResponseDto.fromEntity(workflow.strategy),
       unitsOfWork: unitsOfWork.map((unitOfWork) =>
         UnitOfWorkProgressResponseDto.fromEntity(
           unitOfWork,
