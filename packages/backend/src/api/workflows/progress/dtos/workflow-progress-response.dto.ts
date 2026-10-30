@@ -1,7 +1,7 @@
 import { WORKFLOW_STATES } from '@ahe/agent-core';
 import type { WorkflowState } from '@ahe/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
-import { StrategyProgressResponseDto } from './strategy-progress-response.dto';
+import { StrategyResponseDto } from '../../../strategies/dtos/strategy-response.dto';
 import { UnitOfWorkProgressResponseDto } from './unit-of-work-progress-response.dto';
 
 /**
@@ -15,8 +15,8 @@ export class WorkflowProgressResponseDto {
   @ApiProperty({ enum: WORKFLOW_STATES })
   workflowState: WorkflowState;
 
-  @ApiProperty({ type: () => StrategyProgressResponseDto })
-  strategy: StrategyProgressResponseDto;
+  @ApiProperty({ type: () => StrategyResponseDto })
+  strategy: StrategyResponseDto;
 
   @ApiProperty({ type: () => [UnitOfWorkProgressResponseDto] })
   unitsOfWork: UnitOfWorkProgressResponseDto[];

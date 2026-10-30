@@ -1,5 +1,8 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
+import { PLANNED_STEP_SCHEMA } from './schemas/planned-step.schema';
 import { TaskReasoningModelClient } from './task-reasoning-model.client';
+import { PLAN_NEXT_STEP_MAX_TOKENS } from './task-reasoning.constants';
+import { TASK_REASONING_PROMPTS } from './task-reasoning.prompts';
 import type { BlockerDecision } from './types/blocker-decision';
 import type { PlannedStep } from './types/planned-step';
 import type { TaskReasoningInput } from './types/task-reasoning-input';
@@ -16,10 +19,30 @@ export class TaskReasoningService {
 
   /**
    * Judges the latest result in `history` and decides the next step: retry, move on, or mark the
-   * Task done (`isTaskDone`).
+   * Task done (`isTaskDone`). Throws when the answer is neither done nor a usable step, so the Task
+   * processor fails the Task and Job reasoning reviews it.
    */
   async planNextStep(input: TaskReasoningInput): Promise<PlannedStep> {
-    throw new NotImplementedException();
+    const output = await this.model.completeStructured({
+      systemPrompt: TASK_REASONING_PROMPTS.planNextStep.system,
+      userPrompt: TASK_REASONING_PROMPTS.planNextStep.user(input),
+      maxTokens: PLAN_NEXT_STEP_MAX_TOKENS,
+      schema: PLANNED_STEP_SCHEMA,
+    });
+
+    const rationale = output.rationale.trim();
+    if (output.isTaskDone) {
+      return { instruction: '', rationale, platform: null, needsHumanJudgment: false, isTaskDone: true };
+    }
+    const instruction = output.instruction.trim();
+    if (instruction === '') throw new Error(`Task reasoning planned an empty step for "${input.taskAction}"`);
+    return {
+      instruction,
+      rationale,
+      platform: output.platform?.trim().toLowerCase() || null,
+      needsHumanJudgment: output.needsHumanJudgment,
+      isTaskDone: false,
+    };
   }
 
   /**

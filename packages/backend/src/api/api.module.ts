@@ -5,6 +5,8 @@ import { ReportingModule } from '../reporting/reporting.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { EscalationsController } from './escalations/escalations.controller';
 import { EscalationsApiService } from './escalations/escalations-api.service';
+import { StrategiesController } from './strategies/strategies.controller';
+import { StrategiesApiService } from './strategies/strategies-api.service';
 import { WorkflowEscalationsController } from './workflows/escalations/workflow-escalations.controller';
 import { WorkflowEscalationsApiService } from './workflows/escalations/workflow-escalations-api.service';
 import { ProgressController } from './workflows/progress/progress.controller';
@@ -22,7 +24,21 @@ import { WorkflowsApiService } from './workflows/workflows-api.service';
  */
 @Module({
   imports: [WorkflowModule, GovernanceModule, OrchestratorModule, ReportingModule],
-  controllers: [WorkflowsController, ProgressController, ReportsController, WorkflowEscalationsController, EscalationsController],
-  providers: [WorkflowsApiService, ProgressApiService, ReportsApiService, WorkflowEscalationsApiService, EscalationsApiService],
+  controllers: [
+    StrategiesController,
+    WorkflowsController,
+    ProgressController,
+    ReportsController,
+    WorkflowEscalationsController,
+    EscalationsController,
+  ],
+  providers: [
+    StrategiesApiService,
+    WorkflowsApiService,
+    ProgressApiService,
+    ReportsApiService,
+    WorkflowEscalationsApiService,
+    EscalationsApiService,
+  ],
 })
 export class ApiModule {}
