@@ -6,6 +6,7 @@ import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from 
 import type { JobEvaluationJobData } from '../../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
+import { MAX_TASKS_PER_JOB } from '../../../reasoning/job/job-reasoning.constants';
 import { JobReasoningService } from '../../../reasoning/job/job-reasoning.service';
 import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
 import type { JobEntity } from '../../entities/job.entity';
@@ -18,8 +19,6 @@ import {
   JOB_CONTEXT_RECORD_LIMIT,
   MAX_CONSECUTIVE_FAILURES,
   MAX_REVIEWING_ATTEMPTS,
-  MAX_TASKS_ADDED_PER_REVIEW,
-  MAX_TASKS_PER_JOB,
 } from './job-execution.constants';
 
 /** Tasks Job reasoning sees as history: everything that finished or was dropped. */
@@ -78,7 +77,7 @@ export class JobExecutionProcessor extends WorkerHost {
       // - success: the review said the objective is met.
       // - abandoned: the review decided to stop.
       // - failed: a system limit was hit (3 failed Tasks in a row, an empty plan,
-      //   the 20-Task cap, or Job reasoning throwing too many times).
+      //   the hard Task limit, or Job reasoning throwing too many times).
       // Its pending Tasks were already cancelled when it closed.
       if (isClosed) return this.resumeEvaluation(workflowId, jobId);
     }
@@ -100,7 +99,7 @@ export class JobExecutionProcessor extends WorkerHost {
     const waiting = await this.evaluations.findEvaluationAwaiting(jobId);
     if (waiting === null) return;
     if (!(await this.evaluations.resumeFromEvidence(waiting.id))) return;
-    await this.evaluationQueue.add(waiting.id, { kind: 'judge', workflowId, evaluationId: waiting.id });
+    await this.evaluationQueue.add(waiting.id, { workflowId, evaluationId: waiting.id });
   }
 
   /**
@@ -127,7 +126,8 @@ export class JobExecutionProcessor extends WorkerHost {
 
   /**
    * Reviews the Task that just finished and acts on the verdict: close the Job (met, abandoned, or too
-   * many failures in a row), keep the plan, or hand the review's notes to planning. Returns whether the Job closed.
+   * many failures in a row), keep the plan, or hand the review's notes to planning. Keeping a plan
+   * that has nothing left in it also goes to planning. Returns whether the Job closed.
    */
   private async reviewJob(run: JobRun, tasks: readonly TaskEntity[], latest: TaskEntity): Promise<boolean> {
     const finished = tasks.filter((task) => task.status === 'complete' || task.status === 'failed');
@@ -157,32 +157,40 @@ export class JobExecutionProcessor extends WorkerHost {
           review.summary,
         );
       case 'continue':
-        // TODO(orchestration): with nothing left to run, the Job stays open and idle until the
-        // cycle-end evaluation. Decide whether to replan, close it, or wake the Unit here.
-        return false;
+        // A Job left open with nothing to run would hold its Unit of Work open for ever, so an empty
+        // plan goes back to planning. Planning nothing more closes the Job as failed.
+        if (remainingActions.length > 0) return false;
+        return this.planTasks(
+          run,
+          tasks,
+          'The plan ran out before the objective was met: plan what is left to do.',
+          review.summary,
+        );
     }
   }
 
   /**
-   * Lets Job reasoning edit the remaining plan over a draft, within the Task limits, then saves the
-   * draft in one write. An empty plan closes the Job as failed. Returns whether the Job closed.
+   * Lets Job reasoning edit the remaining plan over a draft, then saves the draft in one write. The
+   * Task budget is soft: Job reasoning sees how many Tasks have started and may plan past the budget
+   * when the objective needs it. A Job that needs planning with `MAX_TASKS_PER_JOB` Tasks already
+   * started closes as failed, and so does an empty plan. Returns whether the Job closed.
    */
   private async planTasks(run: JobRun, tasks: readonly TaskEntity[], reason: string, summary: string): Promise<boolean> {
-    const remainingActions = this.remainingActions(tasks);
-    const started = tasks.filter((task) => task.status !== 'pending' && task.status !== 'cancelled').length;
-    const isFirstPlan = tasks.length === 0;
-    const maxTasks = Math.min(
-      MAX_TASKS_PER_JOB - started,
-      isFirstPlan ? MAX_TASKS_PER_JOB : remainingActions.length + MAX_TASKS_ADDED_PER_REVIEW,
-    );
-    if (maxTasks <= 0) return this.fail(run.job.id, summary, `Reached the ${MAX_TASKS_PER_JOB}-Task limit.`);
+    const tasksStarted = tasks.filter((task) => task.status !== 'pending' && task.status !== 'cancelled').length;
+    if (tasksStarted >= MAX_TASKS_PER_JOB) {
+      return this.fail(
+        run.job.id,
+        summary,
+        `Needs more Tasks: started all ${MAX_TASKS_PER_JOB} Tasks a Job may run, and the objective is not met yet.`,
+      );
+    }
 
     const actions = await this.jobReasoning.planTasks({
       ...this.jobContext(run),
       reason,
       history: this.history(tasks),
-      remainingActions,
-      maxTasks,
+      remainingActions: this.remainingActions(tasks),
+      tasksStarted,
     });
     if (actions.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
 

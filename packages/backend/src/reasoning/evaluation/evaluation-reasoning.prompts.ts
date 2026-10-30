@@ -1,12 +1,6 @@
-import type { Metric } from '@ahe/agent-core';
 import { renderTaskOutcomes } from '../task-outcome.prompts';
 import type { GatheredEvidence } from './types/gathered-evidence';
 import type { JudgeJobInput } from './types/judge-job-input';
-
-function renderCriteria(criteria: readonly Metric[]): string {
-  if (criteria.length === 0) return 'None stated — work out the right test yourself.';
-  return criteria.map((metric) => `* ${metric.label} (${metric.key}): target ${metric.target}`).join('\n');
-}
 
 function renderEvidence(evidence: GatheredEvidence | null): string {
   if (evidence === null) return 'None requested yet.';
@@ -28,12 +22,13 @@ export const EVALUATION_REASONING_PROMPTS = {
 * You see each Task's action, status, and compressed result or failure reason, never its individual steps.
 * Your mark and your feedback are kept. Before planning a Job like this one, the planner reads them and tries to do
   better, so write for that reader and no one else.
-* A Job is marked again on later days as the world responds to it. You are marking it as it stands today.
+* The Job is marked once, after its round of work has closed and, for ongoing work, after a day for the response
+  to arrive. Your mark is the final one.
 </SITUATION>
 
 <CHOOSING_THE_STANDARD>
 * Judge against the objective's own bar first: if it names a number, a quality, or a finished artefact, that is the test.
-* Where the objective is vague, fall back to the Unit's success criteria.
+* Where the objective is vague, fall back to what the Strategy as a whole is trying to achieve.
 * Where neither settles it, work out the test this kind of work deserves and say so in the rubric. A post is judged by
   the response it earned, a design by whether it meets its brief, an outreach Job by replies, not by messages sent.
 * Judge the outcome, never the effort. Tasks completed are not an achievement.
@@ -95,14 +90,13 @@ export const EVALUATION_REASONING_PROMPTS = {
     user: (input: JudgeJobInput): string => `<JOB>
 Name: ${input.jobName}
 Objective: ${input.objective}
-Unit of Work: ${input.unitName}
 Status: ${input.outcomeStatus ?? 'still open'}
 ${input.outcomeSummary === null ? '' : `Closing summary: ${input.outcomeSummary}`}
 </JOB>
 
-<SUCCESS_CRITERIA>
-${renderCriteria(input.successCriteria)}
-</SUCCESS_CRITERIA>
+<STRATEGY_OBJECTIVE>
+${input.strategyObjective}
+</STRATEGY_OBJECTIVE>
 
 <TASKS>
 ${renderTaskOutcomes(input.tasks, 'None — no Task of this Job has finished.')}

@@ -6,14 +6,13 @@ import type { JobJudgement } from '../../../../reasoning/evaluation/types/job-ju
 import type { JobEvaluationService } from '../../../services/job-evaluation.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
-import { EVALUATIONS_UNIT_NAME, MAX_JUDGING_ATTEMPTS } from '../job-evaluation.constants';
+import { MAX_JUDGING_ATTEMPTS } from '../job-evaluation.constants';
 import { JobEvaluationProcessor } from '../job-evaluation.processor';
 
 const WORKFLOW_ID = 'wf-1';
 const EVALUATION_ID = 'eval-1';
 const JOB_ID = 'job-1';
-const STRATEGY_ID = 'strategy-1';
-const DATE = '2026-10-26';
+const UNIT_ID = 'unit-1';
 
 const SCORED: JobJudgement = {
   verdict: 'scored',
@@ -37,7 +36,8 @@ function evaluation(changes: Record<string, unknown> = {}) {
     id: EVALUATION_ID,
     owner: 'owner-1',
     jobId: JOB_ID,
-    state: 'judging',
+    unitOfWorkId: UNIT_ID,
+    state: 'evaluating',
     evidenceJobId: null,
     job: {
       id: JOB_ID,
@@ -45,7 +45,7 @@ function evaluation(changes: Record<string, unknown> = {}) {
       objective: 'Post an introduction and earn 50 upvotes',
       outcomeStatus: 'success',
       outcomeSummary: 'Intro posted.',
-      unitOfWork: { name: 'Community engagement', strategyId: STRATEGY_ID, successCriteria: [] },
+      unitOfWork: { name: 'Round 1', strategy: { objective: 'Get the first 100 people to try AHE' } },
     },
     ...changes,
   };
@@ -56,7 +56,6 @@ function setup() {
   const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationReasoning = { judgeJob: jest.fn().mockResolvedValue(SCORED) };
   const evaluations = {
-    createEvaluation: jest.fn().mockResolvedValue(evaluation()),
     findEvaluationById: jest.fn().mockResolvedValue(evaluation()),
     recordJudgingAttempt: jest.fn().mockResolvedValue(1),
     recordScore: jest.fn().mockResolvedValue(true),
@@ -64,10 +63,7 @@ function setup() {
     failEvaluation: jest.fn().mockResolvedValue(true),
   };
   const jobs = {
-    listJobsWithActivityOn: jest
-      .fn()
-      .mockResolvedValue([{ id: JOB_ID, unitOfWorkId: 'unit-1', unitOfWork: { strategy: { owner: 'owner-1' } } }]),
-    placeJob: jest.fn().mockResolvedValue({ id: 'evidence-job-1' }),
+    createJob: jest.fn().mockResolvedValue({ id: 'evidence-job-1' }),
     findJobById: jest.fn().mockResolvedValue(null),
   };
   const tasks = { listTasks: jest.fn().mockResolvedValue([]) };
@@ -80,55 +76,24 @@ function setup() {
     jobs as unknown as JobService,
     tasks as unknown as TaskService,
   );
-  const run = (data: JobEvaluationJobData) => processor.process({ data } as Job<JobEvaluationJobData>);
-  const sweep = () => run({ kind: 'sweep', workflowId: WORKFLOW_ID, evaluationDate: DATE });
-  const judge = () => run({ kind: 'judge', workflowId: WORKFLOW_ID, evaluationId: EVALUATION_ID });
+  const evaluate = () =>
+    processor.process({ data: { workflowId: WORKFLOW_ID, evaluationId: EVALUATION_ID } } as Job<JobEvaluationJobData>);
 
-  return { sweep, judge, evaluationQueue, jobQueue, evaluationReasoning, evaluations, jobs, tasks };
+  return { evaluate, evaluationQueue, jobQueue, evaluationReasoning, evaluations, jobs, tasks };
 }
 
 describe('JobEvaluationProcessor', () => {
-  describe('the daily sweep', () => {
-    it('opens a judgement for each Job that saw activity and queues it', async () => {
-      const t = setup();
-
-      await t.sweep();
-
-      expect(t.jobs.listJobsWithActivityOn).toHaveBeenCalledWith({ workflowId: WORKFLOW_ID, evaluationDate: DATE });
-      expect(t.evaluations.createEvaluation).toHaveBeenCalledWith({
-        owner: 'owner-1',
-        jobId: JOB_ID,
-        unitOfWorkId: 'unit-1',
-        evaluationDate: DATE,
-      });
-      expect(t.evaluationQueue.add).toHaveBeenCalledWith(EVALUATION_ID, {
-        kind: 'judge',
-        workflowId: WORKFLOW_ID,
-        evaluationId: EVALUATION_ID,
-      });
-    });
-
-    it('leaves judgements that already settled alone', async () => {
-      const t = setup();
-      t.evaluations.createEvaluation.mockResolvedValue(evaluation({ state: 'scored' }));
-
-      await t.sweep();
-
-      expect(t.evaluationQueue.add).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('judging', () => {
+  describe('evaluating', () => {
     it('marks the Job and stores the score with its feedback', async () => {
       const t = setup();
 
-      await t.judge();
+      await t.evaluate();
 
       expect(t.evaluationReasoning.judgeJob).toHaveBeenCalledWith(
         expect.objectContaining({
           jobName: 'Introduce AHE on r/AICompanion',
           objective: 'Post an introduction and earn 50 upvotes',
-          unitName: 'Community engagement',
+          strategyObjective: 'Get the first 100 people to try AHE',
           outcomeStatus: 'success',
           evidence: null,
         }),
@@ -143,19 +108,16 @@ describe('JobEvaluationProcessor', () => {
       });
     });
 
-    it('files an evidence Job under the Evaluations Unit, parks the judgement, and starts it', async () => {
+    it('files an evidence Job in the Unit being judged, parks the judgement, and starts it', async () => {
       const t = setup();
       t.evaluationReasoning.judgeJob.mockResolvedValue(NEEDS_EVIDENCE);
 
-      await t.judge();
+      await t.evaluate();
 
-      expect(t.jobs.placeJob).toHaveBeenCalledWith({
-        strategyId: STRATEGY_ID,
-        plannedJob: {
-          name: 'Read upvotes on the intro post',
-          objective: 'Open the post and report its upvotes.',
-          unitName: EVALUATIONS_UNIT_NAME,
-        },
+      expect(t.jobs.createJob).toHaveBeenCalledWith({
+        unitOfWorkId: UNIT_ID,
+        name: 'Read upvotes on the intro post',
+        objective: 'Open the post and report its upvotes.',
       });
       expect(t.evaluations.parkForEvidence).toHaveBeenCalledWith(EVALUATION_ID, 'evidence-job-1');
       expect(t.jobQueue.add).toHaveBeenCalledWith(
@@ -177,9 +139,9 @@ describe('JobEvaluationProcessor', () => {
         ],
       });
 
-      await t.judge();
+      await t.evaluate();
 
-      expect(t.jobs.placeJob.mock.calls[0][0].plannedJob.objective).toBe(
+      expect(t.jobs.createJob.mock.calls[0][0].objective).toBe(
         'Open /Users/owner/Movies/launch-cut.mp4 in QuickTime.\n\n' +
           'Open the work once and rate each of these from 1 to 10, reporting each as a metric reading under the key in brackets:\n' +
           '1. (title_legibility) Whether the titles stay readable at normal size.\n' +
@@ -197,7 +159,7 @@ describe('JobEvaluationProcessor', () => {
         outcomeSummary: '61 upvotes.',
       });
 
-      await t.judge();
+      await t.evaluate();
 
       expect(t.evaluationReasoning.judgeJob).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -216,9 +178,9 @@ describe('JobEvaluationProcessor', () => {
       t.evaluations.findEvaluationById.mockResolvedValue(evaluation({ evidenceJobId: 'evidence-job-1' }));
       t.evaluationReasoning.judgeJob.mockResolvedValue(NEEDS_EVIDENCE);
 
-      await t.judge();
+      await t.evaluate();
 
-      expect(t.jobs.placeJob).not.toHaveBeenCalled();
+      expect(t.jobs.createJob).not.toHaveBeenCalled();
       expect(t.evaluations.failEvaluation).toHaveBeenCalledWith(EVALUATION_ID, expect.stringContaining('did not settle'));
     });
 
@@ -226,7 +188,7 @@ describe('JobEvaluationProcessor', () => {
       const t = setup();
       t.evaluations.recordJudgingAttempt.mockResolvedValue(MAX_JUDGING_ATTEMPTS + 1);
 
-      await t.judge();
+      await t.evaluate();
 
       expect(t.evaluationReasoning.judgeJob).not.toHaveBeenCalled();
       expect(t.evaluations.failEvaluation).toHaveBeenCalledWith(EVALUATION_ID, expect.stringContaining('threw'));
@@ -236,14 +198,14 @@ describe('JobEvaluationProcessor', () => {
       const t = setup();
       t.evaluations.findEvaluationById.mockResolvedValue(evaluation({ state: 'scored' }));
 
-      await t.judge();
+      await t.evaluate();
 
       expect(t.evaluations.recordJudgingAttempt).not.toHaveBeenCalled();
       expect(t.evaluationReasoning.judgeJob).not.toHaveBeenCalled();
     });
   });
 
-  it("judges a Job whose Unit of Work is paused, so the judgement never strands in 'judging'", async () => {
+  it("judges a Job whose Unit of Work is paused, so the evaluation never strands in 'evaluating'", async () => {
     const t = setup();
     const settled = evaluation();
     t.evaluations.findEvaluationById.mockResolvedValue({
@@ -252,7 +214,7 @@ describe('JobEvaluationProcessor', () => {
     });
     t.evaluationReasoning.judgeJob.mockResolvedValue(SCORED);
 
-    await t.judge();
+    await t.evaluate();
 
     expect(t.evaluations.recordScore).toHaveBeenCalled();
   });

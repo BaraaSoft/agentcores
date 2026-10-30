@@ -8,7 +8,6 @@ import { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEvaluationService } from '../job-evaluation.service';
 import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
 
-const DATE = '2026-10-26';
 const OWNER = 'owner-1';
 
 /**
@@ -68,7 +67,6 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
       owner: OWNER,
       jobId: job.id,
       unitOfWorkId: unit.id,
-      evaluationDate: DATE,
     });
     return { unit, job, evaluation };
   }
@@ -85,37 +83,34 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
   }
 
   describe('createEvaluation', () => {
-    it('opens a judgement in the judging state', async () => {
+    it('opens an evaluation in the evaluating state', async () => {
       const { evaluation } = await openEvaluation();
 
-      expect(evaluation).toMatchObject({ state: 'judging', score: null, attempts: 0, evidenceJobId: null });
+      expect(evaluation).toMatchObject({ state: 'evaluating', score: null, attempts: 0, evidenceJobId: null });
     });
 
-    it('returns the judgement already opened rather than a second one for the same day', async () => {
+    it('returns the judgement already opened rather than a second one: a Job is judged once', async () => {
       const { unit, job, evaluation } = await openEvaluation();
 
-      const again = await service.createEvaluation({
-        owner: OWNER,
-        jobId: job.id,
-        unitOfWorkId: unit.id,
-        evaluationDate: DATE,
-      });
+      const again = await service.createEvaluation({ owner: OWNER, jobId: job.id, unitOfWorkId: unit.id });
 
       expect(again.id).toBe(evaluation.id);
       expect(await dataSource.getRepository(JobEvaluationEntity).count()).toBe(1);
     });
+  });
 
-    it('judges the same Job again on another day', async () => {
-      const { unit, job } = await openEvaluation();
+  describe('listScoredByJob', () => {
+    it('returns the scored judgements of the given Units, keyed by Job', async () => {
+      const { unit, job, evaluation } = await openEvaluation('Post an intro');
+      await score(evaluation.id, 'Reply to comments on an existing community thread', 6);
+      const unscored = await seeder.job(unit.id, 'Not scored yet');
+      await service.createEvaluation({ owner: OWNER, jobId: unscored.id, unitOfWorkId: unit.id });
 
-      await service.createEvaluation({
-        owner: OWNER,
-        jobId: job.id,
-        unitOfWorkId: unit.id,
-        evaluationDate: '2026-10-27',
-      });
+      const marks = await service.listScoredByJob([unit.id]);
 
-      expect(await dataSource.getRepository(JobEvaluationEntity).count()).toBe(2);
+      expect([...marks.keys()]).toEqual([job.id]);
+      expect(marks.get(job.id)).toMatchObject({ score: 6 });
+      expect(await service.listScoredByJob([])).toEqual(new Map());
     });
   });
 
@@ -193,7 +188,6 @@ describeWithDatabase('JobEvaluationService (Postgres)', () => {
           owner: OWNER,
           jobId: job.id,
           unitOfWorkId: unit.id,
-          evaluationDate: DATE,
         });
         await score(evaluation.id, objectiveSummary, index + 2);
       }

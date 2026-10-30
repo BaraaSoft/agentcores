@@ -17,8 +17,7 @@ const POSTED: TaskOutcome = {
 const JOB: JudgeJobInput = {
   jobName: 'Introduce AHE on r/AICompanion',
   objective: 'Post an introduction and earn at least 50 upvotes',
-  unitName: 'Community engagement',
-  successCriteria: [{ key: 'reddit_upvotes', label: 'Upvotes', target: 50 }],
+  strategyObjective: 'Get the first 100 people to try AHE',
   outcomeStatus: 'success',
   outcomeSummary: 'Intro posted.',
   tasks: [POSTED],
@@ -77,7 +76,7 @@ describe('EvaluationReasoningService', () => {
       expect(systemPrompt).toContain('Do not drift to the middle');
       expect(userPrompt).toContain('Objective: Post an introduction and earn at least 50 upvotes');
       expect(userPrompt).toContain('Status: success');
-      expect(userPrompt).toContain('* Upvotes (reddit_upvotes): target 50');
+      expect(userPrompt).toContain('<STRATEGY_OBJECTIVE>\nGet the first 100 people to try AHE\n</STRATEGY_OBJECTIVE>');
       expect(userPrompt).toContain('1. [complete] Post a text-only intro in r/AICompanion\n   Result: Posted; 3 upvotes so far.');
       expect(userPrompt).toContain('<EVIDENCE_GATHERED>\nNone requested yet.\n</EVIDENCE_GATHERED>');
     });

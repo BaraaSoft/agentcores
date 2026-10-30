@@ -12,8 +12,8 @@ const MAX_PAUSED_TURNS = 5;
 
 /**
  * Thin wrapper around the Anthropic API for a reasoning model. Calls are text-only, with adaptive
- * thinking; screenshots never reach this client. Strategy and Unit reasoning use it with the default
- * model; levels with their own model get a subclass (`JobReasoningModelClient`, `TaskReasoningModelClient`).
+ * thinking; screenshots never reach this client. Strategy reasoning and the evaluator use it with the
+ * default model; levels with their own model get a subclass (`JobReasoningModelClient`, `TaskReasoningModelClient`).
  * `ReasoningModule` builds each one from config.
  */
 export class ReasoningModelClient {

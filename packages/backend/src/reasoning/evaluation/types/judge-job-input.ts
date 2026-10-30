@@ -1,18 +1,16 @@
-import type { JobOutcomeStatus, Metric } from '@ahe/agent-core';
+import type { JobOutcomeStatus } from '@ahe/agent-core';
 import type { TaskOutcome } from '../../job/types/task-outcome';
 import type { GatheredEvidence } from './gathered-evidence';
 
 /**
- * One Job as the evaluator sees it: what it set out to do, the standard it is held to, and
- * everything its Tasks reported. Open and closed Jobs are both judged — work that finished days ago
- * keeps attracting engagement — so `outcomeStatus` is null while the Job is still running.
+ * One closed Job as the evaluator sees it: what it set out to do, what the whole Strategy is for, and
+ * everything its Tasks reported.
  */
 export interface JudgeJobInput {
   readonly jobName: string;
   readonly objective: string;
-  readonly unitName: string;
-  /** The Unit's success criteria: the closest thing the Job has to a stated standard. */
-  readonly successCriteria: readonly Metric[];
+  /** The Strategy's objective: the standard to fall back on when the Job's own objective is vague. */
+  readonly strategyObjective: string;
   readonly outcomeStatus: JobOutcomeStatus | null;
   readonly outcomeSummary: string | null;
   /** One entry per Task, in order. */

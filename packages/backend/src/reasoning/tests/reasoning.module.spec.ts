@@ -7,7 +7,6 @@ import { ReasoningModule } from '../reasoning.module';
 import { StrategyReasoningService } from '../strategy/strategy-reasoning.service';
 import { TaskReasoningModelClient } from '../task/task-reasoning-model.client';
 import { TaskReasoningService } from '../task/task-reasoning.service';
-import { UnitReasoningService } from '../unit-of-work/unit-reasoning.service';
 
 type Wired = { model: { anthropic: unknown; settings: { modelId: string } } };
 
@@ -26,20 +25,19 @@ describe('ReasoningModule', () => {
     const model = (service: abstract new (...args: never[]) => unknown) => (moduleRef.get(service) as Wired).model;
     return {
       strategy: model(StrategyReasoningService),
-      unit: model(UnitReasoningService),
       job: model(JobReasoningService),
       task: model(TaskReasoningService),
     };
   }
 
   it('gives Job and Task their own model clients over one shared Anthropic instance', async () => {
-    const { strategy, unit, job, task } = await compile({ REASONING_JOB_MODEL_ID: 'opus-job', REASONING_TASK_MODEL_ID: 'sonnet' });
+    const { strategy, job, task } = await compile({ REASONING_JOB_MODEL_ID: 'opus-job', REASONING_TASK_MODEL_ID: 'sonnet' });
 
     expect(job).toBeInstanceOf(JobReasoningModelClient);
     expect(task).toBeInstanceOf(TaskReasoningModelClient);
     expect(strategy.constructor).toBe(ReasoningModelClient);
-    expect([strategy, unit, job, task].map((client) => client.settings.modelId)).toEqual(['opus', 'opus', 'opus-job', 'sonnet']);
-    expect(new Set([strategy, unit, job, task].map((client) => client.anthropic)).size).toBe(1);
+    expect([strategy, job, task].map((client) => client.settings.modelId)).toEqual(['opus', 'opus-job', 'sonnet']);
+    expect(new Set([strategy, job, task].map((client) => client.anthropic)).size).toBe(1);
   });
 
   it('falls back to REASONING_MODEL_ID when a level has no model of its own', async () => {

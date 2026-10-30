@@ -1,18 +1,15 @@
 import type { TaskStatus } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { JobEvaluationEntity } from '../entities/job-evaluation.entity';
 import { JobEntity } from '../entities/job.entity';
 import { TaskEntity } from '../entities/task.entity';
 import type { CloseJobInput } from '../types/close-job-input';
 import type { CreateJobInput } from '../types/create-job-input';
-import type { ListJobsWithActivityInput } from '../types/list-jobs-with-activity-input';
 import type { ListStartableJobsInput } from '../types/list-startable-jobs-input';
-import type { PlaceJobInput } from '../types/place-job-input';
 import { FINISHED_TASK_STATUSES, REVIEWABLE_TASK_STATUSES } from './task.service';
-import { UnitOfWorkService } from './unit-of-work.service';
 
 const ACTIVE_TASK_STATUSES: readonly TaskStatus[] = ['running', 'deferred', 'escalated'];
 
@@ -27,7 +24,6 @@ export class JobService {
   constructor(
     @InjectRepository(JobEntity)
     private readonly jobs: Repository<JobEntity>,
-    private readonly units: UnitOfWorkService,
   ) {}
 
   /**
@@ -35,19 +31,6 @@ export class JobService {
    */
   async createJob(input: CreateJobInput): Promise<JobEntity> {
     return this.jobs.save(this.jobs.create({ ...input }));
-  }
-
-  /**
-   * Files a proposed Job under the matching Unit (`findMatchingUnit`), or creates a new Unit
-   * only when none fits. A new Unit starts with no success criteria and a 0% share, so the
-   * Strategy's shares still sum to 100%; the next review gives it a share.
-   */
-  async placeJob(input: PlaceJobInput): Promise<JobEntity> {
-    const { strategyId, plannedJob } = input;
-    const unit =
-      (await this.units.findMatchingUnit({ strategyId, unitName: plannedJob.unitName, jobObjective: plannedJob.objective })) ??
-      (await this.units.createUnitOfWork({ strategyId, name: plannedJob.unitName, successCriteria: [], allocationPercentage: 0 }));
-    return this.createJob({ unitOfWorkId: unit.id, name: plannedJob.name, objective: plannedJob.objective });
   }
 
   /**
@@ -100,12 +83,15 @@ export class JobService {
   }
 
   /**
-   * Open Jobs of the Strategy that the Workflow runs, in non-deprecated Units, that can move: no Tasks
-   * yet (to plan), a finished Task awaiting review, or a `pending` current Task. Units with a larger
-   * share come first, then older Jobs.
+   * Open Jobs of the Strategy that the Workflow runs that can move now: no Tasks yet (to plan), a
+   * finished Task awaiting review, or a `pending` current Task. Only Jobs of a `running` Unit that is
+   * `open` or `evaluating` qualify — an evaluating Unit can still hold evidence Jobs — and an ordered Job only
+   * once every ordered Job before it in its Unit has succeeded. Oldest Units first, then oldest Jobs.
    */
   async listStartableJobs(input: ListStartableJobsInput): Promise<JobEntity[]> {
-    const query = this.openJobs(input.workflowId).andWhere('unit.isDeprecated = false');
+    const query = this.openJobs(input.workflowId)
+      .andWhere('unit.state = :running', { running: 'running' })
+      .andWhere('unit.status IN (:...movable)', { movable: ['open', 'evaluating'] });
     const anyTask = query.subQuery().select('1').from(TaskEntity, 'anyTask').where('anyTask.jobId = job.id').getQuery();
     const unreviewedTask = query
       .subQuery()
@@ -116,6 +102,7 @@ export class JobService {
       .andWhere('finished.reviewedAt IS NULL')
       .getQuery();
     return query
+      .andWhere(new Brackets((inTurn) => inTurn.where('job.orderType = :unordered').orWhere(`NOT EXISTS ${this.earlierStep(query, 'unsettled')}`)))
       .andWhere(
         new Brackets((canMove) =>
           canMove
@@ -124,34 +111,71 @@ export class JobService {
             .orWhere(`${this.currentTaskStatus(query)} = :pending`),
         ),
       )
-      .setParameters({ reviewable: REVIEWABLE_TASK_STATUSES, pending: 'pending' })
-      .orderBy('unit.allocationPercentage', 'DESC')
+      .setParameters({ reviewable: REVIEWABLE_TASK_STATUSES, pending: 'pending', unordered: 'unordered', success: 'success' })
+      .orderBy('unit.sequence', 'ASC')
       .addOrderBy('job.createdAt', 'ASC')
       .limit(input.limit)
       .getMany();
   }
 
   /**
-   * Jobs of the Strategy that the Workflow runs that did something on `evaluationDate`: a Task of theirs
-   * was reviewed that day, or the Job itself closed that day. Open and closed Jobs both count,
-   * because engagement on finished work keeps arriving for days afterwards. Jobs that exist only to
-   * gather evidence for an evaluation are left out, so the evaluator never judges its own helpers.
-   *
-   * The day boundary is the database's time zone, which is the same machine the daily cron runs on.
+   * Every Job of these Units, oldest first — the planner's view of what earlier Units tried.
    */
-  async listJobsWithActivityOn(input: ListJobsWithActivityInput): Promise<JobEntity[]> {
+  async listJobsInUnits(unitOfWorkIds: readonly string[]): Promise<JobEntity[]> {
+    if (unitOfWorkIds.length === 0) return [];
+    return this.jobs.find({ where: { unitOfWorkId: In([...unitOfWorkIds]) }, order: { createdAt: 'ASC', orderNumber: 'ASC' } });
+  }
+
+  /**
+   * How many Jobs the Unit has, and how many of them are still open.
+   */
+  async countUnitJobs(unitOfWorkId: string): Promise<{ total: number; open: number }> {
+    const [total, open] = await Promise.all([
+      this.jobs.countBy({ unitOfWorkId }),
+      this.jobs.countBy({ unitOfWorkId, outcomeStatus: IsNull() }),
+    ]);
+    return { total, open };
+  }
+
+  /**
+   * Closes as `abandoned` every open ordered Job of the Unit that sits behind an ordered Job which
+   * closed without succeeding: those steps can no longer do their part. They never started, because
+   * the scheduler held them back. Returns how many were closed.
+   */
+  async skipStepsAfterFailure(unitOfWorkId: string): Promise<number> {
+    const query = this.jobs
+      .createQueryBuilder('job')
+      .where('job.unitOfWorkId = :unitOfWorkId', { unitOfWorkId })
+      .andWhere('job.outcomeStatus IS NULL')
+      .andWhere('job.orderType = :ordered', { ordered: 'ordered' });
+    const blocked = await query
+      .andWhere(`EXISTS ${this.earlierStep(query, 'unsuccessful')}`)
+      .setParameter('success', 'success')
+      .getMany();
+    for (const job of blocked) {
+      await this.closeJob({ jobId: job.id, status: 'abandoned', summary: 'Skipped: an earlier step did not succeed.' });
+    }
+    return blocked.length;
+  }
+
+  /**
+   * The Unit's closed Jobs that ran at least one Task, with their Unit and Strategy loaded — the Jobs
+   * whose evaluation the Unit waits on. Jobs that never started (skipped steps) are left out, and so are
+   * Jobs that exist only to gather evidence for an evaluation, so the evaluator never evaluates its own helpers.
+   */
+  async listJobsToEvaluate(unitOfWorkId: string): Promise<JobEntity[]> {
     const query = this.jobs
       .createQueryBuilder('job')
       .innerJoinAndSelect('job.unitOfWork', 'unit')
       .innerJoinAndSelect('unit.strategy', 'strategy')
-      .innerJoin(WorkflowEntity, 'workflow', 'workflow.strategyId = unit.strategyId')
-      .where('workflow.id = :workflowId');
-    const reviewedTask = query
+      .where('job.unitOfWorkId = :unitOfWorkId', { unitOfWorkId })
+      .andWhere('job.outcomeStatus IS NOT NULL');
+    const ranTask = query
       .subQuery()
       .select('1')
       .from(TaskEntity, 'task')
       .where('task.jobId = job.id')
-      .andWhere('"task"."reviewedAt"::date = :evaluationDate')
+      .andWhere('task.status IN (:...reviewable)')
       .getQuery();
     const evidenceFor = query
       .subQuery()
@@ -160,13 +184,9 @@ export class JobService {
       .where('evaluation.evidenceJobId = job.id')
       .getQuery();
     return query
-      .andWhere(
-        new Brackets((hasActivity) =>
-          hasActivity.where(`EXISTS ${reviewedTask}`).orWhere('"job"."closedAt"::date = :evaluationDate'),
-        ),
-      )
+      .andWhere(`EXISTS ${ranTask}`)
       .andWhere(`NOT EXISTS ${evidenceFor}`)
-      .setParameters({ workflowId: input.workflowId, evaluationDate: input.evaluationDate })
+      .setParameter('reviewable', REVIEWABLE_TASK_STATUSES)
       .orderBy('job.createdAt', 'ASC')
       .getMany();
   }
@@ -189,6 +209,26 @@ export class JobService {
       .innerJoin(WorkflowEntity, 'workflow', 'workflow.strategyId = unit.strategyId')
       .where('workflow.id = :workflowId', { workflowId })
       .andWhere('job.outcomeStatus IS NULL');
+  }
+
+  /**
+   * SQL for an ordered Job before the outer `job` in its Unit that is either not yet a success
+   * (`unsettled`: the outer Job must wait) or closed without succeeding (`unsuccessful`: the outer Job
+   * can never run). Expects the `success` parameter to be set.
+   */
+  private earlierStep(query: SelectQueryBuilder<JobEntity>, kind: 'unsettled' | 'unsuccessful'): string {
+    const earlier = query
+      .subQuery()
+      .select('1')
+      .from(JobEntity, 'earlier')
+      .where('earlier.unitOfWorkId = job.unitOfWorkId')
+      .andWhere(`earlier.orderType = 'ordered'`)
+      .andWhere('earlier.orderNumber < job.orderNumber');
+    return (
+      kind === 'unsettled'
+        ? earlier.andWhere('(earlier.outcomeStatus IS NULL OR earlier.outcomeStatus <> :success)')
+        : earlier.andWhere('earlier.outcomeStatus <> :success')
+    ).getQuery();
   }
 
   /**

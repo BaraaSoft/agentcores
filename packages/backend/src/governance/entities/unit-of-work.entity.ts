@@ -1,13 +1,15 @@
-import type { Metric, UnitOfWorkState } from '@ahe/agent-core';
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import type { UnitOfWorkState, UnitOfWorkStatus } from '@ahe/agent-core';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { JobEntity } from './job.entity';
 import { StrategyEntity } from './strategy.entity';
 
 /**
- * A theme of related Jobs inside a Strategy, with its own success criteria
- * and a share of the Strategy's effort.
+ * One round, attempt, or version of a Strategy's work: a group of Jobs and nothing more. Only the
+ * orchestrator creates one, when its Strategy has no open Unit, and only the orchestrator moves its
+ * `status` on.
  */
 @Entity('units_of_work')
+@Index(['strategyId', 'sequence'], { unique: true })
 export class UnitOfWorkEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -19,23 +21,24 @@ export class UnitOfWorkEntity {
   @JoinColumn({ name: 'strategyId' })
   strategy: StrategyEntity;
 
+  /** 1 for the Strategy's first Unit, then 2, 3, … Unique per Strategy, so two passes cannot both open the same Unit. */
+  @Column({ type: 'int' })
+  sequence: number;
+
+  /** e.g. "Round 3", "Attempt 2", "Version 1". */
   @Column({ type: 'varchar', length: 200 })
   name: string;
 
-  @Column({ type: 'jsonb' })
-  successCriteria: Metric[];
+  @Column({ type: 'varchar', length: 20, default: 'open' })
+  status: UnitOfWorkStatus;
 
-  /** 0–100. Active Units in one Strategy sum to 100. */
-  @Column({ type: 'int' })
-  allocationPercentage: number;
+  /** When its Jobs may be evaluated; set when the last Job closes. */
+  @Column({ type: 'timestamptz', nullable: true })
+  evaluateAfter: Date | null;
 
   /** Only a `running` Unit's Jobs and Tasks are carried out; a `paused` Unit's queued work is skipped. */
   @Column({ type: 'varchar', length: 20, default: 'running' })
   state: UnitOfWorkState;
-
-  /** Deprecated Units keep their history but get no new Jobs. */
-  @Column({ type: 'boolean', default: false })
-  isDeprecated: boolean;
 
   @OneToMany(() => JobEntity, (job) => job.unitOfWork)
   jobs: JobEntity[];

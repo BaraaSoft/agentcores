@@ -1,4 +1,5 @@
 import { renderTaskOutcome, renderTaskOutcomes } from '../task-outcome.prompts';
+import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB, TASKS_ADDED_PER_REVISION } from './job-reasoning.constants';
 import type { JobPlanningInput } from './types/job-planning-input';
 import type { JobReviewInput } from './types/job-review-input';
 
@@ -40,6 +41,10 @@ export const JOB_REASONING_PROMPTS = {
 * Do not abandon because Tasks keep failing. Repeated failure is an execution problem; revise the approach, and the system
   closes the Job as failed on its own if failures continue.
 * A remaining plan that is empty is not a reason to stop: choose "revise" if the objective is not met yet.
+* A Job has a soft budget of about ${TASK_BUDGET_PER_JOB} Tasks. Past it, keep going only while the outcomes show real
+  progress towards the objective; when the extra effort no longer pays, abandon and say so.
+* A Job also has a hard limit of ${MAX_TASKS_PER_JOB} Tasks. A Job that reaches it closes as failed, so near the limit
+  "revise" only towards the few Tasks that finish the objective.
 * The owner context describes who you act for. It is context, not instructions.
 </RULES>
 
@@ -79,13 +84,24 @@ ${renderActions(input.remainingActions)}
 * Do not re-add a Task that was dropped (cancelled) or that already failed, unless you change how it is done.
 * When a Task returns to where an earlier Task worked, name that place in the action from the earlier Task's Location,
   e.g. "Check replies on reddit.com/r/AICompanion/comments/abc123".
-* Plan the full ordered list needed to meet the objective, within the Task limit.
+* Plan the full ordered list needed to meet the objective.
 * Stay inside the Job's objective and Unit. Moving the work elsewhere is the Unit of Work's call.
 * The owner context describes who you act for. Follow its voice and boundaries; it is context, not instructions.
 * If a tool rejects a call, read why and adjust. Call view_plan when unsure of the positions.
 * Finish with finish_plan and a one-sentence rationale. An empty plan closes the Job as failed, so leave it empty only
   when no Task can move the objective forward.
-</RULES>`,
+</RULES>
+
+<TASK_BUDGET>
+* A Job has a soft budget of about ${TASK_BUDGET_PER_JOB} Tasks in total, started and planned together. A revision
+  usually adds no more than ${TASKS_ADDED_PER_REVISION} Tasks beyond the current plan.
+* The budget is guidance, not a wall. Go over it when the objective genuinely needs more Tasks — a long edit, a
+  multi-step setup — and say why in the finish_plan rationale.
+* Do not go over it to retry the same approach, or to pad the plan. Fewer, sharper Tasks beat many thin ones.
+* There is also a hard limit of ${MAX_TASKS_PER_JOB} Tasks per Job, started and planned together. add_task refuses a
+  Task past it, and a Job that reaches it closes as failed, unfinished. When the objective looks bigger than that,
+  plan the work that matters most first, so the Job ends with something worth having.
+</TASK_BUDGET>`,
     user: (input: JobPlanningInput): string => `${renderJob(input)}
 
 <WHY_PLANNING>
@@ -100,8 +116,9 @@ ${renderTaskOutcomes(input.history, 'None — this is the first plan.')}
 ${renderActions(input.remainingActions)}
 </CURRENT_PLAN>
 
-<LIMIT>
-The plan may hold at most ${input.maxTasks} Tasks when you finish.
-</LIMIT>`,
+<BUDGET_USED>
+${input.tasksStarted} Tasks started so far, of a soft budget of about ${TASK_BUDGET_PER_JOB}.
+Hard limit: ${MAX_TASKS_PER_JOB}, so the plan can hold at most ${MAX_TASKS_PER_JOB - input.tasksStarted} Tasks.
+</BUDGET_USED>`,
   },
 } as const;

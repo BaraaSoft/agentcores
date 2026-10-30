@@ -12,7 +12,7 @@ export class OrchestratorController {
   constructor(private readonly orchestrator: OrchestratorService) {}
 
   @Post(':id/start')
-  @ApiOperation({ summary: 'Start a Workflow (plans a Strategy if it has none)' })
+  @ApiOperation({ summary: 'Start a Workflow (its Strategy gets its first Unit of Work on the next pass)' })
   @ApiOkResponse({ type: WorkflowResponseDto })
   async startWorkflow(@Param('id', ParseUUIDPipe) workflowId: string): Promise<WorkflowResponseDto> {
     return WorkflowResponseDto.fromEntity(await this.orchestrator.startWorkflow(workflowId));

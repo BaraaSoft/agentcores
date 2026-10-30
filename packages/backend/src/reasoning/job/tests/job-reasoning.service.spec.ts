@@ -1,7 +1,13 @@
 import { ToolsetFactory } from '../../tools/toolset.factory';
 import type { ToolLoopInput } from '../../types/tool-loop-input';
 import type { JobReasoningModelClient } from '../job-reasoning-model.client';
-import { PLAN_TASKS_MAX_TOKENS, PLAN_TASKS_MAX_TURNS, REVIEW_JOB_MAX_TOKENS } from '../job-reasoning.constants';
+import {
+  PLAN_TASKS_MAX_TOKENS,
+  PLAN_TASKS_MAX_TURNS,
+  MAX_TASKS_PER_JOB,
+  REVIEW_JOB_MAX_TOKENS,
+  TASK_BUDGET_PER_JOB,
+} from '../job-reasoning.constants';
 import { JobReasoningService } from '../job-reasoning.service';
 import { JOB_REVIEW_SCHEMA } from '../schemas/job-review.schema';
 import type { JobReview } from '../types/job-review';
@@ -77,7 +83,7 @@ describe('JobReasoningService', () => {
   });
 
   describe('planTasks', () => {
-    it('runs the tool loop with the planning tools, the reason, and the Task limit, and returns the edited plan', async () => {
+    it('runs the tool loop with the planning tools, the reason, and the Task budget, and returns the edited plan', async () => {
       const t = setup();
       t.model.runToolLoop.mockImplementation(async ({ tools }: ToolLoopInput) => {
         const call = (name: string, input: object) => tools.find((tool) => tool.name === name)!.run(input);
@@ -90,7 +96,7 @@ describe('JobReasoningService', () => {
         reason: 'Replace the link post.',
         history: [OPENED, LINK_FAILED],
         remainingActions: ['Reply'],
-        maxTasks: 6,
+        tasksStarted: 2,
       });
 
       expect(actions).toEqual(['Post a text-only intro', 'Reply']);
@@ -109,13 +115,41 @@ describe('JobReasoningService', () => {
       expect(userPrompt).toContain('<WHY_PLANNING>\nReplace the link post.\n</WHY_PLANNING>');
       expect(userPrompt).toContain('2. [failed] Post the launch link');
       expect(userPrompt).toContain('<CURRENT_PLAN>\n1. Reply\n</CURRENT_PLAN>');
-      expect(userPrompt).toContain('at most 6 Tasks');
+      expect(userPrompt).toContain(`2 Tasks started so far, of a soft budget of about ${TASK_BUDGET_PER_JOB}.`);
+      expect(systemPrompt).toContain('The budget is guidance, not a wall.');
+      expect(systemPrompt).toContain(`hard limit of ${MAX_TASKS_PER_JOB} Tasks per Job`);
+      expect(userPrompt).toContain(`Hard limit: ${MAX_TASKS_PER_JOB}, so the plan can hold at most ${MAX_TASKS_PER_JOB - 2} Tasks.`);
+    });
+
+    it('gives the planning tools only the room left under the hard limit', async () => {
+      const t = setup();
+      let refusal: unknown = null;
+      t.model.runToolLoop.mockImplementation(async ({ tools }: ToolLoopInput) => {
+        const add = tools.find((tool) => tool.name === 'add_task')!;
+        await add.run({ action: 'Export', position: null });
+        try {
+          await add.run({ action: 'Export again', position: null });
+        } catch (error) {
+          refusal = error;
+        }
+      });
+
+      const actions = await t.service.planTasks({
+        ...JOB,
+        reason: 'One more pass.',
+        history: [],
+        remainingActions: [],
+        tasksStarted: MAX_TASKS_PER_JOB - 1,
+      });
+
+      expect(actions).toEqual(['Export']);
+      expect(String(refusal)).toContain('hard limit leaves room for 1 Tasks');
     });
 
     it('marks the first plan as having no history and no plan', async () => {
       const t = setup();
 
-      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingActions: [], maxTasks: 20 });
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingActions: [], tasksStarted: 0 });
 
       expect(t.loop().userPrompt).toContain('None — this is the first plan.');
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');

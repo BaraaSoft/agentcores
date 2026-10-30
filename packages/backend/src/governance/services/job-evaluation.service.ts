@@ -13,18 +13,18 @@ const VECTOR = `vector(${EMBEDDING_DIMENSIONS})`;
 
 /**
  * Persistence of Job evaluations, and the search over them. Each row moves through its states once:
- * `judging` → `scored`, or by way of `awaiting_evidence` when the judgement needs a real-world
+ * `evaluating` → `scored`, or by way of `awaiting_evidence` when the judgement needs a real-world
  * reading first.
  *
  * One method owns each move, and each is conditional on the state it expects, returning whether it
  * actually won — so a message delivered twice changes nothing the second time:
  *
  * ```text
- * createEvaluation      (new row)                   → judging
- * parkForEvidence       judging                     → awaiting_evidence
- * resumeFromEvidence    awaiting_evidence           → judging
- * recordScore           judging | awaiting_evidence → scored
- * failEvaluation        judging | awaiting_evidence → failed
+ * createEvaluation      (new row)                   → evaluating
+ * parkForEvidence       evaluating                  → awaiting_evidence
+ * resumeFromEvidence    awaiting_evidence           → evaluating
+ * recordScore        evaluating | awaiting_evidence → scored
+ * failEvaluation     evaluating | awaiting_evidence → failed
  * ```
  *
  * `JobEvaluationProcessor` maps out when each of these is called.
@@ -38,18 +38,28 @@ export class JobEvaluationService {
   ) {}
 
   /**
-   * Opens the judgement of one Job for one day, or returns the one already opened.
+   * Opens the judgement of one Job, or returns the one already opened: a Job is judged once.
    */
   async createEvaluation(input: CreateJobEvaluationInput): Promise<JobEvaluationEntity> {
     await this.evaluations.createQueryBuilder().insert().values({ ...input }).orIgnore().execute();
-    return this.evaluations.findOneByOrFail({ jobId: input.jobId, evaluationDate: input.evaluationDate });
+    return this.evaluations.findOneByOrFail({ jobId: input.jobId });
   }
 
   /**
-   * Returns the evaluation with its Job and the Job's Unit loaded, or null.
+   * Returns the evaluation with its Job, the Job's Unit, and the Unit's Strategy loaded, or null.
    */
   async findEvaluationById(evaluationId: string): Promise<JobEvaluationEntity | null> {
-    return this.evaluations.findOne({ where: { id: evaluationId }, relations: { job: { unitOfWork: true } } });
+    return this.evaluations.findOne({ where: { id: evaluationId }, relations: { job: { unitOfWork: { strategy: true } } } });
+  }
+
+  /**
+   * The scored judgements of the Jobs in these Units, keyed by Job ID — how the planner sees what
+   * earlier Units of the Strategy achieved.
+   */
+  async listScoredByJob(unitOfWorkIds: readonly string[]): Promise<Map<string, JobEvaluationEntity>> {
+    if (unitOfWorkIds.length === 0) return new Map();
+    const scored = await this.evaluations.findBy({ unitOfWorkId: In([...unitOfWorkIds]), state: 'scored' });
+    return new Map(scored.map((evaluation) => [evaluation.jobId, evaluation]));
   }
 
   /**
@@ -81,7 +91,7 @@ export class JobEvaluationService {
    */
   async parkForEvidence(evaluationId: string, evidenceJobId: string): Promise<boolean> {
     const update = await this.evaluations.update(
-      { id: evaluationId, state: 'judging' },
+      { id: evaluationId, state: 'evaluating' },
       { state: 'awaiting_evidence', evidenceJobId },
     );
     return (update.affected ?? 0) > 0;
@@ -91,7 +101,7 @@ export class JobEvaluationService {
    * Wakes a parked judgement so it can be judged again now its evidence is in.
    */
   async resumeFromEvidence(evaluationId: string): Promise<boolean> {
-    const update = await this.evaluations.update({ id: evaluationId, state: 'awaiting_evidence' }, { state: 'judging' });
+    const update = await this.evaluations.update({ id: evaluationId, state: 'awaiting_evidence' }, { state: 'evaluating' });
     return (update.affected ?? 0) > 0;
   }
 
@@ -103,7 +113,7 @@ export class JobEvaluationService {
     const { evaluationId, ...judgement } = input;
     const objectiveEmbedding = await this.embeddings.embed(judgement.objectiveSummary);
     const update = await this.evaluations.update(
-      { id: evaluationId, state: In(['judging', 'awaiting_evidence']) },
+      { id: evaluationId, state: In(['evaluating', 'awaiting_evidence']) },
       { ...judgement, objectiveEmbedding, state: 'scored' },
     );
     return (update.affected ?? 0) > 0;
@@ -115,7 +125,7 @@ export class JobEvaluationService {
    */
   async failEvaluation(evaluationId: string, reason: string): Promise<boolean> {
     const update = await this.evaluations.update(
-      { id: evaluationId, state: In(['judging', 'awaiting_evidence']) },
+      { id: evaluationId, state: In(['evaluating', 'awaiting_evidence']) },
       { state: 'failed', rubric: `Not judged: ${reason}` },
     );
     return (update.affected ?? 0) > 0;

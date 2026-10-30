@@ -1,11 +1,12 @@
-import type { Metric } from '@ahe/agent-core';
+import type { PlannedJob } from '../../reasoning/strategy/types/planned-job';
 
 /**
- * Data for a new Unit of Work inside a Strategy.
+ * A new Unit of Work and the Jobs the planner wrote for it, saved together. Ordered Jobs are numbered
+ * in the order they appear in `jobs`.
  */
 export interface CreateUnitOfWorkInput {
   readonly strategyId: string;
+  readonly sequence: number;
   readonly name: string;
-  readonly successCriteria: readonly Metric[];
-  readonly allocationPercentage: number;
+  readonly jobs: readonly PlannedJob[];
 }

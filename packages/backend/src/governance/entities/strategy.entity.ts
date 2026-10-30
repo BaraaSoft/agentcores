@@ -1,12 +1,12 @@
-import type { GoldStandards, StrategyEvaluation } from '@ahe/agent-core';
+import type { GoldStandards, StrategyEvaluation, StrategyStatus, StrategyWorkType } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { UnitOfWorkEntity } from './unit-of-work.entity';
 
 /**
- * A 30-day cycle of work for one owner, and the root of governance: Strategy → Unit of Work → Job →
- * Task. It can run on several machines at once, each through its own Workflow. Past Strategies are
- * kept as history so the reasoning layer can learn from earlier evaluations.
+ * What one owner wants done, and how the work repeats — the root of governance: Strategy → Unit of
+ * Work → Job → Task. The orchestrator opens its Units one after another according to `workType`, and
+ * it can run on several machines at once, each through its own Workflow.
  */
 @Entity('strategies')
 @Index(['owner', 'startDate'])
@@ -21,16 +21,36 @@ export class StrategyEntity {
   @Column({ type: 'varchar', length: 200 })
   name: string;
 
+  /** The outcome the owner wants, in their words. Every Unit is planned against it. */
+  @Column({ type: 'text' })
+  objective: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  workType: StrategyWorkType;
+
+  /** How many versions a `multi_version` Strategy makes; null for the other work types. */
+  @Column({ type: 'int', nullable: true })
+  versionCount: number | null;
+
+  /** Most attempts a `one_off` Strategy makes before it stops. */
+  @Column({ type: 'int', default: 3 })
+  maxAttempts: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'active' })
+  status: StrategyStatus;
+
   @Column({ type: 'timestamptz' })
   startDate: Date;
 
-  @Column({ type: 'timestamptz' })
-  endDate: Date;
+  /** When the Strategy completed; null while it is active. */
+  @Column({ type: 'timestamptz', nullable: true })
+  endDate: Date | null;
 
-  @Column({ type: 'jsonb' })
-  goldStandards: GoldStandards;
+  /** For the Strategy review, which is not built yet. */
+  @Column({ type: 'jsonb', nullable: true })
+  goldStandards: GoldStandards | null;
 
-  /** Null until the cycle has been graded. */
+  /** Null until the Strategy has been reviewed. */
   @Column({ type: 'jsonb', nullable: true })
   evaluation: StrategyEvaluation | null;
 

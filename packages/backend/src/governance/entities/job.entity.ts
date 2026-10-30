@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus } from '@ahe/agent-core';
+import type { JobOrderType, JobOutcomeStatus } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { TaskEntity } from './task.entity';
 import { UnitOfWorkEntity } from './unit-of-work.entity';
@@ -24,6 +24,14 @@ export class JobEntity {
 
   @Column({ type: 'text' })
   objective: string;
+
+  /** An `ordered` Job runs only after the ordered Jobs before it in its Unit have succeeded. */
+  @Column({ type: 'varchar', length: 20, default: 'unordered' })
+  orderType: JobOrderType;
+
+  /** Position among the Unit's ordered Jobs, from 1; null for an unordered Job. */
+  @Column({ type: 'int', nullable: true })
+  orderNumber: number | null;
 
   @OneToMany(() => TaskEntity, (task) => task.job)
   tasks: TaskEntity[];

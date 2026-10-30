@@ -12,9 +12,8 @@ import type { TaskService } from '../../../services/task.service';
 import {
   MAX_CONSECUTIVE_FAILURES,
   MAX_REVIEWING_ATTEMPTS,
-  MAX_TASKS_ADDED_PER_REVIEW,
-  MAX_TASKS_PER_JOB,
 } from '../job-execution.constants';
+import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB } from '../../../../reasoning/job/job-reasoning.constants';
 import { JobExecutionProcessor } from '../job-execution.processor';
 
 const WORKFLOW_ID = 'wf-1';
@@ -109,7 +108,7 @@ describe('JobExecutionProcessor', () => {
           reason: expect.stringContaining('first plan'),
           history: [],
           remainingActions: [],
-          maxTasks: MAX_TASKS_PER_JOB,
+          tasksStarted: 0,
         }),
       );
       expect(t.tasks.replaceRemainingTasks).toHaveBeenCalledTimes(1);
@@ -191,23 +190,36 @@ describe('JobExecutionProcessor', () => {
           reason: expect.stringContaining('Links are banned; post text only.'),
           history: [expect.objectContaining({ action: 'Post the link', status: 'failed' })],
           remainingActions: ['Reply'],
-          maxTasks: 1 + MAX_TASKS_ADDED_PER_REVIEW,
+          tasksStarted: 1,
         }),
       );
       expect(t.savedActions()).toEqual(['Post a text-only intro', 'Reply']);
       expect(t.tasks.markTaskReviewed).toHaveBeenCalledWith('task-1');
     });
 
-    it('leaves the Job open and idle when the review continues but nothing is left to run', async () => {
+    it('plans again when the review continues but nothing is left to run, so the Job never sits idle', async () => {
       const t = setup();
       t.reviewing([task(1, 'complete')]);
-      t.tasks.findNextPendingTask.mockResolvedValue(null);
+      t.jobReasoning.planTasks.mockResolvedValue(['Reply to the first comment']);
 
       await t.run();
 
-      expect(t.jobReasoning.planTasks).not.toHaveBeenCalled();
+      expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: expect.stringContaining('plan ran out'), remainingActions: [] }),
+      );
+      expect(t.savedActions()).toEqual(['Reply to the first comment']);
       expect(t.jobs.closeJob).not.toHaveBeenCalled();
       expect(t.tasks.markTaskReviewed).toHaveBeenCalledWith('task-1');
+    });
+
+    it('closes the Job as failed when that replanning finds nothing more to do', async () => {
+      const t = setup();
+      t.reviewing([task(1, 'complete')]);
+      t.jobReasoning.planTasks.mockResolvedValue([]);
+
+      await t.run();
+
+      expect(t.jobs.closeJob).toHaveBeenCalledWith(expect.objectContaining({ jobId: JOB_ID, status: 'failed' }));
       expect(t.taskQueue.add).not.toHaveBeenCalled();
     });
 
@@ -233,7 +245,6 @@ describe('JobExecutionProcessor', () => {
 
       expect(t.evaluations.findEvaluationAwaiting).toHaveBeenCalledWith(JOB_ID);
       expect(t.evaluationQueue.add).toHaveBeenCalledWith('eval-1', {
-        kind: 'judge',
         workflowId: WORKFLOW_ID,
         evaluationId: 'eval-1',
       });
@@ -282,17 +293,33 @@ describe('JobExecutionProcessor', () => {
       expect(t.jobs.closeJob).not.toHaveBeenCalled();
     });
 
-    it(`closes the Job as failed when a revision is needed but ${MAX_TASKS_PER_JOB} Tasks have already started`, async () => {
+    it('keeps planning past the Task budget when the review asks for more, leaving the call to Job reasoning', async () => {
+      const t = setup();
+      t.reviewing(Array.from({ length: TASK_BUDGET_PER_JOB }, (_, index) => task(index + 1, 'complete')));
+      t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'revise', revisionNotes: 'One more export pass.' }));
+      t.jobReasoning.planTasks.mockResolvedValue(['Export at 4K']);
+
+      await t.run();
+
+      expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(expect.objectContaining({ tasksStarted: TASK_BUDGET_PER_JOB }));
+      expect(t.savedActions()).toEqual(['Export at 4K']);
+      expect(t.jobs.closeJob).not.toHaveBeenCalled();
+    });
+
+    it(`closes a runaway Job as failed, saying it needs more Tasks, once ${MAX_TASKS_PER_JOB} have started`, async () => {
       const t = setup();
       t.reviewing(Array.from({ length: MAX_TASKS_PER_JOB }, (_, index) => task(index + 1, 'complete')));
-      t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'revise', revisionNotes: 'One more.' }));
+      t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'revise', revisionNotes: 'One more pass.' }));
 
       await t.run();
 
       expect(t.jobReasoning.planTasks).not.toHaveBeenCalled();
-      expect(t.jobs.closeJob).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'failed', summary: expect.stringContaining(`${MAX_TASKS_PER_JOB}-Task limit`) }),
-      );
+      expect(t.jobs.closeJob).toHaveBeenCalledWith({
+        jobId: JOB_ID,
+        status: 'failed',
+        summary: `So far so good.\nNeeds more Tasks: started all ${MAX_TASKS_PER_JOB} Tasks a Job may run, and the objective is not met yet.`,
+      });
+      expect(t.taskQueue.add).not.toHaveBeenCalled();
     });
   });
 

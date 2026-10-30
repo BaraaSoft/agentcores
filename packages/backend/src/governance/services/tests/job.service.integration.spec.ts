@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus, TaskStatus } from '@ahe/agent-core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';
@@ -6,9 +6,7 @@ import { TestDatabaseModule } from '../../../database/tests/test-database.module
 import { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEntity } from '../../entities/job.entity';
 import { TaskEntity } from '../../entities/task.entity';
-import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 import { JobService } from '../job.service';
-import { UnitOfWorkService } from '../unit-of-work.service';
 import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
 
 describeWithDatabase('JobService (Postgres)', () => {
@@ -20,7 +18,7 @@ describeWithDatabase('JobService (Postgres)', () => {
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
       imports: [TestDatabaseModule.register({ schema: 'job_service_spec', entities: GOVERNANCE_ENTITIES })],
-      providers: [JobService, UnitOfWorkService, GovernanceSeeder],
+      providers: [JobService, GovernanceSeeder],
     }).compile();
     dataSource = moduleRef.get(DataSource);
     seeder = moduleRef.get(GovernanceSeeder);
@@ -85,76 +83,125 @@ describeWithDatabase('JobService (Postgres)', () => {
       expect(await service.countActiveJobs(workflow.id)).toBe(3);
     });
 
-    it('skips deprecated Units and Strategies the Workflow does not run', async () => {
+    it('skips paused and complete Units, and Strategies the Workflow does not run', async () => {
       const { workflow, strategy } = await seeder.strategyWithWorkflow();
-      const deprecated = await seeder.unit(strategy.id, 'Old theme', 0, true);
-      await seeder.job(deprecated.id, 'In a deprecated Unit');
-      const oldStrategy = await seeder.strategy();
-      await seeder.job((await seeder.unit(oldStrategy.id, 'Last month')).id, 'In an old Strategy');
-      const active = await seeder.job((await seeder.unit(strategy.id, 'Current theme')).id, 'Startable');
+      await seeder.job((await seeder.unit(strategy.id, 'Round 1', { status: 'complete' })).id, 'In a complete Unit');
+      await seeder.job((await seeder.unit(strategy.id, 'Round 2', { state: 'paused' })).id, 'In a paused Unit');
+      const otherStrategy = await seeder.strategy();
+      await seeder.job((await seeder.unit(otherStrategy.id, 'Round 1')).id, 'In another Strategy');
+      const active = await seeder.job((await seeder.unit(strategy.id, 'Round 3')).id, 'Startable');
 
       const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 10 });
 
       expect(startable.map((job) => job.id)).toEqual([active.id]);
     });
 
-    it('puts Units with a larger share first, then older Jobs, up to the limit', async () => {
+    it('still starts Jobs in an evaluating Unit, which is where evidence Jobs live', async () => {
       const { workflow, strategy } = await seeder.strategyWithWorkflow();
-      const small = await seeder.unit(strategy.id, 'Small', 30);
-      const large = await seeder.unit(strategy.id, 'Large', 70);
-      await seeder.job(small.id, 'Small first');
-      const largeOlder = await seeder.job(large.id, 'Large older');
-      const largeNewer = await seeder.job(large.id, 'Large newer');
+      const evidence = await seeder.job((await seeder.unit(strategy.id, 'Round 1', { status: 'evaluating' })).id, 'Read the upvotes');
+
+      const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 10 });
+
+      expect(startable.map((job) => job.id)).toEqual([evidence.id]);
+    });
+
+    it('puts older Units first, then older Jobs, up to the limit', async () => {
+      const { workflow, strategy } = await seeder.strategyWithWorkflow();
+      const first = await seeder.unit(strategy.id, 'Round 1', { status: 'evaluating' });
+      const second = await seeder.unit(strategy.id, 'Round 2');
+      await seeder.job(second.id, 'Second round');
+      const older = await seeder.job(first.id, 'First round, older');
+      const newer = await seeder.job(first.id, 'First round, newer');
 
       const startable = await service.listStartableJobs({ workflowId: workflow.id, limit: 2 });
 
-      expect(startable.map((job) => job.id)).toEqual([largeOlder.id, largeNewer.id]);
+      expect(startable.map((job) => job.id)).toEqual([older.id, newer.id]);
     });
   });
 
-  describe('listJobsWithActivityOn', () => {
-    const today = () => new Date().toISOString().slice(0, 10);
-    const namesOn = async (workflowId: string, evaluationDate: string) =>
-      (await service.listJobsWithActivityOn({ workflowId, evaluationDate })).map((job) => job.name);
+  describe('Job order', () => {
+    async function steps(...outcomes: (JobOutcomeStatus | null)[]) {
+      const { workflow, strategy } = await seeder.strategyWithWorkflow('owner-1', 'one_off');
+      const unit = await seeder.unit(strategy.id, 'Attempt 1');
+      const ids: string[] = [];
+      for (const [index, outcome] of outcomes.entries()) {
+        ids.push((await seeder.job(unit.id, `Step ${index + 1}`, outcome, index + 1)).id);
+      }
+      return { workflow, unit, ids };
+    }
 
-    it('finds Jobs whose Task was reviewed that day, open or closed', async () => {
+    const startableIds = async (workflowId: string) =>
+      (await service.listStartableJobs({ workflowId, limit: 10 })).map((job) => job.id);
+
+    it('starts only the first ordered Job that has not succeeded', async () => {
+      const { workflow, ids } = await steps('success', null, null);
+
+      expect(await startableIds(workflow.id)).toEqual([ids[1]]);
+    });
+
+    it('holds an ordered Job back while the one before it is still running', async () => {
+      const { workflow, ids } = await steps(null, null);
+      await seeder.tasks(workflow.id, ids[0], ['running']);
+
+      expect(await startableIds(workflow.id)).toEqual([]);
+    });
+
+    it('runs unordered Jobs alongside the ordered chain', async () => {
+      const { workflow, unit, ids } = await steps(null, null);
+      const free = await seeder.job(unit.id, 'Unordered');
+
+      expect((await startableIds(workflow.id)).sort()).toEqual([ids[0], free.id].sort());
+    });
+
+    it('skips the ordered Jobs behind one that did not succeed, and leaves the rest alone', async () => {
+      const { workflow, unit, ids } = await steps('success', 'failed', null, null);
+      const free = await seeder.job(unit.id, 'Unordered');
+
+      expect(await service.skipStepsAfterFailure(unit.id)).toBe(2);
+
+      const jobs = dataSource.getRepository(JobEntity);
+      for (const id of ids.slice(2)) {
+        expect(await jobs.findOneByOrFail({ id })).toMatchObject({
+          outcomeStatus: 'abandoned',
+          outcomeSummary: 'Skipped: an earlier step did not succeed.',
+        });
+      }
+      expect((await jobs.findOneByOrFail({ id: free.id })).outcomeStatus).toBeNull();
+      expect(await startableIds(workflow.id)).toEqual([free.id]);
+      expect(await service.skipStepsAfterFailure(unit.id)).toBe(0);
+    });
+  });
+
+  describe('countUnitJobs and listJobsToEvaluate', () => {
+    it('counts the Unit\u2019s Jobs and how many are still open', async () => {
+      const { strategy } = await seeder.strategyWithWorkflow();
+      const unit = await seeder.unit(strategy.id, 'Round 1');
+      await seeder.job(unit.id, 'Open');
+      await seeder.job(unit.id, 'Closed', 'success');
+
+      expect(await service.countUnitJobs(unit.id)).toEqual({ total: 2, open: 1 });
+    });
+
+    it('evaluates the closed Jobs that ran a Task, but not skipped steps, open Jobs, or evidence Jobs', async () => {
       const { workflow, strategy } = await seeder.strategyWithWorkflow();
-      const unit = await seeder.unit(strategy.id, 'Community engagement');
-      const open = await seeder.job(unit.id, 'Still running');
+      const unit = await seeder.unit(strategy.id, 'Round 1');
+      const posted = await seeder.job(unit.id, 'Post an intro', 'success');
+      await seeder.tasks(workflow.id, posted.id, ['complete']);
+      const failed = await seeder.job(unit.id, 'Reply to comments', 'failed');
+      await seeder.tasks(workflow.id, failed.id, ['complete', 'failed']);
+      await seeder.job(unit.id, 'Skipped step', 'abandoned');
+      const open = await seeder.job(unit.id, 'Still open');
       await seeder.tasks(workflow.id, open.id, ['complete', 'pending']);
-      const closed = await seeder.job(unit.id, 'Finished last week', 'success');
-      await seeder.tasks(workflow.id, closed.id, ['complete']);
-      const untouched = await seeder.job(unit.id, 'Never started');
-      await seeder.tasks(workflow.id, untouched.id, ['pending']);
-
-      expect(await namesOn(workflow.id, today())).toEqual(['Still running', 'Finished last week']);
-    });
-
-    it('leaves out Jobs spun up to gather evidence for an evaluation', async () => {
-      const { workflow, strategy } = await seeder.strategyWithWorkflow();
-      const unit = await seeder.unit(strategy.id, 'Community engagement');
-      const judged = await seeder.job(unit.id, 'Post an intro');
-      await seeder.tasks(workflow.id, judged.id, ['complete']);
-      const evidence = await seeder.job(unit.id, 'Read the upvotes');
+      const evidence = await seeder.job(unit.id, 'Read the upvotes', 'success');
       await seeder.tasks(workflow.id, evidence.id, ['complete']);
-      await dataSource.getRepository(JobEvaluationEntity).save({
-        owner: strategy.owner,
-        jobId: judged.id,
-        unitOfWorkId: unit.id,
-        evaluationDate: today(),
-        evidenceJobId: evidence.id,
-      });
+      await dataSource
+        .getRepository(JobEvaluationEntity)
+        .save({ owner: strategy.owner, jobId: posted.id, unitOfWorkId: unit.id, evidenceJobId: evidence.id });
 
-      expect(await namesOn(workflow.id, today())).toEqual(['Post an intro']);
-    });
+      const toEvaluate = await service.listJobsToEvaluate(unit.id);
 
-    it('finds nothing on a day with no activity', async () => {
-      const { workflow, strategy } = await seeder.strategyWithWorkflow();
-      const unit = await seeder.unit(strategy.id, 'Community engagement');
-      const job = await seeder.job(unit.id, 'Post an intro');
-      await seeder.tasks(workflow.id, job.id, ['complete']);
-
-      expect(await namesOn(workflow.id, '2026-01-01')).toEqual([]);
+      expect(toEvaluate.map((job) => job.name)).toEqual(['Post an intro', 'Reply to comments']);
+      expect(toEvaluate[0].unitOfWork.strategy.owner).toBe('owner-1');
     });
   });
 
@@ -189,36 +236,6 @@ describeWithDatabase('JobService (Postgres)', () => {
 
       await service.resetReviewingAttempts(job.id);
       expect(await service.recordReviewingAttempt(job.id)).toBe(1);
-    });
-  });
-
-  describe('placeJob', () => {
-    it('files the Job under the Unit with the same name, ignoring case and spaces', async () => {
-      const { strategy } = await seeder.strategyWithWorkflow();
-      const unit = await seeder.unit(strategy.id, 'Community engagement');
-
-      const job = await service.placeJob({
-        strategyId: strategy.id,
-        plannedJob: { name: 'Reply to threads', objective: 'Join conversations', unitName: '  community ENGAGEMENT ' },
-      });
-
-      expect(job.unitOfWorkId).toBe(unit.id);
-      expect(await dataSource.getRepository(UnitOfWorkEntity).count()).toBe(1);
-    });
-
-    it('creates a new Unit with a 0% share only when none matches', async () => {
-      const { strategy } = await seeder.strategyWithWorkflow();
-      await seeder.unit(strategy.id, 'Community engagement', 100);
-      await seeder.unit(strategy.id, 'Launch posts', 0, true);
-
-      const job = await service.placeJob({
-        strategyId: strategy.id,
-        plannedJob: { name: 'Post on Product Hunt', objective: 'Launch', unitName: 'Launch posts' },
-      });
-
-      const unit = await dataSource.getRepository(UnitOfWorkEntity).findOneByOrFail({ id: job.unitOfWorkId });
-      expect(unit).toEqual(expect.objectContaining({ name: 'Launch posts', allocationPercentage: 0, isDeprecated: false }));
-      expect((await service.findJobById(job.id))?.unitOfWork.id).toBe(unit.id);
     });
   });
 });

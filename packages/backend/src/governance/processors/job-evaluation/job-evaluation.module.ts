@@ -6,8 +6,7 @@ import { GovernanceModule } from '../../governance.module';
 import { JobEvaluationProcessor } from './job-evaluation.processor';
 
 /**
- * The worker that marks finished work: the daily sweep over Jobs that saw activity, and the
- * judgement of each one.
+ * The worker that marks finished work, one Job at a time, as the orchestrator queues them.
  */
 @Module({
   imports: [

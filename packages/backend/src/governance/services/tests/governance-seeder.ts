@@ -1,4 +1,4 @@
-import type { GoldStandards, JobOutcomeStatus, TaskStatus, WorkflowResources } from '@ahe/agent-core';
+import type { JobOutcomeStatus, StrategyWorkType, TaskStatus, WorkflowResources } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
@@ -39,36 +39,52 @@ export class GovernanceSeeder {
   /**
    * A Strategy for `owner`, and one running Workflow that runs it on a machine.
    */
-  async strategyWithWorkflow(owner = 'owner-1'): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
-    const strategy = await this.strategy(owner);
+  async strategyWithWorkflow(
+    owner = 'owner-1',
+    workType: StrategyWorkType = 'continuous',
+  ): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
+    const strategy = await this.strategy(owner, workType);
     const workflow = await this.dataSource
       .getRepository(WorkflowEntity)
       .save({ strategyId: strategy.id, machineId: 'machine-1', resources: {} as WorkflowResources, state: 'running' });
     return { workflow, strategy };
   }
 
-  async strategy(owner = 'owner-1'): Promise<StrategyEntity> {
+  async strategy(owner = 'owner-1', workType: StrategyWorkType = 'continuous'): Promise<StrategyEntity> {
     return this.dataSource.getRepository(StrategyEntity).save({
       owner,
       name: 'October',
+      objective: 'Get the first 100 people to try AHE',
+      workType,
+      versionCount: workType === 'multi_version' ? 3 : null,
       startDate: new Date('2026-10-01T00:00:00Z'),
-      endDate: new Date('2026-10-31T00:00:00Z'),
-      goldStandards: {} as GoldStandards,
-      evaluation: null,
     });
   }
 
-  async unit(strategyId: string, name: string, allocationPercentage = 50, isDeprecated = false): Promise<UnitOfWorkEntity> {
-    return this.dataSource
-      .getRepository(UnitOfWorkEntity)
-      .save({ strategyId, name, successCriteria: [], allocationPercentage, isDeprecated });
+  /**
+   * Adds the Strategy's next Unit, numbered after the ones it already has.
+   */
+  async unit(strategyId: string, name: string, changes: Partial<UnitOfWorkEntity> = {}): Promise<UnitOfWorkEntity> {
+    const units = this.dataSource.getRepository(UnitOfWorkEntity);
+    const sequence = (await units.countBy({ strategyId })) + 1;
+    return units.save({ strategyId, name, sequence, ...changes });
   }
 
-  async job(unitOfWorkId: string, name = 'Engage r/AICompanion', outcomeStatus: JobOutcomeStatus | null = null): Promise<JobEntity> {
+  /**
+   * Adds a Job to a Unit. Giving an `orderNumber` makes it an ordered Job.
+   */
+  async job(
+    unitOfWorkId: string,
+    name = 'Engage r/AICompanion',
+    outcomeStatus: JobOutcomeStatus | null = null,
+    orderNumber: number | null = null,
+  ): Promise<JobEntity> {
     return this.dataSource.getRepository(JobEntity).save({
       unitOfWorkId,
       name,
       objective: `Objective of ${name}`,
+      orderType: orderNumber === null ? 'unordered' : 'ordered',
+      orderNumber,
       outcomeStatus,
       outcomeSummary: outcomeStatus === null ? null : `Closed as ${outcomeStatus}`,
       closedAt: outcomeStatus === null ? null : new Date(),

@@ -1,0 +1,316 @@
+import type { StrategyWorkType, UnitOfWorkStatus } from '@ahe/agent-core';
+import type { Queue } from 'bullmq';
+import type { JobEvaluationService } from '../../governance/services/job-evaluation.service';
+import type { JobService } from '../../governance/services/job.service';
+import type { StrategyService } from '../../governance/services/strategy.service';
+import type { UnitOfWorkService } from '../../governance/services/unit-of-work.service';
+import type { JobEvaluationJobData } from '../../queue/types/job-evaluation-job-data';
+import type { JobExecutionJobData } from '../../queue/types/job-execution-job-data';
+import type { StrategyReasoningService } from '../../reasoning/strategy/strategy-reasoning.service';
+import type { WorkflowEntity } from '../../workflow/entities/workflow.entity';
+import type { WorkflowService } from '../../workflow/workflow.service';
+import { CONTINUOUS_EVALUATION_DELAY_MS } from '../orchestrator.constants';
+import { OrchestratorService } from '../orchestrator.service';
+
+const NOW = new Date('2026-10-30T10:00:00Z');
+const PLAN = {
+  decision: 'plan' as const,
+  rationale: 'Start simple.',
+  jobs: [{ name: 'Cut', objective: 'Cut the footage', orderType: 'ordered' as const }],
+};
+
+interface FakeUnitOfWork {
+  id: string;
+  name: string;
+  status: UnitOfWorkStatus;
+  evaluateAfter: Date | null;
+}
+
+function setup(workType: StrategyWorkType, strategyChanges: Record<string, unknown> = {}) {
+  const strategy = {
+    id: 'strategy-1',
+    owner: 'owner-1',
+    name: 'Launch',
+    objective: 'Launch AHE',
+    workType,
+    versionCount: workType === 'multi_version' ? 2 : null,
+    maxAttempts: 3,
+    status: 'active',
+    ...strategyChanges,
+  };
+  const workflow = {
+    id: 'wf-1',
+    strategyId: strategy.id,
+    strategy,
+    resources: { maxConcurrentJobs: 2 },
+  } as unknown as WorkflowEntity;
+
+  const unitsOfWorkList: FakeUnitOfWork[] = [];
+  const unitsOfWork = {
+    listUnitsOfWork: jest.fn(async () => unitsOfWorkList.map((unit) => ({ ...unit }))),
+    listUnitsOfWorkDueForEvaluation: jest.fn(async (_strategyId: string, now: Date) =>
+      unitsOfWorkList.filter((unit) => unit.status === 'evaluating' && unit.evaluateAfter !== null && unit.evaluateAfter <= now),
+    ),
+    markEvaluating: jest.fn(async (id: string, evaluateAfter: Date) => {
+      const unit = unitsOfWorkList.find((u) => u.id === id && u.status === 'open');
+      if (unit === undefined) return false;
+      Object.assign(unit, { status: 'evaluating', evaluateAfter });
+      return true;
+    }),
+    markComplete: jest.fn(async (id: string) => {
+      const unit = unitsOfWorkList.find((u) => u.id === id && u.status === 'evaluating');
+      if (unit === undefined) return false;
+      unit.status = 'complete';
+      return true;
+    }),
+    createUnitOfWork: jest.fn(async ({ sequence, name }: { sequence: number; name: string }) => {
+      const unit: FakeUnitOfWork = { id: `unit-${sequence}`, name, status: 'open', evaluateAfter: null };
+      unitsOfWorkList.push(unit);
+      return unit;
+    }),
+  };
+  const addUnitOfWork = (status: UnitOfWorkStatus, evaluateAfter: Date | null = null) => {
+    const sequence = unitsOfWorkList.length + 1;
+    const unit = { id: `unit-${sequence}`, name: `Unit ${sequence}`, status, evaluateAfter };
+    unitsOfWorkList.push(unit);
+    return unit;
+  };
+
+  const jobs = {
+    skipStepsAfterFailure: jest.fn().mockResolvedValue(0),
+    countUnitJobs: jest.fn().mockResolvedValue({ total: 2, open: 1 }),
+    listJobsToEvaluate: jest.fn().mockResolvedValue([]),
+    listJobsInUnits: jest.fn().mockResolvedValue([]),
+    countActiveJobs: jest.fn().mockResolvedValue(0),
+    listStartableJobs: jest.fn().mockResolvedValue([]),
+  };
+  const evaluations = {
+    createEvaluation: jest.fn(async ({ jobId }: { jobId: string }) => ({ id: `eval-${jobId}`, state: 'evaluating' })),
+    listScoredByJob: jest.fn().mockResolvedValue(new Map()),
+    searchPastEvaluations: jest.fn().mockResolvedValue([]),
+  };
+  const strategies = { completeStrategy: jest.fn().mockResolvedValue(true) };
+  const strategyReasoning = { planUnitOfWork: jest.fn().mockResolvedValue(PLAN) };
+  const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
+  const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
+
+  const service = new OrchestratorService(
+    {} as WorkflowService,
+    strategyReasoning as unknown as StrategyReasoningService,
+    strategies as unknown as StrategyService,
+    unitsOfWork as unknown as UnitOfWorkService,
+    jobs as unknown as JobService,
+    evaluations as unknown as JobEvaluationService,
+    jobQueue as unknown as Queue<JobExecutionJobData>,
+    evaluationQueue as unknown as Queue<JobEvaluationJobData>,
+  );
+  const schedule = (now = NOW) => service.scheduleWorkflow(workflow, now);
+
+  return { schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
+}
+
+describe('OrchestratorService', () => {
+  describe('opening a Unit of Work', () => {
+    it.each([
+      ['continuous', 'Round 1'],
+      ['one_off', 'Attempt 1'],
+      ['multi_version', 'Version 1'],
+    ] as const)('opens the first Unit of Work of a %s Strategy as "%s"', async (workType, name) => {
+      const t = setup(workType);
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(
+        expect.objectContaining({ unitName: name, workType, canFinish: false, earlierUnits: [] }),
+      );
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith({ strategyId: 'strategy-1', sequence: 1, name, jobs: PLAN.jobs });
+    });
+
+    it('opens nothing while a Unit of Work is still open', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('open');
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+    });
+
+    it('opens the next round of continuous work while the last round waits to be evaluated', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('evaluating', new Date(NOW.getTime() + 1000));
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ sequence: 2, name: 'Round 2' }));
+    });
+
+    it.each(['one_off', 'multi_version'] as const)('makes %s work wait while the last Unit of Work is being evaluated', async (workType) => {
+      const t = setup(workType);
+      t.addUnitOfWork('evaluating', null);
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+      expect(t.strategies.completeStrategy).not.toHaveBeenCalled();
+    });
+
+    it('lets the planner finish a one_off Strategy after its first attempt', async () => {
+      const t = setup('one_off');
+      t.addUnitOfWork('complete');
+      t.strategyReasoning.planUnitOfWork.mockResolvedValue({ decision: 'done', rationale: 'Marked 9/10.' });
+
+      const result = await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ unitName: 'Attempt 2', canFinish: true }));
+      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+      expect(t.unitsOfWork.createUnitOfWork).not.toHaveBeenCalled();
+      expect(result.skippedReason).toBe('Strategy complete');
+    });
+
+    it('completes a one_off Strategy once it has used its attempts', async () => {
+      const t = setup('one_off', { maxAttempts: 2 });
+      t.addUnitOfWork('complete');
+      t.addUnitOfWork('complete');
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+    });
+
+    it('completes a multi_version Strategy once every version is done, failed ones included', async () => {
+      const t = setup('multi_version');
+      t.addUnitOfWork('complete');
+      t.addUnitOfWork('complete');
+
+      await t.schedule();
+
+      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+    });
+
+    it('does nothing for a Strategy that is already complete', async () => {
+      const t = setup('one_off', { status: 'complete' });
+
+      const result = await t.schedule();
+
+      expect(t.unitsOfWork.listUnitsOfWork).not.toHaveBeenCalled();
+      expect(result).toEqual({ workflowId: 'wf-1', queuedJobIds: [], skippedReason: 'Strategy complete' });
+    });
+  });
+
+  describe('settling and evaluating a Unit of Work', () => {
+    it('skips the steps behind a failure, and keeps the Unit of Work open while a Job is open', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('open');
+
+      await t.schedule();
+
+      expect(t.jobs.skipStepsAfterFailure).toHaveBeenCalledWith('unit-1');
+      expect(t.unitsOfWork.markEvaluating).not.toHaveBeenCalled();
+    });
+
+    it('evaluates finished continuous work 24 hours later', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('open');
+      t.jobs.countUnitJobs.mockResolvedValue({ total: 2, open: 0 });
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.markEvaluating).toHaveBeenCalledWith('unit-1', new Date(NOW.getTime() + CONTINUOUS_EVALUATION_DELAY_MS));
+      expect(t.evaluations.createEvaluation).not.toHaveBeenCalled();
+    });
+
+    it('evaluates a finished one_off attempt in the same pass, and waits for the evaluations before planning again', async () => {
+      const t = setup('one_off');
+      t.addUnitOfWork('open');
+      t.jobs.countUnitJobs.mockResolvedValue({ total: 1, open: 0 });
+      t.jobs.listJobsToEvaluate.mockResolvedValue([{ id: 'job-1' }]);
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.markEvaluating).toHaveBeenCalledWith('unit-1', NOW);
+      expect(t.evaluations.createEvaluation).toHaveBeenCalledWith({ owner: 'owner-1', jobId: 'job-1', unitOfWorkId: 'unit-1' });
+      expect(t.evaluationQueue.add).toHaveBeenCalledWith(
+        'eval-job-1',
+        { workflowId: 'wf-1', evaluationId: 'eval-job-1' },
+        { jobId: 'eval-job-1' },
+      );
+      expect(t.unitsOfWork.markComplete).not.toHaveBeenCalled();
+      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+    });
+
+    it('never moves a Unit of Work with no Jobs to evaluating', async () => {
+      const t = setup('one_off');
+      t.addUnitOfWork('open');
+      t.jobs.countUnitJobs.mockResolvedValue({ total: 0, open: 0 });
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.markEvaluating).not.toHaveBeenCalled();
+    });
+
+    it('completes a Unit of Work once every evaluation has settled, and does not queue settled ones again', async () => {
+      const t = setup('multi_version');
+      t.addUnitOfWork('evaluating', NOW);
+      t.jobs.listJobsToEvaluate.mockResolvedValue([{ id: 'job-1' }, { id: 'job-2' }]);
+      t.evaluations.createEvaluation.mockImplementation(async ({ jobId }) => ({
+        id: `eval-${jobId}`,
+        state: jobId === 'job-1' ? 'scored' : 'failed',
+      }));
+
+      await t.schedule();
+
+      expect(t.evaluationQueue.add).not.toHaveBeenCalled();
+      expect(t.unitsOfWork.markComplete).toHaveBeenCalledWith('unit-1');
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ sequence: 2, name: 'Version 2' }));
+    });
+
+    it('keeps the Unit of Work evaluating while an evaluation waits for its evidence', async () => {
+      const t = setup('one_off');
+      t.addUnitOfWork('evaluating', NOW);
+      t.jobs.listJobsToEvaluate.mockResolvedValue([{ id: 'job-1' }]);
+      t.evaluations.createEvaluation.mockResolvedValue({ id: 'eval-job-1', state: 'awaiting_evidence' });
+
+      await t.schedule();
+
+      expect(t.evaluationQueue.add).not.toHaveBeenCalled();
+      expect(t.unitsOfWork.markComplete).not.toHaveBeenCalled();
+    });
+
+    it('does not evaluate a Unit of Work before its wait is over', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('evaluating', new Date(NOW.getTime() + 1000));
+
+      await t.schedule();
+
+      expect(t.jobs.listJobsToEvaluate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('starting Jobs', () => {
+    it('queues the ready Jobs up to the Job limit, keyed by Job ID', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('open');
+      t.jobs.countActiveJobs.mockResolvedValue(1);
+      t.jobs.listStartableJobs.mockResolvedValue([{ id: 'job-1' }]);
+
+      const result = await t.schedule();
+
+      expect(t.jobs.listStartableJobs).toHaveBeenCalledWith({ workflowId: 'wf-1', limit: 1 });
+      expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: 'wf-1', jobId: 'job-1' }, { jobId: 'job-1' });
+      expect(result).toEqual({ workflowId: 'wf-1', queuedJobIds: ['job-1'], skippedReason: null });
+    });
+
+    it('starts nothing at the Job limit', async () => {
+      const t = setup('continuous');
+      t.addUnitOfWork('open');
+      t.jobs.countActiveJobs.mockResolvedValue(2);
+
+      const result = await t.schedule();
+
+      expect(t.jobs.listStartableJobs).not.toHaveBeenCalled();
+      expect(result.skippedReason).toBe('at Job limit');
+    });
+  });
+});

@@ -1,15 +1,15 @@
-import type { StrategyEvaluation } from '@ahe/agent-core';
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StrategyEntity } from '../entities/strategy.entity';
 import type { CreateStrategyInput } from '../types/create-strategy-input';
-import type { RecordEvaluationInput } from '../types/record-evaluation-input';
 
-const DEFAULT_HISTORY_LIMIT = 3;
+/** Attempts a `one_off` Strategy makes when the owner does not say. */
+export const DEFAULT_MAX_ATTEMPTS = 3;
 
 /**
- * Persistence and lifecycle of Strategies (30-day cycles).
+ * Persistence and lifecycle of Strategies. A Strategy is `active` until its work type's stop rule is
+ * met, and then `complete`; the orchestrator decides when.
  */
 @Injectable()
 export class StrategyService {
@@ -19,37 +19,38 @@ export class StrategyService {
   ) {}
 
   /**
-   * Opens a new Strategy that ends 30 days after its start date.
+   * Opens a new, active Strategy. A `multi_version` Strategy must say how many versions to make.
    */
   async createStrategy(input: CreateStrategyInput): Promise<StrategyEntity> {
-    throw new NotImplementedException();
+    const isMultiVersion = input.workType === 'multi_version';
+    if (isMultiVersion && (input.versionCount === undefined || input.versionCount < 1)) {
+      throw new BadRequestException('A multi_version Strategy needs a versionCount of at least 1');
+    }
+    return this.strategies.save(
+      this.strategies.create({
+        owner: input.owner,
+        name: input.name,
+        objective: input.objective,
+        workType: input.workType,
+        versionCount: isMultiVersion ? input.versionCount : null,
+        maxAttempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+        startDate: input.startDate ?? new Date(),
+      }),
+    );
   }
 
   /**
-   * Loads a Strategy with its full tree (Units → Jobs → Tasks).
+   * Returns the Strategy, or null when it doesn't exist.
    */
-  async findStrategyTree(strategyId: string): Promise<StrategyEntity | null> {
-    throw new NotImplementedException();
+  async findStrategyById(strategyId: string): Promise<StrategyEntity | null> {
+    return this.strategies.findOneBy({ id: strategyId });
   }
 
   /**
-   * Returns evaluations of the owner's past Strategies, newest first.
+   * Marks an active Strategy complete and records when. Returns false when it was already complete.
    */
-  async listPastEvaluations(owner: string, limit = DEFAULT_HISTORY_LIMIT): Promise<StrategyEvaluation[]> {
-    throw new NotImplementedException();
-  }
-
-  /**
-   * Stores the grade of a finished Strategy.
-   */
-  async recordEvaluation(input: RecordEvaluationInput): Promise<void> {
-    throw new NotImplementedException();
-  }
-
-  /**
-   * True once the Strategy's 30-day window has ended.
-   */
-  isCycleComplete(strategy: StrategyEntity, now = new Date()): boolean {
-    throw new NotImplementedException();
+  async completeStrategy(strategyId: string, now = new Date()): Promise<boolean> {
+    const update = await this.strategies.update({ id: strategyId, status: 'active' }, { status: 'complete', endDate: now });
+    return (update.affected ?? 0) > 0;
   }
 }
