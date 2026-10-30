@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { ApiModule } from './api/api.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { DatabaseModule } from './database/database.module';
 import { EmbeddingModule } from './embedding/embedding.module';
@@ -18,7 +19,8 @@ import { WorkflowModule } from './workflow/workflow.module';
 
 /**
  * Root module. Infrastructure first, then the domain modules from the leaves
- * (reasoning, memory, identity, workflow) up to Job and Task execution and the orchestrator.
+ * (reasoning, memory, identity, workflow) up to Job and Task execution and the orchestrator, then the
+ * REST API on top.
  */
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     TaskExecutionModule,
     JobEvaluationModule,
     OrchestratorModule,
+    ApiModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: GlobalExceptionFilter }],
 })

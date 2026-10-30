@@ -8,6 +8,7 @@ queues Tasks: a queued Job queues its own Tasks, one at a time (see
 
 - [The model](#the-model)
 - [Work types](#work-types)
+- [How the work keeps moving](#how-the-work-keeps-moving)
 - [The scheduling pass](#the-scheduling-pass)
 - [Unit of Work status](#unit-of-work-status)
 - [Job order](#job-order)
@@ -57,6 +58,87 @@ The owner picks the work type when they create the Strategy. The planner never c
 - **`multi_version`** is a set of alternatives made one after another, so each version learns from the
   evaluation of the one before it. A version that failed still counts towards `versionCount`: the owner
   sees every attempt, and the run stays predictable.
+
+---
+
+## How the work keeps moving
+
+There is no cron and no orchestrator queue. Two things move the work, and together they keep it going
+until the Strategy completes:
+
+- **The pass** (this module) moves work **between** Jobs: it opens Units of Work, starts the Jobs that are
+  ready, and starts evaluations. It runs on a `setInterval` timer every `SCHEDULING_INTERVAL_MS` (one
+  minute), and once straight away when a Workflow starts.
+- **The queue chain** (the processors) moves work **inside** a Job: each message queues the next one, so a
+  Job runs from its first Task to its close without waiting for a pass.
+
+### From boot to the first Job
+
+1. **The app boots.** `onApplicationBootstrap` starts the timer. Each pass loads only the `running`
+   Workflows, so with none it does nothing.
+2. **`POST /workflows`** saves the Workflow as `paused`. The pass skips it, so nothing runs yet.
+3. **`POST /workflows/:id/start`** calls `startWorkflow`. It sets the Workflow to `running` and starts a
+   pass at once, without waiting for it, because the planning model call can take a while.
+4. **The first pass** plans the first Unit of Work and queues its ready Jobs on `job-execution`.
+5. **Every minute after that**, the timer runs a pass for as long as the Workflow is `running`.
+   `POST /workflows/:id/pause` sets it to `paused`, and the pass skips it again.
+
+### The whole loop
+
+```mermaid
+flowchart TD
+    Boot(["App boots: setInterval every 60 s"]) --> Pass
+    Start(["POST /workflows/:id/start"]) -->|"pass at once"| Pass
+
+    subgraph Orchestrator["Orchestrator pass — between Jobs"]
+        Pass["Pass over each running Workflow"]
+        Pass --> Settle["Settle the open Unit of Work<br/>all Jobs closed → evaluating"]
+        Settle --> Eval["Evaluate the due Units of Work<br/>queue one evaluate message per Job"]
+        Eval --> Open["Open the next Unit of Work<br/>planner writes its Jobs"]
+        Open --> Ready["Queue the ready Jobs<br/>up to maxConcurrentJobs"]
+    end
+
+    subgraph Chain["Queue chain — inside one Job"]
+        JobP["JobExecutionProcessor<br/>plan, or review the last Task"]
+        TaskP["TaskExecutionProcessor<br/>run one Task on the screen"]
+        JobP -->|"queue the next pending Task"| TaskP
+        TaskP -->|"Task complete or failed:<br/>queue the Job for review"| JobP
+        JobP -->|"review closes the Job"| Closed["Job closed<br/>(success, abandoned, failed)"]
+    end
+
+    Ready -->|"job-execution"| JobP
+    Eval -->|"job-evaluation"| EvalP["JobEvaluationProcessor<br/>score the Job"]
+    EvalP -->|"needs evidence:<br/>queue an evidence Job"| JobP
+    Closed -->|"evidence Job closed:<br/>wake the evaluation"| EvalP
+    Closed -.->|"picked up by the next pass"| Pass
+    EvalP -.->|"scored or failed:<br/>picked up by the next pass"| Pass
+```
+
+The solid arrows are queue messages, so they happen at once. The dotted arrows are the places where work
+waits for the next pass, which is at most one minute away. The pass never queues a Task: it only queues
+Jobs and evaluations.
+
+### Who wakes what
+
+| When this happens | What moves it on | Wait |
+| --- | --- | --- |
+| A Job is queued | `JobExecutionProcessor` writes the plan and queues the first pending Task | none |
+| A Task completes or fails | `TaskExecutionProcessor` queues the Job, and Job reasoning reviews the Task | none |
+| The review says "continue" | `JobExecutionProcessor` queues the next pending Task, or plans more Tasks | none |
+| A Task is deferred | `TaskExecutionProcessor` queues the Task again with a delay | `retryAfterMinutes` |
+| A Task is escalated | Nothing, until the owner answers through `POST /escalations/:id/resolve` | the owner |
+| A Job closes | The next pass starts the next ordered Job, or settles the Unit of Work | up to one minute |
+| Every Job of a Unit of Work is closed | The next pass moves the Unit to `evaluating` and sets `evaluateAfter` | up to one minute |
+| `evaluateAfter` passes | The next pass opens the evaluations and queues them | 0 h, or 24 h for `continuous` |
+| An evaluation needs evidence | `JobEvaluationProcessor` queues an evidence Job in the same Unit of Work | none |
+| The evidence Job closes | `JobExecutionProcessor` wakes the waiting evaluation | none |
+| Every evaluation is scored or failed | The next pass completes the Unit of Work, then opens the next one | up to one minute |
+
+So one Job runs through all its Tasks on queue messages alone. The pass links the Jobs together: it starts
+the next ordered Job, moves each Unit of Work on, and opens the next Unit of Work. A sequence of three
+ordered Jobs, for example cut, colour, and export, waits at most one minute between each Job. A one-minute
+gap is small next to a Task that takes minutes on the screen, and the pass stays simple: it reads state
+from the database, and no processor has to call back into the orchestrator.
 
 ---
 
@@ -209,8 +291,7 @@ These parts are deliberately left out of the hackathon build. They are listed in
 ```text
 orchestrator/
 ├── orchestrator.constants.ts     pass interval, evaluation delay, per-Unit limits, Unit names
-├── orchestrator.controller.ts    POST /workflows/:id/start, POST /workflows/:id/pause
-├── orchestrator.module.ts
+├── orchestrator.module.ts        exports OrchestratorService; the start and pause routes are in api/workflows
 ├── orchestrator.service.ts       the scheduling pass
 ├── tests/
 │   └── orchestrator.service.spec.ts
