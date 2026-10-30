@@ -30,12 +30,20 @@ services:
       timeout: 3s
       retries: 30
 
+  # Applies pending migrations, then generates (and applies) a new one when the entities changed.
+  # See packages/migrations/src/sync.ts. A migration that drops a column or table is written but not applied.
   migrations:
     build:
       context: .
       dockerfile: packages/migrations/Dockerfile
+    command: sh -c "pnpm --filter @ahe/agent-core build && pnpm --filter @ahe/migrations migrate:sync"
     environment:
       DATABASE_URL: postgres://ahe:ahe@postgres:5432/ahe
+    volumes:
+      - ./packages/agent-core/src:/app/packages/agent-core/src:ro
+      - ./packages/backend/src:/app/packages/backend/src:ro
+      - ./packages/migrations/src:/app/packages/migrations/src:ro
+      - ./packages/migrations/migrations:/app/packages/migrations/migrations
     depends_on:
       postgres:
         condition: service_healthy

@@ -12,6 +12,8 @@
     "compose:up": "docker compose -f docker-compose-dev.yml up --build",
     "compose:down": "docker compose -f docker-compose-dev.yml down",
     "migrate": "pnpm --filter @ahe/migrations migrate",
+    "migrate:sync": "pnpm --filter @ahe/migrations migrate:sync",
+    "migration:check": "pnpm --filter @ahe/migrations migration:check",
     "migration:generate": "pnpm --filter @ahe/migrations migration:generate:main",
     "migration:revert": "pnpm --filter @ahe/migrations migration:revert:main"
   }

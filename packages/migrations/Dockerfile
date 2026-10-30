@@ -1,5 +1,5 @@
-# One-shot image that applies pending migrations to the main database, then exits.
-# Build context is the repo root: data-source.ts loads the entity files from packages/backend/src.
+# Dependencies for the dev migrations service. The source is bind-mounted by docker-compose-dev.yml,
+# so the service always sees the current entities and writes new migration files into the repo.
 FROM node:22-slim
 
 WORKDIR /app
@@ -13,9 +13,5 @@ COPY packages/migrations/package.json packages/migrations/
 # --ignore-scripts skips the native screen addons (robotjs, sharp); migrations never load them.
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-COPY packages/agent-core packages/agent-core
-COPY packages/backend/src packages/backend/src
-COPY packages/migrations packages/migrations
-RUN pnpm --filter @ahe/agent-core build
-
-CMD ["pnpm", "migrate"]
+COPY packages/agent-core/tsconfig.json packages/agent-core/
+COPY packages/migrations/tsconfig.json packages/migrations/
