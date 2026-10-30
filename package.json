@@ -9,7 +9,7 @@
     "typecheck": "pnpm build:libs && pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:integration": "pnpm --filter @ahe/backend test:integration",
-    "compose:up": "docker compose -f docker-compose-dev.yml up",
+    "compose:up": "docker compose -f docker-compose-dev.yml up --build",
     "compose:down": "docker compose -f docker-compose-dev.yml down",
     "migrate": "pnpm --filter @ahe/migrations migrate",
     "migration:generate": "pnpm --filter @ahe/migrations migration:generate:main",
