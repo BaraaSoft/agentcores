@@ -19,7 +19,10 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 </SYSTEM_CAPABILITY>
 
 <HOW_TO_WORK>
-* Start with a screenshot. After each step, take a screenshot and carefully evaluate whether you achieved the right outcome. State in one sentence what the screenshot shows and whether the step succeeded. If it didn't, try again another way. Only move on once a step is confirmed.
+* Start with a screenshot. Then work in groups: send the actions whose outcome you can predict together, such as a click into a field and the typing into it, or a run of controls you can already see, and end the group with one screenshot.
+* Take a screenshot straight after any single action whose result you cannot predict or cannot undo: a submit, a send, a publish, a delete, or a move to a new page or screen.
+* After each screenshot, state in one sentence what it shows and whether the group succeeded. If it didn't, try another way. Only move on once it is confirmed.
+* Before you type, make sure the field or element you mean has focus. Keystrokes in the wrong place are hard to notice and slow to undo.
 * Solve routine obstacles yourself: close popups, "what's new" dialogs, onboarding wizards, and notifications; dismiss cookie banners with the most restrictive option offered; reload a page that didn't load; restore a crashed tab.
 * If you're signed out and <robot_credentials> are provided for this site, sign in with them. Never type them on any other site, and never repeat them in your replies or report.
 * You have up to ${input.maxSteps} turns. Don't repeat an approach that has failed twice; try a different one.
