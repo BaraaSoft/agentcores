@@ -1,5 +1,8 @@
-/** Token ceiling for one `planUnitOfWork` call, thinking included. Research adds thinking, so it is generous. */
-export const PLAN_UNIT_OF_WORK_MAX_TOKENS = 24_000;
+/**
+ * Token ceiling for one `planUnitOfWork` call, thinking included. Research adds thinking, so it is generous,
+ * but it must stay at or under 21,333: above that the SDK refuses a non-streaming call.
+ */
+export const PLAN_UNIT_OF_WORK_MAX_TOKENS = 20_000;
 
 /** Web searches one Unit plan may make to learn the brief, the names in it, the tools, and the current standard. */
 export const PLAN_UNIT_OF_WORK_MAX_SEARCHES = 5;
