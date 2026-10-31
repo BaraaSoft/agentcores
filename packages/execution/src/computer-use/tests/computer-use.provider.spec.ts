@@ -91,6 +91,35 @@ describe('ComputerUseProvider', () => {
     expect(JSON.stringify(requests[0])).not.toContain('robot_credentials>\\nusername');
   });
 
+  it('returns no screenshot unless the task asks for one', async () => {
+    const desktop = new FakeDesktopDriver();
+    const result = await createProvider(desktop, [reportCall(done)]).runTask(task);
+
+    expect(result.finalScreenshot).toBeUndefined();
+    expect(desktop.calls).not.toContain('capture');
+  });
+
+  it('captures the final screen at the task screenshot size when the task asks for it', async () => {
+    const desktop = new FakeDesktopDriver();
+    const result = await createProvider(desktop, [reportCall(done)]).runTask({ ...task, returnsScreenshot: true });
+
+    expect(desktop.calls.slice(-2)).toEqual(['capture', 'resize 1280x800']);
+    expect(result.finalScreenshot).toEqual({
+      mediaType: 'image/png',
+      base64: Buffer.from('resized 1280x800').toString('base64'),
+    });
+  });
+
+  it('still returns the result when the final capture fails', async () => {
+    const desktop = new FakeDesktopDriver();
+    jest.spyOn(desktop.screen, 'capture').mockRejectedValueOnce(new Error('display asleep'));
+
+    const result = await createProvider(desktop, [reportCall(done)]).runTask({ ...task, returnsScreenshot: true });
+
+    expect(result).toMatchObject({ status: 'done', summary: 'Top post upvoted.' });
+    expect(result.finalScreenshot).toBeUndefined();
+  });
+
   it('stops the loop at the report', async () => {
     const provider = createProvider(new FakeDesktopDriver(), [reportCall(done), message('end_turn', [text('Anything else?')])]);
     expect(await provider.runTask(task)).toMatchObject({ status: 'done', stepsTaken: 1 });

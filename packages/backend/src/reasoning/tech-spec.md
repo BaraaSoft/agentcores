@@ -75,12 +75,14 @@ flowchart TB
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
 | `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
-| `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes** | `JobReview` (continue / revise / met / abandon), plan edits through tools | `JobExecutionProcessor` |
-| `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
-| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
+| `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes**, and the final screenshot of a visual Task | `JobReview` (continue / revise / met / abandon), plan edits through tools, each Task with its skill | `JobExecutionProcessor` |
+| `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer, and the Job's earlier Task outcomes | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
+| `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the final screenshot of visual work, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
 
 The bold column is the point of the split: **each reasoner reads only the compressed output of the level
 directly below it.** The Strategy reasoner never sees a Task; the Task reasoner never sees a screenshot.
+The one picture that goes up is the final screen of a visual Task, to Job review and the evaluator (see
+[Task skills](#task-skills)).
 
 | | Strategy | Job | Task |
 | --- | --- | --- | --- |
@@ -113,16 +115,16 @@ sequenceDiagram
     O->>DB: createUnitOfWork — the Unit and its Jobs in one write
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
-        JW->>J: reviewJob(job, safeContext, latestOutcome, history, remainingActions)
+        JW->>J: reviewJob(job, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
         J-->>JW: JobReview { decision, rationale, revisionNotes, summary }
         opt met, abandoned, or a guardrail hit
             JW->>DB: JobService.closeJob (success · abandoned · failed)
         end
     end
     opt no Tasks yet, or the review says revise
-        JW->>J: planTasks(job, reason, history, remainingActions, tasksStarted)
+        JW->>J: planTasks(job, reason, history, remainingTasks, tasksStarted)
         J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
-        J-->>JW: the edited plan (actions)
+        J-->>JW: the edited plan (action + skill per Task)
         JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty
     end
     JW->>JW: queue the Job's current Task if pending → Task level, below
@@ -138,10 +140,12 @@ A Job uses two separate calls, so each one has a single job:
 | Method | When | How | Output |
 | --- | --- | --- | --- |
 | `reviewJob` | After every finished Task | One structured call (`completeStructured`) | `JobReview`: `decision`, `rationale`, `revisionNotes`, `summary` |
-| `planTasks` | First plan; `revise` | A tool loop (`runToolLoop`) over the planning tools | The edited plan: Task actions, in order |
+| `planTasks` | First plan; `revise` | A tool loop (`runToolLoop`) over the planning tools | The edited plan: `PlannedTask`s (action and `skillType`), in order |
 
 `reviewJob` reads the Task that **just finished** (`latestOutcome`) apart from the earlier ones (`history`,
-cancelled Tasks included, so dropped work stays visible) and the remaining plan:
+cancelled Tasks included, so dropped work stays visible) and the remaining plan. When the latest Task's
+skill returns screenshots, its final screen is attached as an image (`latestScreenshot`), and the prompt
+says to judge visual work by what it shows: the wrong design, or a weak one, is a `revise`.
 
 | `decision` | Meaning | What the Job processor does |
 | --- | --- | --- |
@@ -200,9 +204,12 @@ a video or edits a design reports `locationPath` (the absolute file path, or the
 prompt as `Location:` and `How to get there:`. The evaluator quotes them into the errand, so the evidence
 Job knows what to open and where.
 
-What the evaluator cannot do is look at it. Nothing above the Task level ever sees a screenshot, so the one
-agent in the system with eyes is the computer-use agent carrying out the errand. The evaluator therefore
-sends **criteria, not a question**: `evidenceCriteria` is a list of `{ key, whatToExamine }` drawn from what
+**Visual work comes with its picture.** When a Job ran a skill that returns screenshots (a design), the
+evaluator gets the Job's newest screenshot as an image and marks the look from it. It asks for evidence
+only for what the picture cannot show, such as responses or other pages.
+
+Without a screenshot, the evaluator cannot look at the work, and the one agent with eyes is the
+computer-use agent carrying out the errand. The evaluator therefore sends **criteria, not a question**: `evidenceCriteria` is a list of `{ key, whatToExamine }` drawn from what
 it just learnt about how this kind of work is done well, and the processor renders them into the errand's
 objective with the key each reading must come back under.
 
@@ -287,8 +294,9 @@ sequenceDiagram
     loop until done, escalated, deferred, failed, or MAX_TASK_ITERATIONS
         T-->>P: PlannedStep { instruction, platform, needsHumanJudgment, isTaskDone }
         P->>P: isTaskDone → complete · needsHumanJudgment → escalate · sealed topic → fail
-        P->>X: runTask({ instruction, context, credentials, maxSteps })
-        X-->>P: ExecutionResult { status, summary, locationPath, locationDetails, blocker, metricReadings }
+        P->>X: runTask({ instruction, context, credentials, maxSteps, returnsScreenshot })
+        X-->>P: ExecutionResult { status, summary, locationPath, locationDetails, blocker, metricReadings, finalScreenshot? }
+        P->>P: finalScreenshot → JobScreenshotService (never into history)
         P->>P: append StepRecord { instruction, platform, result } to history
         alt blocked
             P->>T: decideOnBlocker(TaskReasoningInput)
@@ -300,9 +308,13 @@ sequenceDiagram
 ```
 
 - **One input, mirrored from execution.** Both methods take the same `TaskReasoningInput`
-  (`taskAction`, `jobObjective`, `safeContext`, `history`, `recentChallengeCount`). Each `StepRecord` is the
-  instruction sent plus the `ExecutionResult` returned, unchanged, so there is no separate summary type to keep
-  in sync. Screenshots stay inside `@ahe/execution`.
+  (`taskAction`, `skillType`, `jobObjective`, `safeContext`, `earlierTasks`, `history`, `recentChallengeCount`).
+  Each `StepRecord` is the instruction sent plus the `ExecutionResult` returned, without its screenshot, so
+  there is no separate summary type to keep in sync.
+- **Earlier Tasks are context.** `earlierTasks` holds the Job's Tasks that finished before this one, with their
+  results and locations, rendered as `<EARLIER_TASKS_IN_THIS_JOB>`. The execution context gets the latest
+  `EARLIER_TASKS_IN_EXECUTION_CONTEXT` (10) of them too, so both levels build on earlier work (the design's
+  edit link, say) instead of searching for it again.
 - **No separate evaluation call.** `planNextStep` reads the latest result at the end of `history` and decides
   in one call: retry, move on, or `isTaskDone`. It is one structured call (`PLANNED_STEP_SCHEMA`, at most
   `PLAN_NEXT_STEP_MAX_TOKENS`) that renders every step so far with its status, result, metrics, location,
@@ -322,6 +334,59 @@ sequenceDiagram
   the Strategy planner.
 - **Gates are never solved.** Whatever the model plans must avoid the gate, not get past it; see
   [07 — Privacy & safety](../../../../docs/base/07-privacy-and-safety.md#platform-gates-and-accounts).
+
+---
+
+## Task skills
+
+A **skill** is how Task reasoning works on one kind of Task. Job reasoning picks one for every Task it plans
+(the `skill` field of `add_task` and `update_task`), and the Task row stores it as `skillType`, default
+`general`. The first live Canva run showed why: one generic prompt planned 26 small Tasks, 18 of them only
+checking the design, because each step was short and nothing above the Task could see the result.
+
+| `skillType` | `maxExecutionSteps` | `returnsScreenshot` | What changes from `general` |
+| --- | --- | --- | --- |
+| `general` | 30 | no | The base: today's step rules, the owner as a last resort, pacing |
+| `creative_design` | 150 | yes | `STEPS`: one long step per piece of design, never a step that only measures. Adds `CRAFT` |
+| `social_post` | 30 | no | Adds `CRAFT`: write every post in full, read the community rules first, report the permalink |
+
+**Skills are data, built with `TaskSkillBuilder`** (`task/skills/`, one file per skill). A skill starts
+`.from(GENERAL_SKILL)` and replaces or adds sections with `.withSection(name, text)`; a section can never be
+removed. `.build()` checks that the required sections (`SITUATION`, `STEPS`, `DONE`, `OWNER`, `RULES`) are set
+and the step limit is at least 1, and returns the skill frozen. `renderTaskSkillPrompt` turns the sections into
+the system prompt, one `<SECTION>` block each, in the fixed order of `TASK_SKILL_SECTIONS`.
+
+```ts
+export const CREATIVE_DESIGN_SKILL = new TaskSkillBuilder('creative_design')
+  .from(GENERAL_SKILL)
+  .withSection('STEPS', STEPS)
+  .withSection('CRAFT', CRAFT)
+  .withMaxExecutionSteps(150)
+  .returnsScreenshot()
+  .build();
+```
+
+`TASK_SKILLS` maps every `TaskSkillType` to its skill, and the planner's one-line guide per skill is a
+`Record<TaskSkillType, string>`, so a new type in `@ahe/agent-core` fails the build until it has a skill and
+a guide line.
+
+**Screenshots are temporary files.** A skill with `returnsScreenshot` asks the execution layer for the final
+screen of every step. The Task processor saves it with `JobScreenshotService` at
+`.data/temp/job-<jobId>/screenshots/<taskId>.png` (git ignores `.data/`), keeping only the Task's latest.
+
+| Who reads it | What |
+| --- | --- |
+| `reviewJob` | The latest Task's screenshot |
+| `judgeJob` | The Job's newest screenshot |
+| Task reasoning | Nothing: the screenshot is stripped from the `ExecutionResult` before it enters `history` |
+
+The Job's folder, and its evidence Job's folder, are deleted once its evaluation is scored or failed. Each
+orchestrator pass also deletes every Job folder untouched for `STALE_SCREENSHOT_AGE_MS` (2 days), which catches
+Jobs that are never evaluated. `pnpm dev:reset` deletes `.data/temp`.
+
+**Fewer checks, at every level.** The Strategy planner writes no Job that only checks another Job (the
+evaluation is the check). The Job planner plans at most one Task that only checks or measures, and never
+one that re-checks a value already reported. Task reasoning never plans a step that only re-checks a result.
 
 ---
 
@@ -365,7 +430,9 @@ a nudge. The loop ends when the tool marked `endsLoop` succeeds, and throws afte
 
 ## Rules every reasoner follows
 
-1. **Text only.** Inputs are summaries and safe context; nothing visual ever reaches Opus.
+1. **Text, with one exception.** Inputs are summaries and safe context. The exception is the final screen
+   of a visual Task, which Job review and the evaluator see so they can judge how the work looks. Task
+   reasoning stays text only.
 2. **One level down, never further.** A reasoner's input type contains only the output of the level below
    (see the table above). This keeps every prompt small and focused.
 3. **Stateless.** Reasoners keep nothing between calls. Callers pass history (`StepRecord[]`, past

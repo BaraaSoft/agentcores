@@ -8,6 +8,7 @@ import { StrategyEntity } from './entities/strategy.entity';
 import { TaskEntity } from './entities/task.entity';
 import { UnitOfWorkEntity } from './entities/unit-of-work.entity';
 import { JobEvaluationService } from './services/job-evaluation.service';
+import { JobScreenshotService } from './services/job-screenshot.service';
 import { JobService } from './services/job.service';
 import { MetricsService } from './services/metrics.service';
 import { StrategyService } from './services/strategy.service';
@@ -24,7 +25,23 @@ import { UnitOfWorkService } from './services/unit-of-work.service';
     TypeOrmModule.forFeature([StrategyEntity, UnitOfWorkEntity, JobEntity, TaskEntity, MetricSnapshotEntity, JobEvaluationEntity]),
     EmbeddingModule,
   ],
-  providers: [StrategyService, UnitOfWorkService, JobService, TaskService, JobEvaluationService, MetricsService],
-  exports: [StrategyService, UnitOfWorkService, JobService, TaskService, JobEvaluationService, MetricsService],
+  providers: [
+    StrategyService,
+    UnitOfWorkService,
+    JobService,
+    TaskService,
+    JobEvaluationService,
+    MetricsService,
+    JobScreenshotService,
+  ],
+  exports: [
+    StrategyService,
+    UnitOfWorkService,
+    JobService,
+    TaskService,
+    JobEvaluationService,
+    MetricsService,
+    JobScreenshotService,
+  ],
 })
 export class GovernanceModule {}

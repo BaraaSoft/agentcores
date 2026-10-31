@@ -5,6 +5,8 @@ import { Queue } from 'bullmq';
 import type { StrategyEntity } from '../governance/entities/strategy.entity';
 import type { UnitOfWorkEntity } from '../governance/entities/unit-of-work.entity';
 import { JobEvaluationService } from '../governance/services/job-evaluation.service';
+import { STALE_SCREENSHOT_AGE_MS } from '../governance/services/job-screenshot.constants';
+import { JobScreenshotService } from '../governance/services/job-screenshot.service';
 import { JobService } from '../governance/services/job.service';
 import { StrategyService } from '../governance/services/strategy.service';
 import { UnitOfWorkService } from '../governance/services/unit-of-work.service';
@@ -54,6 +56,7 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     private readonly jobQueue: Queue<JobExecutionJobData>,
     @InjectQueue(JOB_EVALUATION_QUEUE)
     private readonly evaluationQueue: Queue<JobEvaluationJobData>,
+    private readonly screenshots: JobScreenshotService,
   ) {}
 
   /**
@@ -140,7 +143,21 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
         results.push(this.result(workflow, [], `error: ${this.describe(error)}`));
       }
     }
+    await this.sweepStaleScreenshots();
     return results;
+  }
+
+  /**
+   * A Job's screenshots are deleted once it is evaluated. This catches the rest: evidence Jobs, Jobs
+   * whose evaluation never ran, and folders left by a crash. A failed sweep is logged and never stops the pass.
+   */
+  private async sweepStaleScreenshots(): Promise<void> {
+    try {
+      const deleted = await this.screenshots.deleteScreenshotsOlderThan(new Date(Date.now() - STALE_SCREENSHOT_AGE_MS));
+      if (deleted > 0) this.logger.log(`Deleted the screenshots of ${deleted} old Jobs`);
+    } catch (error) {
+      this.logger.warn(`Screenshot sweep failed: ${this.describe(error)}`);
+    }
   }
 
   /**

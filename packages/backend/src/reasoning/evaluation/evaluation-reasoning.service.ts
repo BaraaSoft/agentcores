@@ -11,7 +11,8 @@ import type { JudgeJobInput } from './types/judge-job-input';
  * precisely, what was good and what was not. It decides for itself what standard the work should be
  * held to, and it does not guess when it is short of what it needs: it can search the web mid-judgement
  * to learn how work of this kind is done well, and for anything behind the owner's own login it asks for
- * a Job to go and read it. It reads Task outcomes only — never individual steps.
+ * a Job to go and read it. It reads Task outcomes, and the final screenshot of visual work — never
+ * individual steps.
  */
 @Injectable()
 export class EvaluationReasoningService {
@@ -25,6 +26,7 @@ export class EvaluationReasoningService {
     const output = await this.model.completeStructured({
       systemPrompt: EVALUATION_REASONING_PROMPTS.judgeJob.system,
       userPrompt: EVALUATION_REASONING_PROMPTS.judgeJob.user(input),
+      images: input.screenshot === null ? undefined : [input.screenshot],
       maxTokens: JUDGE_JOB_MAX_TOKENS,
       schema: JOB_JUDGEMENT_OUTPUT_SCHEMA,
       webSearch: { maxSearches: JUDGE_JOB_MAX_SEARCHES },

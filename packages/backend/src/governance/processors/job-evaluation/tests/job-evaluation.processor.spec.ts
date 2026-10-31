@@ -4,6 +4,7 @@ import type { JobExecutionJobData } from '../../../../queue/types/job-execution-
 import type { EvaluationReasoningService } from '../../../../reasoning/evaluation/evaluation-reasoning.service';
 import type { JobJudgement } from '../../../../reasoning/evaluation/types/job-judgement';
 import type { JobEvaluationService } from '../../../services/job-evaluation.service';
+import type { JobScreenshotService } from '../../../services/job-screenshot.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
 import { MAX_JUDGING_ATTEMPTS } from '../job-evaluation.constants';
@@ -67,6 +68,10 @@ function setup() {
     findJobById: jest.fn().mockResolvedValue(null),
   };
   const tasks = { listTasks: jest.fn().mockResolvedValue([]) };
+  const screenshots = {
+    findLatestJobScreenshot: jest.fn().mockResolvedValue(null),
+    deleteJobScreenshots: jest.fn().mockResolvedValue(undefined),
+  };
 
   const processor = new JobEvaluationProcessor(
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
@@ -75,11 +80,12 @@ function setup() {
     evaluations as unknown as JobEvaluationService,
     jobs as unknown as JobService,
     tasks as unknown as TaskService,
+    screenshots as unknown as JobScreenshotService,
   );
   const evaluate = () =>
     processor.process({ data: { workflowId: WORKFLOW_ID, evaluationId: EVALUATION_ID } } as Job<JobEvaluationJobData>);
 
-  return { evaluate, evaluationQueue, jobQueue, evaluationReasoning, evaluations, jobs, tasks };
+  return { evaluate, evaluationQueue, jobQueue, evaluationReasoning, evaluations, jobs, tasks, screenshots };
 }
 
 describe('JobEvaluationProcessor', () => {
@@ -106,6 +112,37 @@ describe('JobEvaluationProcessor', () => {
         whatBad: 'Posted at 3am, so it was buried by morning.',
         rubric: 'Judged on upvotes.',
       });
+    });
+
+    it('shows the evaluator the latest screenshot of the Job, then deletes its screenshots once scored', async () => {
+      const t = setup();
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+      t.screenshots.findLatestJobScreenshot.mockResolvedValue(screenshot);
+
+      await t.evaluate();
+
+      expect(t.screenshots.findLatestJobScreenshot).toHaveBeenCalledWith(JOB_ID);
+      expect(t.evaluationReasoning.judgeJob).toHaveBeenCalledWith(expect.objectContaining({ screenshot }));
+      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith(JOB_ID);
+    });
+
+    it('keeps the screenshots while the judgement waits for evidence', async () => {
+      const t = setup();
+      t.evaluationReasoning.judgeJob.mockResolvedValue(NEEDS_EVIDENCE);
+
+      await t.evaluate();
+
+      expect(t.screenshots.deleteJobScreenshots).not.toHaveBeenCalled();
+    });
+
+    it('deletes the screenshots of the Job and its evidence Job once the evidence settles the mark', async () => {
+      const t = setup();
+      t.evaluations.findEvaluationById.mockResolvedValue(evaluation({ evidenceJobId: 'evidence-job-1' }));
+
+      await t.evaluate();
+
+      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith(JOB_ID);
+      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith('evidence-job-1');
     });
 
     it('files an evidence Job in the Unit being judged, parks the judgement, and starts it', async () => {

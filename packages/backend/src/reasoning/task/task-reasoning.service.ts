@@ -1,5 +1,7 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { PLANNED_STEP_SCHEMA } from './schemas/planned-step.schema';
+import { renderTaskSkillPrompt } from './skills/render-task-skill-prompt';
+import { TASK_SKILLS } from './skills/task-skill-registry';
 import { TaskReasoningModelClient } from './task-reasoning-model.client';
 import { PLAN_NEXT_STEP_MAX_TOKENS } from './task-reasoning.constants';
 import { TASK_REASONING_PROMPTS } from './task-reasoning.prompts';
@@ -9,8 +11,8 @@ import type { TaskReasoningInput } from './types/task-reasoning-input';
 
 /**
  * Task-level reasoning for the step loop the Task processor runs. Decides each next step and handles
- * blockers. It is the only level whose decisions reach the execution layer (the processor carries
- * them out), and it reads execution results as text only — never screenshots.
+ * blockers, with the system prompt of the Task's skill. It is the only level whose decisions reach the
+ * execution layer (the processor carries them out), and it reads execution results as text only.
  * This is the hot path: it runs on every step.
  */
 @Injectable()
@@ -24,7 +26,7 @@ export class TaskReasoningService {
    */
   async planNextStep(input: TaskReasoningInput): Promise<PlannedStep> {
     const output = await this.model.completeStructured({
-      systemPrompt: TASK_REASONING_PROMPTS.planNextStep.system,
+      systemPrompt: renderTaskSkillPrompt(TASK_SKILLS[input.skillType]),
       userPrompt: TASK_REASONING_PROMPTS.planNextStep.user(input),
       maxTokens: PLAN_NEXT_STEP_MAX_TOKENS,
       schema: PLANNED_STEP_SCHEMA,

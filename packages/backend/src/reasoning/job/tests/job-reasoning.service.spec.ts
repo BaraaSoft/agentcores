@@ -1,3 +1,4 @@
+import { TASK_SKILL_TYPES } from '@ahe/agent-core';
 import { ToolsetFactory } from '../../tools/toolset.factory';
 import type { ToolLoopInput } from '../../types/tool-loop-input';
 import type { JobReasoningModelClient } from '../job-reasoning-model.client';
@@ -63,6 +64,7 @@ describe('JobReasoningService', () => {
         latestOutcome: LINK_FAILED,
         history: [OPENED],
         remainingActions: ['Reply to the top thread'],
+        latestScreenshot: null,
       });
 
       expect(review).toEqual(REVIEW);
@@ -73,12 +75,26 @@ describe('JobReasoningService', () => {
       expect(userPrompt).toContain('Objective: Join the conversation on r/AICompanion');
       expect(userPrompt).toContain('Voice: warm, short.');
       expect(userPrompt).toContain(
-        '<LATEST_TASK>\nJust finished: [failed] Post the launch link\n   Failure: Links are not allowed\n</LATEST_TASK>',
+        '<LATEST_TASK>\nJust finished: [failed] Post the launch link\n   Failure: Links are not allowed\nNo screenshot.\n</LATEST_TASK>',
       );
       expect(userPrompt).toContain(
         '1. [complete] Open r/AICompanion\n   Result: Subreddit open; 12 new posts.\n   Metrics: new_posts=12\n   Location: reddit.com/r/AICompanion',
       );
       expect(userPrompt).toContain('<REMAINING_PLAN>\n1. Reply to the top thread\n</REMAINING_PLAN>');
+      expect(t.structured().images).toBeUndefined();
+    });
+
+    it('attaches the latest Task screenshot and tells the model it is there', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(REVIEW);
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+
+      await t.service.reviewJob({ ...JOB, latestOutcome: OPENED, history: [], remainingActions: [], latestScreenshot: screenshot });
+
+      const { images, userPrompt, systemPrompt } = t.structured();
+      expect(images).toEqual([screenshot]);
+      expect(userPrompt).toContain('The attached screenshot shows the screen as this Task ended.');
+      expect(systemPrompt).toContain('judge the work by what it shows');
     });
   });
 
@@ -87,7 +103,7 @@ describe('JobReasoningService', () => {
       const t = setup();
       t.model.runToolLoop.mockImplementation(async ({ tools }: ToolLoopInput) => {
         const call = (name: string, input: object) => tools.find((tool) => tool.name === name)!.run(input);
-        call('add_task', { action: 'Post a text-only intro', position: 1 });
+        call('add_task', { action: 'Post a text-only intro', skill: 'social_post', position: 1 });
         call('finish_plan', { rationale: 'Text only.' });
       });
 
@@ -95,11 +111,14 @@ describe('JobReasoningService', () => {
         ...JOB,
         reason: 'Replace the link post.',
         history: [OPENED, LINK_FAILED],
-        remainingActions: ['Reply'],
+        remainingTasks: [{ action: 'Reply', skillType: 'social_post' }],
         tasksStarted: 2,
       });
 
-      expect(actions).toEqual(['Post a text-only intro', 'Reply']);
+      expect(actions).toEqual([
+        { action: 'Post a text-only intro', skillType: 'social_post' },
+        { action: 'Reply', skillType: 'social_post' },
+      ]);
       const { systemPrompt, userPrompt, maxTokens, maxTurns, tools } = t.loop();
       expect(tools.map((tool) => tool.name)).toEqual([
         'view_plan',
@@ -114,7 +133,7 @@ describe('JobReasoningService', () => {
       expect(systemPrompt).toContain('finish_plan');
       expect(userPrompt).toContain('<WHY_PLANNING>\nReplace the link post.\n</WHY_PLANNING>');
       expect(userPrompt).toContain('2. [failed] Post the launch link');
-      expect(userPrompt).toContain('<CURRENT_PLAN>\n1. Reply\n</CURRENT_PLAN>');
+      expect(userPrompt).toContain('<CURRENT_PLAN>\n1. [social_post] Reply\n</CURRENT_PLAN>');
       expect(userPrompt).toContain(`2 Tasks started so far, of a soft budget of about ${TASK_BUDGET_PER_JOB}.`);
       expect(systemPrompt).toContain('The budget is guidance, not a wall.');
       expect(systemPrompt).toContain(`hard limit of ${MAX_TASKS_PER_JOB} Tasks per Job`);
@@ -126,9 +145,9 @@ describe('JobReasoningService', () => {
       let refusal: unknown = null;
       t.model.runToolLoop.mockImplementation(async ({ tools }: ToolLoopInput) => {
         const add = tools.find((tool) => tool.name === 'add_task')!;
-        await add.run({ action: 'Export', position: null });
+        await add.run({ action: 'Export', skill: 'general', position: null });
         try {
-          await add.run({ action: 'Export again', position: null });
+          await add.run({ action: 'Export again', skill: 'general', position: null });
         } catch (error) {
           refusal = error;
         }
@@ -138,21 +157,31 @@ describe('JobReasoningService', () => {
         ...JOB,
         reason: 'One more pass.',
         history: [],
-        remainingActions: [],
+        remainingTasks: [],
         tasksStarted: MAX_TASKS_PER_JOB - 1,
       });
 
-      expect(actions).toEqual(['Export']);
+      expect(actions).toEqual([{ action: 'Export', skillType: 'general' }]);
       expect(String(refusal)).toContain('hard limit leaves room for 1 Tasks');
     });
 
     it('marks the first plan as having no history and no plan', async () => {
       const t = setup();
 
-      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingActions: [], tasksStarted: 0 });
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0 });
 
       expect(t.loop().userPrompt).toContain('None — this is the first plan.');
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');
+    });
+
+    it('describes every skill type to the planner, and limits checking Tasks', async () => {
+      const t = setup();
+
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0 });
+
+      const { systemPrompt } = t.loop();
+      for (const skillType of TASK_SKILL_TYPES) expect(systemPrompt).toContain(`* ${skillType}: `);
+      expect(systemPrompt).toContain('Plan at most one Task that only checks or measures earlier work.');
     });
   });
 });

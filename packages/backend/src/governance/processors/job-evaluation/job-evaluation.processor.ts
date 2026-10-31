@@ -8,6 +8,7 @@ import type { EvidenceRequest } from '../../../reasoning/evaluation/types/eviden
 import type { GatheredEvidence } from '../../../reasoning/evaluation/types/gathered-evidence';
 import type { JobEvaluationEntity } from '../../entities/job-evaluation.entity';
 import { JobEvaluationService } from '../../services/job-evaluation.service';
+import { JobScreenshotService } from '../../services/job-screenshot.service';
 import { JobService } from '../../services/job.service';
 import { TaskService } from '../../services/task.service';
 import { toTaskOutcome } from '../to-task-outcome';
@@ -54,6 +55,7 @@ export class JobEvaluationProcessor extends WorkerHost {
     private readonly evaluations: JobEvaluationService,
     private readonly jobs: JobService,
     private readonly tasks: TaskService,
+    private readonly screenshots: JobScreenshotService,
   ) {
     super();
   }
@@ -84,7 +86,7 @@ export class JobEvaluationProcessor extends WorkerHost {
 
     if ((await this.evaluations.recordJudgingAttempt(evaluationId)) > MAX_JUDGING_ATTEMPTS) {
       await this.evaluations.failEvaluation(evaluationId, `judging threw ${MAX_JUDGING_ATTEMPTS} times`);
-      return;
+      return this.deleteScreenshots(evaluation);
     }
 
     const { job } = evaluation;
@@ -97,14 +99,24 @@ export class JobEvaluationProcessor extends WorkerHost {
       outcomeSummary: job.outcomeSummary,
       tasks: tasks.map(toTaskOutcome),
       evidence: await this.gatheredEvidence(evaluation),
+      screenshot: await this.screenshots.findLatestJobScreenshot(job.id),
     });
 
     if (judgement.verdict === 'scored') {
       const { verdict, ...score } = judgement;
       await this.evaluations.recordScore({ evaluationId, ...score });
-      return;
+      return this.deleteScreenshots(evaluation);
     }
     await this.requestEvidence(workflowId, evaluation, judgement);
+  }
+
+  /**
+   * The judgement is final, so the screenshots of the Job and of its evidence Job are no longer needed.
+   * Evidence Jobs are never evaluated themselves, so their folder goes here too.
+   */
+  private async deleteScreenshots(evaluation: JobEvaluationEntity): Promise<void> {
+    await this.screenshots.deleteJobScreenshots(evaluation.job.id);
+    if (evaluation.evidenceJobId !== null) await this.screenshots.deleteJobScreenshots(evaluation.evidenceJobId);
   }
 
   /**
@@ -126,7 +138,7 @@ export class JobEvaluationProcessor extends WorkerHost {
   ): Promise<void> {
     if (evaluation.evidenceJobId !== null) {
       await this.evaluations.failEvaluation(evaluation.id, 'the evidence it asked for did not settle the mark');
-      return;
+      return this.deleteScreenshots(evaluation);
     }
     const evidenceJob = await this.jobs.createJob({
       unitOfWorkId: evaluation.unitOfWorkId,

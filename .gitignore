@@ -15,6 +15,9 @@ coverage/
 # Docker volumes
 .docker-data/
 
+# Temporary files of the running app (Task screenshots)
+.data/
+
 # pnpm local store fallback
 .pnpm-store/
 docs/

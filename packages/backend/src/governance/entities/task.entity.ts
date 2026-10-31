@@ -1,4 +1,4 @@
-import type { TaskResult, TaskStatus } from '@ahe/agent-core';
+import type { TaskResult, TaskSkillType, TaskStatus } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { JobEntity } from './job.entity';
 
@@ -25,6 +25,10 @@ export class TaskEntity {
 
   @Column({ type: 'text' })
   action: string;
+
+  /** The kind of work, chosen by Job reasoning; picks the skill Task reasoning plans with. */
+  @Column({ type: 'varchar', length: 30, default: 'general' })
+  skillType: TaskSkillType;
 
   /** Order within the Job; Tasks run in ascending sequence. */
   @Column({ type: 'int' })

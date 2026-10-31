@@ -87,6 +87,8 @@ export const STRATEGY_REASONING_PROMPTS = {
 * Say where the work happens: the site, the app, the folder. The agent works through the owner's own screen.
 * Size each Job to about ${TASK_BUDGET_PER_JOB} Tasks or fewer. A Job closes as failed at ${MAX_TASKS_PER_JOB} Tasks, so split
   bigger work into ordered Jobs.
+* Do not write a Job that only checks or reviews the work of another Job in this Unit. Every Job is marked once it
+  closes, and that mark is the check. A Job that produces something ends by confirming it is done.
 * Do not repeat a Job that was marked low, unless the notes say exactly what to change and the new objective says it.
   Build on what was marked high.
 </JOBS>

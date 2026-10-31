@@ -1,5 +1,8 @@
 import type { ExecutionResult } from '@ahe/agent-core';
 import { PLANNED_STEP_SCHEMA } from '../schemas/planned-step.schema';
+import { CREATIVE_DESIGN_SKILL } from '../skills/creative-design.skill';
+import { GENERAL_SKILL } from '../skills/general.skill';
+import { renderTaskSkillPrompt } from '../skills/render-task-skill-prompt';
 import type { TaskReasoningModelClient } from '../task-reasoning-model.client';
 import { PLAN_NEXT_STEP_MAX_TOKENS } from '../task-reasoning.constants';
 import { TaskReasoningService } from '../task-reasoning.service';
@@ -17,8 +20,10 @@ const RESULT: ExecutionResult = {
 
 const INPUT: TaskReasoningInput = {
   taskAction: 'Find the top post of the week on r/AICompanion',
+  skillType: 'general',
   jobObjective: 'Join the conversation on r/AICompanion',
   safeContext: 'Voice: warm, short.',
+  earlierTasks: [],
   history: [],
   recentChallengeCount: 0,
 };
@@ -61,6 +66,42 @@ describe('TaskReasoningService', () => {
       expect(userPrompt).toContain('Voice: warm, short.');
       expect(userPrompt).toContain('None — this is the first step.');
       expect(userPrompt).toContain('Gates this account hit in the last 24 hours: 0');
+      expect(userPrompt).toContain('None — this is the first Task of the Job.');
+    });
+
+    it('plans with the system prompt of the Task skill', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(answer());
+
+      await t.service.planNextStep(INPUT);
+      await t.service.planNextStep({ ...INPUT, skillType: 'creative_design' });
+
+      expect(t.model.completeStructured.mock.calls[0][0].systemPrompt).toBe(renderTaskSkillPrompt(GENERAL_SKILL));
+      expect(t.model.completeStructured.mock.calls[1][0].systemPrompt).toBe(renderTaskSkillPrompt(CREATIVE_DESIGN_SKILL));
+    });
+
+    it('shows the Job earlier Tasks with their results and locations', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(answer());
+
+      await t.service.planNextStep({
+        ...INPUT,
+        earlierTasks: [
+          {
+            action: 'Create the launch post in Canva',
+            status: 'complete',
+            result: { summary: 'Created "Launch v1".', metricReadings: {}, completedAt: new Date() },
+            failureReason: null,
+            locationPath: 'canva.com/design/abc/edit',
+            locationDetails: null,
+          },
+        ],
+      });
+
+      expect(t.call().userPrompt).toContain(
+        '<EARLIER_TASKS_IN_THIS_JOB>\n1. [complete] Create the launch post in Canva\n   Result: Created "Launch v1".\n' +
+          '   Location: canva.com/design/abc/edit\n</EARLIER_TASKS_IN_THIS_JOB>',
+      );
     });
 
     it('shows every step so far with its result, metrics, location, and blocker', async () => {

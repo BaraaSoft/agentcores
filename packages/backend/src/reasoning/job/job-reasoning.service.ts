@@ -12,12 +12,14 @@ import { JOB_REVIEW_SCHEMA } from './schemas/job-review.schema';
 import type { JobPlanningInput } from './types/job-planning-input';
 import type { JobReview } from './types/job-review';
 import type { JobReviewInput } from './types/job-review-input';
+import type { PlannedTask } from './types/planned-task';
 
 /**
  * Job-level reasoning: one objective, such as "Engage with r/AICompanion". Two separate jobs:
  * reviewing judges each finished Task (continue, revise, met, abandon) in one structured call, and
- * planning edits the remaining plan through the planning tools and returns it. It reads Task outcomes only —
- * never individual steps. Marking a finished Job belongs to `EvaluationReasoningService`, not here.
+ * planning edits the remaining plan through the planning tools and returns it. It reads Task outcomes, and
+ * the final screenshot of a visual Task — never individual steps. Marking a finished Job belongs to
+ * `EvaluationReasoningService`, not here.
  */
 @Injectable()
 export class JobReasoningService {
@@ -27,12 +29,14 @@ export class JobReasoningService {
   ) {}
 
   /**
-   * Judges the Task that just finished against the objective and the remaining plan.
+   * Judges the Task that just finished against the objective and the remaining plan, looking at its
+   * final screen when it has one.
    */
   async reviewJob(input: JobReviewInput): Promise<JobReview> {
     return this.model.completeStructured({
       systemPrompt: JOB_REASONING_PROMPTS.reviewJob.system,
       userPrompt: JOB_REASONING_PROMPTS.reviewJob.user(input),
+      images: input.latestScreenshot === null ? undefined : [input.latestScreenshot],
       maxTokens: REVIEW_JOB_MAX_TOKENS,
       schema: JOB_REVIEW_SCHEMA,
     });
@@ -42,8 +46,8 @@ export class JobReasoningService {
    * Lets the model edit the Job's remaining plan with the planning tools until it calls `finish_plan`,
    * then returns the edited plan. Saves nothing; the caller writes the result.
    */
-  async planTasks(input: JobPlanningInput): Promise<readonly string[]> {
-    const toolset = this.toolsets.createJobPlanningToolset(input.remainingActions, MAX_TASKS_PER_JOB - input.tasksStarted);
+  async planTasks(input: JobPlanningInput): Promise<readonly PlannedTask[]> {
+    const toolset = this.toolsets.createJobPlanningToolset(input.remainingTasks, MAX_TASKS_PER_JOB - input.tasksStarted);
     await this.model.runToolLoop({
       systemPrompt: JOB_REASONING_PROMPTS.planTasks.system,
       userPrompt: JOB_REASONING_PROMPTS.planTasks.user(input),
@@ -51,6 +55,6 @@ export class JobReasoningService {
       maxTurns: PLAN_TASKS_MAX_TURNS,
       tools: toolset.tools,
     });
-    return toolset.actions;
+    return toolset.tasks;
   }
 }

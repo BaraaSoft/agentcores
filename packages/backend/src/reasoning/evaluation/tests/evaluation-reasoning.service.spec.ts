@@ -22,6 +22,7 @@ const JOB: JudgeJobInput = {
   outcomeSummary: 'Intro posted.',
   tasks: [POSTED],
   evidence: null,
+  screenshot: null,
 };
 
 const SCORED = {
@@ -79,6 +80,20 @@ describe('EvaluationReasoningService', () => {
       expect(userPrompt).toContain('<STRATEGY_OBJECTIVE>\nGet the first 100 people to try AHE\n</STRATEGY_OBJECTIVE>');
       expect(userPrompt).toContain('1. [complete] Post a text-only intro in r/AICompanion\n   Result: Posted; 3 upvotes so far.');
       expect(userPrompt).toContain('<EVIDENCE_GATHERED>\nNone requested yet.\n</EVIDENCE_GATHERED>');
+      expect(userPrompt).toContain('<SCREENSHOT>\nNone — this Job did no visual work.\n</SCREENSHOT>');
+      expect(t.call().images).toBeUndefined();
+    });
+
+    it('attaches the screenshot of visual work so the evaluator can see it', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(SCORED);
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+
+      await t.service.judgeJob({ ...JOB, screenshot });
+
+      expect(t.call().images).toEqual([screenshot]);
+      expect(t.call().userPrompt).toContain('Attached: the screen as the Job’s latest visual Task ended.');
+      expect(t.call().systemPrompt).toContain('mark its quality from the screenshot yourself');
     });
 
     it('may search the web to work out what good looks like', async () => {
