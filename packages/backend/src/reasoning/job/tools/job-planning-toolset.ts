@@ -5,7 +5,7 @@ import type { ReasoningTool } from '../../types/reasoning-tool';
 import type { PlannedTask } from '../types/planned-task';
 
 const position = (what: string) => z.number().int().describe(`1-based position of the Task ${what}, as shown by view_plan.`);
-const action = z.string().describe('One concrete action with a clear end, e.g. "Reply to the top 3 new posts in r/AICompanion".');
+const action = z.string().describe('One concrete action with a clear end: what to do, where, and how to tell it is done.');
 const skill = z.enum(TASK_SKILL_TYPES).describe('The kind of work the Task is; see TASK_SKILLS.');
 
 function tool<TInput>(definition: ReasoningTool<TInput>): ReasoningTool<TInput> {

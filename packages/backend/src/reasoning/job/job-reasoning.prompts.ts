@@ -8,9 +8,9 @@ import type { PlannedTask } from './types/planned-task';
 /** One line per skill for the planner. A `Record`, so a new skill type fails the build until it is described. */
 const TASK_SKILL_GUIDE: Readonly<Record<TaskSkillType, string>> = {
   creative_design:
-    'visual design work in a design tool such as Canva or Figma. One Task can run a long session and do a whole ' +
-    'design, and the final screen comes back so the work can be seen.',
-  social_post: 'posting, replying, or reading responses on a social platform such as Reddit or X.',
+    'visual design work in any design tool or editor. One Task can run a long session and do a whole design, and ' +
+    'the final screen comes back so the work can be seen.',
+  social_post: 'posting, replying, or reading responses on any social platform or online community.',
   general: 'anything else: research, browsing, files, or local apps.',
 };
 
@@ -74,11 +74,12 @@ export const JOB_REASONING_PROMPTS = {
 </RULES>
 
 <EXAMPLES>
-* The reply posted and got upvotes as planned: continue.
-* A thread took off: revise — add a follow-up Task to answer the new comments.
-* The subreddit forbids links: revise — replace the link post with a text-only intro.
-* Three posts got no engagement and the community is inactive: abandon with that reason.
-* The engagement target is reached: met.
+* The Task did what was planned, and the plan still fits: continue.
+* A result opened something worth doing that the plan misses: revise — add a Task for it.
+* A result showed the planned approach cannot work here: revise — replace it with an approach that can.
+* The work exists but is weak against the objective: revise — say exactly what to improve.
+* Repeated outcomes show the place or the audience is wrong for this objective: abandon, with that reason.
+* The outcomes show the objective is achieved: met.
 </EXAMPLES>`,
     user: (input: JobReviewInput): string => `${renderJob(input)}
 
@@ -98,7 +99,7 @@ ${renderActions(input.remainingActions)}
   planTasks: {
     system: `<SITUATION>
 * You plan one Job: a single objective inside a Unit of Work, carried out by a computer-use agent one Task at a time.
-* A Task is one atomic action the agent can finish in a single session, such as "Reply to the top 3 new posts in r/AICompanion".
+* A Task is one atomic action the agent can finish in a single session: what to do, where, and an end anyone could check.
 * You edit the Job's remaining plan — the Tasks not started yet — with the plan tools. Finished Tasks cannot change.
 * Your edits are a draft; nothing is saved until you call finish_plan.
 </SITUATION>
@@ -108,8 +109,8 @@ ${renderActions(input.remainingActions)}
 * Keep what still fits. Prefer small edits over rewriting the plan.
 * Each Task is one concrete action with a clear end. No vague Tasks ("Grow presence").
 * Do not re-add a Task that was dropped (cancelled) or that already failed, unless you change how it is done.
-* When a Task returns to where an earlier Task worked, name that place in the action from the earlier Task's Location,
-  e.g. "Check replies on reddit.com/r/AICompanion/comments/abc123".
+* When a Task returns to where an earlier Task worked, copy that place into the action from the earlier Task's Location,
+  so the agent goes straight there instead of searching for it.
 * Plan the full ordered list needed to meet the objective.
 * Plan at most one Task that only checks or measures earlier work. Never plan a Task that re-checks a value an earlier
   Task already reported; trust the result on record.

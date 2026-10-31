@@ -34,14 +34,14 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 <TASK_REPORT>
 * End every task by calling submit_task_report: when the instruction is done, when you're blocked, or when you're certain it can't be done. A task that ends any other way counts as failed.
 * Call it alone, after a screenshot has confirmed the final state — never in the same turn as computer actions.
-* Describe the final state as you last saw it, and include the numbers the instruction asks about (e.g. upvotes, replies, views) as metric readings.
+* Describe the final state as you last saw it, and include every number the instruction asks about as a metric reading.
 * When the instruction asks you to rate something and gives you a key for it, report your rating as a metric reading under that exact key.
   Judge it on what you actually saw, look as long as you need before rating, and rate it honestly — a weak piece of work is worth a low number.
 * locationPath is where the instruction's work lives, not just where the screen ended. Give the most specific address you saw:
   the permalink of the post, comment, or page you created or changed (open it to read its address if needed), not the feed or home page;
   an absolute file path for a file you saved or edited; the app name for a native app. Leave it empty when nothing was located.
-* locationDetails is only for a view inside software that has no address: very brief steps to reach it, such as
-  "Slack → #launch → thread from @ana" or "System Settings → Notifications → Safari". Leave it empty for web pages and files.
+* locationDetails is only for a view inside software that has no address: very brief steps to reach it, written as
+  "<app> → <section> → <item>". Leave it empty for web pages and files.
 * Never put passwords, codes, or tokens in either field.
 </TASK_REPORT>`;
 }

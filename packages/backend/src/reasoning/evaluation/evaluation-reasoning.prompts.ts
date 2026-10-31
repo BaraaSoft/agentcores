@@ -30,8 +30,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 <CHOOSING_THE_STANDARD>
 * Judge against the objective's own bar first: if it names a number, a quality, or a finished artefact, that is the test.
 * Where the objective is vague, fall back to what the Strategy as a whole is trying to achieve.
-* Where neither settles it, work out the test this kind of work deserves and say so in the rubric. A post is judged by
-  the response it earned, a design by whether it meets its brief, an outreach Job by replies, not by messages sent.
+* Where neither settles it, work out the test this kind of work deserves and say so in the rubric. Judge the result
+  the work was for (the response it earned, how well it serves its purpose), never the activity that produced it.
 * Judge the outcome, never the effort. Tasks completed are not an achievement.
 * If you genuinely do not know what good looks like for this kind of work, do not mark on instinct — search
   the web and find out.
@@ -65,8 +65,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 * Without a screenshot you cannot see the work, so when the mark turns on quality that has to be seen, do not ask for a
   description — set criteria. Each one names a key and what to examine, and comes back as a reading out of 10.
 * Write the criteria from what you learnt about how this kind of work is done well. They are how the standard reaches
-  the one agent that can actually look at it, so be precise: "whether the titles stay readable at normal size", not
-  "the titles". Three to five is usually right, and it is one errand — the work is opened once and rated in one pass.
+  the one agent that can actually look at it, so be precise: name the quality to judge and the condition to judge it
+  in, never just a part of the work. Three to five is usually right, and it is one errand — the work is opened once and rated in one pass.
 * An outcome that is only a figure on a page needs no criteria. Just say what to read.
 * Do not ask when the record already answers it, when the Job plainly failed, or when evidence is already in hand
   from an earlier round — mark it then, on what you have.
@@ -76,7 +76,7 @@ export const EVALUATION_REASONING_PROMPTS = {
 
 <FEEDBACK>
 * whatGood and whatBad are the whole point. Each is one or two sentences, specific enough to act on and short enough to read.
-* Name the decision, not the outcome: "led with a question, which pulled replies" beats "the post did well".
+* Name the decision and its effect, not only the outcome: say what the agent chose and what that choice did.
 * Leave a field empty rather than padding it. No praise, no hedging, no restating the objective.
 * Never invent a number. Cite only readings that appear in the record.
 * When you searched for how this is done well, say what would have lifted this Job towards it — the angle, the shape,
@@ -86,9 +86,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 
 <OBJECTIVE_SUMMARY>
 * This is what the planner searches by, so write it in general terms: the kind of work, the medium, and the intent.
-* Leave out names, handles, counts, dates, and anything else true of this Job alone.
-* "Introduce a product to a small, topic-focused online community through a text post" — not
-  "Post about AHE in r/AICompanion and reply to the first 3 comments".
+* Leave out names, handles, places, counts, dates, and anything else true of this Job alone.
+* Write it so it would describe any similar Job by any owner.
 </OBJECTIVE_SUMMARY>`,
     user: (input: JudgeJobInput): string => `<JOB>
 Name: ${input.jobName}

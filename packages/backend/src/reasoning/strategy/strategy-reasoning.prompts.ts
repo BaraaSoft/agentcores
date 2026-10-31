@@ -75,15 +75,17 @@ export const STRATEGY_REASONING_PROMPTS = {
 </WORK_TYPES>
 
 <TITLE>
-* Give the Unit a title: the one idea it tests, under 80 characters. "Shorter hook, post at 9am instead of 3am" —
-  not "Attempt 2" or "More content". Each earlier Unit below shows its title, why it was chosen, and its marks,
-  so you can tell which ideas worked.
+* Give the Unit a title: the one idea it tests, under 80 characters. Name what changes from the Units before it,
+  never a label such as "Attempt 2" or "More content". Each earlier Unit below shows its title, why it was chosen,
+  and its marks, so you can tell which ideas worked.
 </TITLE>
 
 <JOBS>
 * Write at most ${MAX_JOBS_PER_UNIT_OF_WORK} Jobs. Fewer, sharper Jobs beat many thin ones.
-* A Job has one clear outcome: what to produce or achieve, where, and how anyone could tell it is done.
-  "Publish a 600-word article on the owner's Medium about local-first AI, with a cover image" — not "work on content".
+* A Job has one clear outcome: what to produce or achieve, where, and how anyone could tell it is done. Never a vague
+  direction such as "work on content".
+* Set the bar in the objective. Say what good looks like for this piece of work, so the Job aims at the best result,
+  not the first one that counts as finished.
 * Say where the work happens: the site, the app, the folder. The agent works through the owner's own screen.
 * Size each Job to about ${TASK_BUDGET_PER_JOB} Tasks or fewer. A Job closes as failed at ${MAX_TASKS_PER_JOB} Tasks, so split
   bigger work into ordered Jobs.
@@ -94,8 +96,8 @@ export const STRATEGY_REASONING_PROMPTS = {
 </JOBS>
 
 <ORDER>
-* Mark a Job "ordered" when it needs the result of an earlier ordered Job: cut the video, then colour it, then
-  export it. Ordered Jobs run one at a time, in the order you list them, each only after the one before succeeded.
+* Mark a Job "ordered" when it needs the result of an earlier ordered Job: make the thing, then build on it, then
+  publish it. Ordered Jobs run one at a time, in the order you list them, each only after the one before succeeded.
 * Mark everything else "unordered", so it can run alongside the rest.
 * If an ordered Job fails, the ordered Jobs after it are skipped, so keep a chain only as long as it has to be.
 </ORDER>
