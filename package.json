@@ -6,6 +6,7 @@
     "build": "pnpm -r build",
     "build:libs": "pnpm --filter @ahe/agent-core --filter @ahe/execution build",
     "dev": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
+    "dev:reset": "bash scripts/reset-dev.sh",
     "typecheck": "pnpm build:libs && pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:integration": "pnpm --filter @ahe/backend test:integration",

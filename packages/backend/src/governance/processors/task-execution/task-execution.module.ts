@@ -1,11 +1,11 @@
 import type { ExecutionProvider } from '@ahe/agent-core';
 import { createComputerUseProvider } from '@ahe/execution';
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IdentityModule } from '../../../identity/identity.module';
 import { MemoryModule } from '../../../memory/memory.module';
 import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { registerQueues } from '../../../queue/register-queues';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
 import { ReportingModule } from '../../../reporting/reporting.module';
 import { GovernanceModule } from '../../governance.module';
@@ -19,7 +19,7 @@ import { EXECUTION_PROVIDER } from './task-execution.tokens';
  */
 @Module({
   imports: [
-    BullModule.registerQueue({ name: TASK_EXECUTION_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
+    registerQueues(TASK_EXECUTION_QUEUE, JOB_EXECUTION_QUEUE),
     GovernanceModule,
     IdentityModule,
     MemoryModule,

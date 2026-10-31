@@ -24,7 +24,10 @@ export class MetricsService {
    * Saves one snapshot per metric reading.
    */
   async recordReadings(input: RecordReadingsInput): Promise<void> {
-    throw new NotImplementedException();
+    const snapshots = Object.entries(input.readings).map(([metricKey, value]) =>
+      this.snapshots.create({ unitOfWorkId: input.unitOfWorkId, taskId: input.taskId, metricKey, value }),
+    );
+    if (snapshots.length > 0) await this.snapshots.save(snapshots);
   }
 
   /**

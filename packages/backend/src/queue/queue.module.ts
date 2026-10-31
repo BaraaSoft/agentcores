@@ -10,19 +10,14 @@ import {
   JOB_EXECUTION_QUEUE,
   TASK_EXECUTION_QUEUE,
 } from './queue.constants';
+import { registerQueues } from './register-queues';
 
 const DEFAULT_REDIS_PORT = 6380;
-const JOB_RETRY_DELAY_MS = 60_000;
-const CYCLE_RETRY_DELAY_MS = 300_000;
 
 /**
- * Sets up the Redis connection, registers every AHE queue with its retry policy,
- * and mounts the Bull Board dashboard at `/admin/queues`.
- * Feature modules still call `BullModule.registerQueue({ name })` for the queues they inject.
- *
- * Task runs are never retried by the queue: a Task that crashed may already have posted on screen.
- * Job queue entries are removed on completion, because the orchestrator reuses Job IDs as
- * queue job IDs and BullMQ ignores an ID it still holds.
+ * Sets up the Redis connection, registers every AHE queue with its job options (see
+ * `QUEUE_JOB_OPTIONS`), and mounts the Bull Board dashboard at `/admin/queues`.
+ * Feature modules register the queues they inject with `registerQueues` too.
  */
 @Module({
   imports: [
@@ -35,15 +30,7 @@ const CYCLE_RETRY_DELAY_MS = 300_000;
         },
       }),
     }),
-    BullModule.registerQueue(
-      {
-        name: JOB_EXECUTION_QUEUE,
-        defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: JOB_RETRY_DELAY_MS }, removeOnComplete: true },
-      },
-      { name: TASK_EXECUTION_QUEUE, defaultJobOptions: { attempts: 1 } },
-      { name: DAILY_REPORT_QUEUE, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: CYCLE_RETRY_DELAY_MS } } },
-      { name: JOB_EVALUATION_QUEUE, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: JOB_RETRY_DELAY_MS } } },
-    ),
+    registerQueues(JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE, DAILY_REPORT_QUEUE, JOB_EVALUATION_QUEUE),
     BullBoardModule.forRoot({ route: '/admin/queues', adapter: ExpressAdapter }),
     BullBoardModule.forFeature({ name: JOB_EXECUTION_QUEUE, adapter: BullMQAdapter }),
     BullBoardModule.forFeature({ name: TASK_EXECUTION_QUEUE, adapter: BullMQAdapter }),
