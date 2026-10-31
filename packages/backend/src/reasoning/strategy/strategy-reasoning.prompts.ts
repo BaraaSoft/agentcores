@@ -86,6 +86,8 @@ export const STRATEGY_REASONING_PROMPTS = {
   direction such as "work on content".
 * Set the bar in the objective. Say what good looks like for this piece of work, so the Job aims at the best result,
   not the first one that counts as finished.
+* "Done" in the objective is a result anyone could see, never a procedure. Never tell the Job how to prove it: no
+  reopening, zooming, auditing, or re-reading the work. The final screenshot and the Task reports are the proof.
 * Say where the work happens: the site, the app, the folder. The agent works through the owner's own screen.
 * Size each Job to about ${TASK_BUDGET_PER_JOB} Tasks or fewer. A Job closes as failed at ${MAX_TASKS_PER_JOB} Tasks, so split
   bigger work into ordered Jobs.
@@ -93,6 +95,9 @@ export const STRATEGY_REASONING_PROMPTS = {
   closes, and that mark is the check. A Job that produces something ends by confirming it is done.
 * Do not repeat a Job that was marked low, unless the notes say exactly what to change and the new objective says it.
   Build on what was marked high.
+* A Job that improves earlier work fixes every weakness its notes named, as one piece of work. Give it the goal and
+  the qualities to reach, never a single small element with exact sizes or positions. The agent can see the work and
+  decides the details.
 </JOBS>
 
 <ORDER>

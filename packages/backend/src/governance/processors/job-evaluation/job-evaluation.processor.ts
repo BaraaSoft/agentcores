@@ -86,7 +86,7 @@ export class JobEvaluationProcessor extends WorkerHost {
 
     if ((await this.evaluations.recordJudgingAttempt(evaluationId)) > MAX_JUDGING_ATTEMPTS) {
       await this.evaluations.failEvaluation(evaluationId, `judging threw ${MAX_JUDGING_ATTEMPTS} times`);
-      return this.deleteScreenshots(evaluation);
+      return;
     }
 
     const { job } = evaluation;
@@ -105,18 +105,9 @@ export class JobEvaluationProcessor extends WorkerHost {
     if (judgement.verdict === 'scored') {
       const { verdict, ...score } = judgement;
       await this.evaluations.recordScore({ evaluationId, ...score });
-      return this.deleteScreenshots(evaluation);
+      return;
     }
     await this.requestEvidence(workflowId, evaluation, judgement);
-  }
-
-  /**
-   * The judgement is final, so the screenshots of the Job and of its evidence Job are no longer needed.
-   * Evidence Jobs are never evaluated themselves, so their folder goes here too.
-   */
-  private async deleteScreenshots(evaluation: JobEvaluationEntity): Promise<void> {
-    await this.screenshots.deleteJobScreenshots(evaluation.job.id);
-    if (evaluation.evidenceJobId !== null) await this.screenshots.deleteJobScreenshots(evaluation.evidenceJobId);
   }
 
   /**
@@ -138,7 +129,7 @@ export class JobEvaluationProcessor extends WorkerHost {
   ): Promise<void> {
     if (evaluation.evidenceJobId !== null) {
       await this.evaluations.failEvaluation(evaluation.id, 'the evidence it asked for did not settle the mark');
-      return this.deleteScreenshots(evaluation);
+      return;
     }
     const evidenceJob = await this.jobs.createJob({
       unitOfWorkId: evaluation.unitOfWorkId,

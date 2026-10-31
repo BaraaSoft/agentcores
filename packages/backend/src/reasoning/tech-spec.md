@@ -380,9 +380,9 @@ screen of every step. The Task processor saves it with `JobScreenshotService` at
 | `judgeJob` | The Job's newest screenshot |
 | Task reasoning | Nothing: the screenshot is stripped from the `ExecutionResult` before it enters `history` |
 
-The Job's folder, and its evidence Job's folder, are deleted once its evaluation is scored or failed. Each
-orchestrator pass also deletes every Job folder untouched for `STALE_SCREENSHOT_AGE_MS` (2 days), which catches
-Jobs that are never evaluated. `pnpm dev:reset` deletes `.data/temp`.
+The Job's folder stays after its evaluation, so the owner can look at the work. `JobScreenshotService.deleteJobScreenshots`
+is kept for a later owner-triggered cleanup. Each orchestrator pass deletes every Job folder untouched for
+`STALE_SCREENSHOT_AGE_MS` (2 days). `pnpm dev:reset` deletes `.data/temp`.
 
 **Fewer checks, at every level.** The Strategy planner writes no Job that only checks another Job (the
 evaluation is the check). The Job planner plans at most one Task that only checks or measures, and never

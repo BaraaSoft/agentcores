@@ -114,7 +114,7 @@ describe('JobEvaluationProcessor', () => {
       });
     });
 
-    it('shows the evaluator the latest screenshot of the Job, then deletes its screenshots once scored', async () => {
+    it('shows the evaluator the latest screenshot of the Job, and keeps the screenshots once scored', async () => {
       const t = setup();
       const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
       t.screenshots.findLatestJobScreenshot.mockResolvedValue(screenshot);
@@ -123,26 +123,7 @@ describe('JobEvaluationProcessor', () => {
 
       expect(t.screenshots.findLatestJobScreenshot).toHaveBeenCalledWith(JOB_ID);
       expect(t.evaluationReasoning.judgeJob).toHaveBeenCalledWith(expect.objectContaining({ screenshot }));
-      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith(JOB_ID);
-    });
-
-    it('keeps the screenshots while the judgement waits for evidence', async () => {
-      const t = setup();
-      t.evaluationReasoning.judgeJob.mockResolvedValue(NEEDS_EVIDENCE);
-
-      await t.evaluate();
-
       expect(t.screenshots.deleteJobScreenshots).not.toHaveBeenCalled();
-    });
-
-    it('deletes the screenshots of the Job and its evidence Job once the evidence settles the mark', async () => {
-      const t = setup();
-      t.evaluations.findEvaluationById.mockResolvedValue(evaluation({ evidenceJobId: 'evidence-job-1' }));
-
-      await t.evaluate();
-
-      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith(JOB_ID);
-      expect(t.screenshots.deleteJobScreenshots).toHaveBeenCalledWith('evidence-job-1');
     });
 
     it('files an evidence Job in the Unit being judged, parks the judgement, and starts it', async () => {
