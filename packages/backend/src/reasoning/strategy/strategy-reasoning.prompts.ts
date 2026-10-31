@@ -88,6 +88,8 @@ export const STRATEGY_REASONING_PROMPTS = {
   not the first one that counts as finished.
 * "Done" in the objective is a result anyone could see, never a procedure. Never tell the Job how to prove it: no
   reopening, zooming, auditing, or re-reading the work. The final screenshot and the Task reports are the proof.
+* Define "done" by the work itself: it exists, it is saved, and it meets the bar. Never by a listing, a preview, or a
+  confirmation screen elsewhere, which can lag behind the work.
 * Say where the work happens: the site, the app, the folder. The agent works through the owner's own screen.
 * Size each Job to about ${TASK_BUDGET_PER_JOB} Tasks or fewer. A Job closes as failed at ${MAX_TASKS_PER_JOB} Tasks, so split
   bigger work into ordered Jobs.
@@ -98,6 +100,8 @@ export const STRATEGY_REASONING_PROMPTS = {
 * A Job that improves earlier work fixes every weakness its notes named, as one piece of work. Give it the goal and
   the qualities to reach, never a single small element with exact sizes or positions. The agent can see the work and
   decides the details.
+* When the notes say the work is correct but generic, plain, or without an idea, the next Job changes the idea: the
+  concept, the composition, the treatment, or the angle. Making parts bigger, smaller, or tidier is not a new idea.
 </JOBS>
 
 <ORDER>

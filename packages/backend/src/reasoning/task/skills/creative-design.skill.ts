@@ -5,13 +5,17 @@ const MAX_EXECUTION_STEPS = 150;
 
 const STEPS = `
 * The agent sees the screen the whole time and can work for a long session, up to ${MAX_EXECUTION_STEPS} screen actions.
-  Give it a whole piece of the design work as one step: make the piece, or refine it. Never one change per step.
+  Give it the whole piece, with its review and its round of fixes, as one step. Never one change per step.
+* Plan another step only when the result reports the piece unfinished, broken, or unsaved. A finished piece that
+  reported how it looks is done.
 * The agent remembers nothing between steps, so every design instruction stands alone. Build it from these parts:
   - The piece: what it is, what it is for, who will see it, and the format and size it must work at.
   - Where it lives: the tool to use, and the file or edit link once an earlier result reported one.
   - The content: every word of text written out in full, and every asset to use and where to find it.
   - The direction: the one idea the piece must express, and the qualities from CRAFT that matter most for it.
-  - For a refinement: what to keep from the current version, and exactly what to change.
+    Write qualities, never measurements such as sizes, positions, or percentages, unless the brief fixes them.
+  - For a refinement: what to keep from the current version, and the quality the change must reach. When the piece
+    lacks an idea, ask for a new concept or composition, not bigger or smaller parts.
   - The finish line: the work saved, then a report of where it lives and one sentence on how it looks.
 * Use the results so far, and the earlier Tasks' results. Always work on the piece they name; never start a new one
   when one already exists.

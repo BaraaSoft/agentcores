@@ -18,6 +18,10 @@ const STEPS = `
 * Never plan a step that only re-checks something a result already reported. Trust what the agent reported.
 * After a failed step, try a different way, not the same instruction again. Do not repeat a step that already succeeded:
   if the work may exist already, have the agent check its location first.
+* When the work is done but something that shows it lags behind, such as a listing, a preview, or a count, the Task is
+  done. Report what was seen. Never plan a step only to wait for it or reload it.
+* When two steps in a row brought the Task no closer to its end, stop retrying the same goal. Finish with what the
+  results show, or change the approach completely.
 * A blocked step (a CAPTCHA, a code, a rate limit) is handled elsewhere. Never plan a step that tries to get past a gate.`;
 
 const DONE = `

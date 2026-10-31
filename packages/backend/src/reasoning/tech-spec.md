@@ -385,8 +385,10 @@ is kept for a later owner-triggered cleanup. Each orchestrator pass deletes ever
 `STALE_SCREENSHOT_AGE_MS` (2 days). `pnpm dev:reset` deletes `.data/temp`.
 
 **Fewer checks, at every level.** The Strategy planner writes no Job that only checks another Job (the
-evaluation is the check). The Job planner plans at most one Task that only checks or measures, and never
-one that re-checks a value already reported. Task reasoning never plans a step that only re-checks a result.
+evaluation is the check). The Job planner and Job review never plan a Task that only checks earlier work: the work
+Task's report and screenshot are the proof, and the evaluator can ask for evidence. Reading an outcome that arrives
+later, such as responses, is work. Task reasoning never plans a step that only re-checks a result, or only waits for
+a lagging listing or preview.
 
 ---
 

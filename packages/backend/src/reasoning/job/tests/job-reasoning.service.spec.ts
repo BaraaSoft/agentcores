@@ -181,7 +181,7 @@ describe('JobReasoningService', () => {
 
       const { systemPrompt } = t.loop();
       for (const skillType of TASK_SKILL_TYPES) expect(systemPrompt).toContain(`* ${skillType}: `);
-      expect(systemPrompt).toContain('Plan at most one Task that only checks or measures earlier work.');
+      expect(systemPrompt).toContain('Never plan a Task that only checks earlier work.');
     });
   });
 });
