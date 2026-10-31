@@ -50,7 +50,7 @@ export const JOB_JUDGEMENT_OUTPUT_SCHEMA = z.object({
   evidenceCriteria: z
     .array(
       z.object({
-        key: z.string().describe('Short snake_case name the reading comes back under, e.g. "title_legibility".'),
+        key: z.string().describe('Short snake_case name of the quality, which the reading comes back under.'),
         whatToExamine: z
           .string()
           .describe('What to look at and what would make it good, in one sentence an agent looking at the work can act on.'),

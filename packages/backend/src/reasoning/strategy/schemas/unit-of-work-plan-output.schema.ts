@@ -12,7 +12,7 @@ export const UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA = z.object({
   title: z
     .string()
     .describe(
-      'The idea this Unit of Work tests, in one line under 80 characters, e.g. "Shorter hook, post at 9am instead of 3am". ' +
+      'The idea this Unit of Work tests, in one line under 80 characters: what changes from the Units before it. ' +
         'Empty for "done".',
     ),
   rationale: z

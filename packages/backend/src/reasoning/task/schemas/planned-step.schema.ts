@@ -25,5 +25,5 @@ export const PLANNED_STEP_SCHEMA = z.object({
   platform: z
     .string()
     .nullable()
-    .describe('The site whose account the step acts as, e.g. "canva.com". Null for local apps and for browsing that needs no login.'),
+    .describe('The domain of the site whose account the step acts as, e.g. "example.com". Null for local apps and for browsing that needs no login.'),
 });

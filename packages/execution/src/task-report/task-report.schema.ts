@@ -19,13 +19,13 @@ export const TASK_REPORT_SCHEMA = z.object({
     .string()
     .describe(
       'Where the work of the instruction lives, not just where the screen ended: the permalink of what you created or changed ' +
-        '(e.g. "reddit.com/r/AICompanion/comments/abc123"), an absolute file path, or the app name for a native app. ' +
+        '(the exact address of that item, not a home page or feed), an absolute file path, or the app name for a native app. ' +
         'Empty when nothing was located.',
     ),
   locationDetails: z
     .string()
     .describe(
-      'Only for a view inside software with no address: very brief steps to reach it, e.g. "Slack → #launch → thread from @ana". ' +
+      'Only for a view inside software with no address: very brief steps to reach it, as "<app> → <section> → <item>". ' +
         'Empty for web pages and files.',
     ),
   blocker: z
@@ -38,7 +38,7 @@ export const TASK_REPORT_SCHEMA = z.object({
   metricReadings: z
     .array(
       z.object({
-        name: z.string().describe('snake_case name, e.g. "upvotes", "replies", "views".'),
+        name: z.string().describe('snake_case name of what was read, in the words the instruction used for it.'),
         value: z.number(),
       }),
     )
