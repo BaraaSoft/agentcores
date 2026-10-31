@@ -14,7 +14,7 @@ import type { TaskEntity } from '../../../entities/task.entity';
 import type { JobScreenshotService } from '../../../services/job-screenshot.service';
 import type { MetricsService } from '../../../services/metrics.service';
 import type { TaskService } from '../../../services/task.service';
-import { TASK_SKILLS } from '../../../../reasoning/task/skills/task-skill-registry';
+import { TASK_SKILLS } from '../../../../reasoning/task/skills';
 import { MAX_TASK_ITERATIONS } from '../task-execution.constants';
 import { TaskExecutionProcessor } from '../task-execution.processor';
 

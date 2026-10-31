@@ -350,7 +350,9 @@ checking the design, because each step was short and nothing above the Task coul
 | `creative_design` | 150 | yes | `STEPS`: one long step per piece of design, never a step that only measures. Adds `CRAFT` |
 | `social_post` | 30 | no | Adds `CRAFT`: write every post in full, read the community rules first, report the permalink |
 
-**Skills are data, built with `TaskSkillBuilder`** (`task/skills/`, one file per skill). A skill starts
+**Skills are data, built with `TaskSkillBuilder`.** In `task/skills/`, `builder/` holds the mechanics (the builder,
+the `TaskSkill` type, the sections, the renderer, and the `TASK_SKILLS` registry), and `specialist/` holds one file
+per skill, `general.skill.ts` included. Code outside `skills/` imports only from `skills/index.ts`. A skill starts
 `.from(GENERAL_SKILL)` and replaces or adds sections with `.withSection(name, text)`; a section can never be
 removed. `.build()` checks that the required sections (`SITUATION`, `STEPS`, `DONE`, `OWNER`, `RULES`) are set
 and the step limit is at least 1, and returns the skill frozen. `renderTaskSkillPrompt` turns the sections into
