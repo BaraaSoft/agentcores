@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { StrategyService } from '../../governance/services/strategy.service';
 import { OrchestratorService } from '../../orchestrator/orchestrator.service';
 import { WorkflowService } from '../../workflow/workflow.service';
 import type { CreateWorkflowRequestDto } from './dtos/create-workflow-request.dto';
@@ -12,10 +13,13 @@ import { WorkflowResponseDto } from './dtos/workflow-response.dto';
 export class WorkflowsApiService {
   constructor(
     private readonly workflows: WorkflowService,
+    private readonly strategies: StrategyService,
     private readonly orchestrator: OrchestratorService,
   ) {}
 
   async createWorkflow(body: CreateWorkflowRequestDto): Promise<WorkflowResponseDto> {
+    const strategy = await this.strategies.findStrategyById(body.strategyId);
+    if (strategy === null) throw new NotFoundException(`Strategy ${body.strategyId} not found`);
     return WorkflowResponseDto.fromEntity(await this.workflows.createWorkflow(body));
   }
 
