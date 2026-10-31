@@ -1,6 +1,6 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE } from '../../../queue/queue.constants';
+import { registerQueues } from '../../../queue/register-queues';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
 import { GovernanceModule } from '../../governance.module';
 import { JobEvaluationProcessor } from './job-evaluation.processor';
@@ -10,7 +10,7 @@ import { JobEvaluationProcessor } from './job-evaluation.processor';
  */
 @Module({
   imports: [
-    BullModule.registerQueue({ name: JOB_EVALUATION_QUEUE }, { name: JOB_EXECUTION_QUEUE }),
+    registerQueues(JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE),
     GovernanceModule,
     ReasoningModule,
   ],

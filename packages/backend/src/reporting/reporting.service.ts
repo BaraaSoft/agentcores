@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
@@ -41,14 +41,18 @@ export class ReportingService {
    * Returns the most recent daily reports for a Workflow, newest first.
    */
   async listReports(workflowId: string, limit: number): Promise<DailyReportEntity[]> {
-    throw new NotImplementedException();
+    return this.reports.find({ where: { workflowId }, order: { reportDate: 'DESC' }, take: limit });
   }
 
   /**
    * Parks a decision for the owner and marks the related Task as escalated.
    */
   async raiseEscalation(input: RaiseEscalationInput): Promise<EscalationEntity> {
-    throw new NotImplementedException();
+    const escalation = await this.escalations.save(
+      this.escalations.create({ workflowId: input.workflowId, taskId: input.taskId, question: input.question }),
+    );
+    if (input.taskId !== null) await this.tasks.markTaskEscalated({ taskId: input.taskId, reason: input.question });
+    return escalation;
   }
 
   /**
@@ -57,13 +61,33 @@ export class ReportingService {
    * so Job reasoning decides how to continue without it.
    */
   async resolveEscalation(input: ResolveEscalationInput): Promise<EscalationEntity> {
-    throw new NotImplementedException();
+    const escalation = await this.escalations.findOneBy({ id: input.escalationId });
+    if (escalation === null) throw new NotFoundException(`Escalation ${input.escalationId} not found`);
+    const update = await this.escalations.update(
+      { id: escalation.id, status: 'open' },
+      { status: input.isApproved ? 'approved' : 'rejected', ownerNote: input.ownerNote, resolvedAt: new Date() },
+    );
+    if ((update.affected ?? 0) === 0) throw new ConflictException(`Escalation ${escalation.id} is already resolved`);
+    if (escalation.taskId !== null) await this.resumeTask(escalation, input);
+    return this.escalations.findOneByOrFail({ id: escalation.id });
   }
 
   /**
-   * Escalations still waiting on the owner.
+   * Escalations still waiting on the owner, oldest first.
    */
   async listOpenEscalations(workflowId: string): Promise<EscalationEntity[]> {
-    throw new NotImplementedException();
+    return this.escalations.find({ where: { workflowId, status: 'open' }, order: { createdAt: 'ASC' } });
+  }
+
+  private async resumeTask(escalation: EscalationEntity, input: ResolveEscalationInput): Promise<void> {
+    const task = await this.tasks.findTaskWithLineage(escalation.taskId as string);
+    if (task === null) return;
+    if (input.isApproved) {
+      await this.tasks.markTaskPending(task.id);
+    } else {
+      const note = input.ownerNote === null ? '' : `: ${input.ownerNote}`;
+      await this.tasks.markTaskFailed({ taskId: task.id, reason: `The owner rejected this step${note}` });
+    }
+    await this.jobQueue.add(task.jobId, { workflowId: escalation.workflowId, jobId: task.jobId }, { jobId: task.jobId });
   }
 }
