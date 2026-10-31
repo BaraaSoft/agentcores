@@ -229,7 +229,7 @@ describe('TaskExecutionProcessor', () => {
     expect(t.tasks.markTaskRunning).toHaveBeenCalledWith(TASK_ID);
     expect(t.tasks.markTaskComplete).toHaveBeenCalledWith({
       taskId: TASK_ID,
-      result: { summary: 'Reply posted.', metricReadings: { upvotes: 2 }, completedAt: expect.any(Date) },
+      result: { summary: 'Reply posted.', metricReadings: { upvotes: 2 }, steps: 2, screenTurns: 8, completedAt: expect.any(Date) },
       locationPath: 'reddit.com/r/AICompanion/comments/abc123',
       locationDetails: null,
     });

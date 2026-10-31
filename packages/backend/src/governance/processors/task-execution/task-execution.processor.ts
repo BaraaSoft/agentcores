@@ -1,6 +1,6 @@
 import type { ExecutionProvider, ExecutionResult } from '@ahe/agent-core';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { IdentityService } from '../../../identity/identity.service';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
@@ -43,6 +43,7 @@ type StepsEnd = Omit<TaskRunOutcome, 'taskId' | 'iterations'> & {
 };
 
 const MS_PER_MINUTE = 60_000;
+const MS_PER_SECOND = 1_000;
 
 /**
  * Runs one Task: Task reasoning (Opus) plans a step, the execution layer (Sonnet/Haiku) carries it
@@ -58,6 +59,8 @@ const MS_PER_MINUTE = 60_000;
  */
 @Processor(TASK_EXECUTION_QUEUE, { concurrency: 1 })
 export class TaskExecutionProcessor extends WorkerHost {
+  private readonly logger = new Logger(TaskExecutionProcessor.name);
+
   constructor(
     @Inject(EXECUTION_PROVIDER)
     private readonly executionProvider: ExecutionProvider,
@@ -187,6 +190,7 @@ export class TaskExecutionProcessor extends WorkerHost {
     const skill = TASK_SKILLS[run.task.skillType];
     const credentials =
       step.platform === null ? null : await this.identity.getCredentials({ workflowId: run.workflowId, platform: step.platform });
+    const startedAt = Date.now();
     const { finalScreenshot, ...result } = await this.executionProvider.runTask({
       taskId: run.task.id,
       instruction: step.instruction,
@@ -195,6 +199,11 @@ export class TaskExecutionProcessor extends WorkerHost {
       credentials,
       returnsScreenshot: skill.returnsScreenshot,
     });
+    // One line per execution step, to measure pace. A turn is one model call on screen: it looks at the latest
+    // screenshot and sends one or more actions. Few turns for the work means the agent batches its actions.
+    // The seconds are wall time for the whole step, model calls and screen actions together.
+    const seconds = Math.round((Date.now() - startedAt) / MS_PER_SECOND);
+    this.logger.log(`Task ${run.task.id} [${run.task.skillType}] step ${result.status}: ${result.stepsTaken} turns in ${seconds}s`);
     if (finalScreenshot !== undefined) {
       await this.screenshots.saveTaskScreenshot({ jobId: run.task.jobId, taskId: run.task.id, screenshot: finalScreenshot });
     }
@@ -236,7 +245,13 @@ export class TaskExecutionProcessor extends WorkerHost {
         );
         await this.tasks.markTaskComplete({
           taskId: task.id,
-          result: { summary: end.summary, metricReadings, completedAt: new Date() },
+          result: {
+            summary: end.summary,
+            metricReadings,
+            steps: end.history.length,
+            screenTurns: end.history.reduce((sum, step) => sum + step.result.stepsTaken, 0),
+            completedAt: new Date(),
+          },
           ...this.locationOf(end.history),
         });
         if (Object.keys(metricReadings).length > 0) {

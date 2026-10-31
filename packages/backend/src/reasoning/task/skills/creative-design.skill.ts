@@ -30,7 +30,18 @@ const CRAFT = `
 * Make it distinctive. A template or a starting layout is fine, but the result must not look like a default.
 * Follow the brand, voice, and limits in the owner context whenever it gives them.
 * Before it reports, the agent looks at the whole piece at its real viewing size, judges it against the purpose,
-  and fixes what is weak.`;
+  and fixes what is weak in one round.`;
+
+const PACING = `
+* Design work is slow on a screen, so put the way to work into every design instruction:
+  - Work by eye, as a designer does. Use the tool's own layout controls, such as align, distribute, snap, styles, and
+    presets, before typing exact values. Type a value only when the brief needs that exact value.
+  - Settle the big decisions first: format, layout, type, and colour. Then the details. Never polish one element while
+    the whole piece is still unsettled.
+  - When the piece is built: one review of the whole, one round of fixes for what the review found, then save and
+    report. No second round of small adjustments.
+* A refinement changes only what it names. It does not rebuild or re-measure the rest.
+* Never repeat an action that just triggered a check. Confirm what is already saved before you try it again.`;
 
 /**
  * Visual design work in any design tool or editor. One long step does a whole piece of the design, and
@@ -40,6 +51,7 @@ export const CREATIVE_DESIGN_SKILL = new TaskSkillBuilder('creative_design')
   .from(GENERAL_SKILL)
   .withSection('STEPS', STEPS)
   .withSection('CRAFT', CRAFT)
+  .withSection('PACING', PACING)
   .withMaxExecutionSteps(MAX_EXECUTION_STEPS)
   .returnsScreenshot()
   .build();

@@ -5,5 +5,9 @@
 export interface TaskResult {
   readonly summary: string;
   readonly metricReadings: Readonly<Record<string, number>>;
+  /** Execution steps the Task ran. Absent on Tasks finished before it was recorded. */
+  readonly steps?: number;
+  /** Model turns on screen, summed over every step. Absent on Tasks finished before it was recorded. */
+  readonly screenTurns?: number;
   readonly completedAt: Date;
 }
