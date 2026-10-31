@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import type { StrategyService } from '../../../governance/services/strategy.service';
 import type { OrchestratorService } from '../../../orchestrator/orchestrator.service';
 import type { WorkflowService } from '../../../workflow/workflow.service';
 import { WorkflowResponseDto } from '../dtos/workflow-response.dto';
@@ -16,17 +17,22 @@ const WORKFLOW = {
 };
 const RESPONSE = { id: 'wf-1', strategyId: 'strategy-1', machineId: 'baraa-macbook', state: 'paused', resources: RESOURCES };
 
-function setup(found: unknown = WORKFLOW) {
+function setup(found: unknown = WORKFLOW, strategy: unknown = WORKFLOW.strategy) {
   const workflows = {
     createWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
     findWorkflowById: jest.fn().mockResolvedValue(found),
   };
+  const strategies = { findStrategyById: jest.fn().mockResolvedValue(strategy) };
   const orchestrator = {
     startWorkflow: jest.fn().mockResolvedValue({ ...WORKFLOW, state: 'running' }),
     pauseWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
   };
-  const service = new WorkflowsApiService(workflows as unknown as WorkflowService, orchestrator as unknown as OrchestratorService);
-  return { service, workflows, orchestrator };
+  const service = new WorkflowsApiService(
+    workflows as unknown as WorkflowService,
+    strategies as unknown as StrategyService,
+    orchestrator as unknown as OrchestratorService,
+  );
+  return { service, workflows, strategies, orchestrator };
 }
 
 describe('WorkflowsApiService', () => {
@@ -39,6 +45,15 @@ describe('WorkflowsApiService', () => {
     expect(t.workflows.createWorkflow).toHaveBeenCalledWith(body);
     expect(created).toBeInstanceOf(WorkflowResponseDto);
     expect(created).toEqual(RESPONSE);
+  });
+
+  it('answers 404 and saves nothing when the Strategy does not exist', async () => {
+    const t = setup(WORKFLOW, null);
+    const body = { strategyId: 'strategy-x', machineId: 'baraa-macbook', resources: RESOURCES };
+
+    await expect(t.service.createWorkflow(body)).rejects.toThrow(new NotFoundException('Strategy strategy-x not found'));
+    expect(t.strategies.findStrategyById).toHaveBeenCalledWith('strategy-x');
+    expect(t.workflows.createWorkflow).not.toHaveBeenCalled();
   });
 
   it('gets a Workflow, and answers 404 when it does not exist', async () => {
