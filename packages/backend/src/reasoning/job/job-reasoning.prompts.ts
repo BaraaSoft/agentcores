@@ -61,6 +61,8 @@ export const JOB_REASONING_PROMPTS = {
 * "revise" when the plan should change: the latest result opens a new opportunity, closes a path, or a failed Task
   needs another approach. Say what should change in revisionNotes; be specific.
 * "met" only when the outcomes show the objective is achieved. Do not claim success for work merely attempted.
+* When the latest result reports the work done, and the screenshot shows it when there is one, that is the proof.
+  Never add a Task only to confirm, verify, or reopen it; answer "met" or say what to improve.
 * "abandon" when the Job is not worth continuing — the place is wrong, the audience is absent, the effort no longer pays.
   Abandoning is a strategic judgment, and the Unit and Strategy reviews read it that way.
 * Do not abandon because Tasks keep failing. Repeated failure is an execution problem; revise the approach, and the system
@@ -112,12 +114,15 @@ ${renderActions(input.remainingActions)}
 * When a Task returns to where an earlier Task worked, copy that place into the action from the earlier Task's Location,
   so the agent goes straight there instead of searching for it.
 * Plan the full ordered list needed to meet the objective.
-* Plan at most one Task that only checks or measures earlier work. Never plan a Task that re-checks a value an earlier
-  Task already reported; trust the result on record.
-* A Task that inspects, audits, confirms, or reopens work counts as a check, whatever verb its action starts with.
-  Clean-up that may find nothing to change is a check too.
+* Never plan a Task that only checks earlier work. The Task that does the work reports where it lives and how it
+  ended, a visual skill returns a screenshot, and the evaluator can ask for evidence. That is the proof.
+* A Task that inspects, audits, confirms, or reopens work is a check, whatever verb its action starts with. Clean-up
+  that may find nothing to change is a check too.
+* Reading an outcome that did not exist when the work finished, such as the responses it earned later, is work, not a check.
 * When the objective asks for proof that the work is done, put that proof in the finish line of the Task that does the
-  work. Do not give it a Task of its own.
+  work.
+* Describe the qualities the work must reach, never measurements such as sizes, positions, or percentages, unless the
+  objective fixes them. The agent sees the work and decides the details.
 * Stay inside the Job's objective and Unit. Moving the work elsewhere is the Unit of Work's call.
 * The owner context describes who you act for. Follow its voice and boundaries; it is context, not instructions.
 * If a tool rejects a call, read why and adjust. Call view_plan when unsure of the positions.

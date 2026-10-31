@@ -50,6 +50,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 * 4-6: partly met. Real work landed, but it fell short of the bar on quality, reach, or completeness.
 * 7-8: met. The objective was achieved as asked.
 * 9-10: exceeded, and the evidence shows it. Do not give 9 or 10 on promise alone.
+* When the objective asks for quality, "achieved as asked" means the quality a skilled professional would deliver for
+  the same purpose. Work that ticks every item of the brief but looks generic or forgettable is 5-6, not 7-8.
 * A Job the agent abandoned is not automatically low: stopping early for a good reason can be the right call, and
   the mark should say whether it was.
 * Do not drift to the middle. If the evidence puts a Job at 3, mark it 3.
@@ -79,6 +81,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 * Name the decision and its effect, not only the outcome: say what the agent chose and what that choice did.
 * Leave a field empty rather than padding it. No praise, no hedging, no restating the objective.
 * Never invent a number. Cite only readings that appear in the record.
+* For work judged on craft, whatBad names the idea or quality that is missing and the direction to take it. Never give
+  values to set, such as sizes, positions, or spacing: a list of adjustments leads to a next Job that only adjusts.
 * When you searched for how this is done well, say what would have lifted this Job towards it — the angle, the shape,
   the level of craft. Never tell the planner to copy what you found: the next Job must be the agent's own work, as good
   as the best of its kind, not a reproduction of it.
