@@ -74,7 +74,7 @@ flowchart TB
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
-| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
+| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs, and what it finds on the web | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
 | `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes**, and the final screenshot of a visual Task | `JobReview` (continue / revise / met / abandon), plan edits through tools, each Task with its skill | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer, and the Job's earlier Task outcomes | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 | `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the final screenshot of visual work, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
@@ -422,6 +422,12 @@ searches itself, so nothing is executed here and the structured answer still com
 Long searching can end a reply with `pause_turn` instead of an answer; the client hands the model its own
 work back so it carries on where it stopped, up to `MAX_PAUSED_TURNS`. `webSearch` says only that searching
 is allowed, never how, so a model client for another provider can satisfy it its own way.
+
+A call that passes `webFetch` also lets the model read a page at an address, capped at `maxFetches`, with each
+page cut to `WEB_FETCH_MAX_CONTENT_TOKENS`. With both, the model picks the tool. `planUnitOfWork` passes both
+(`PLAN_UNIT_OF_WORK_MAX_SEARCHES`, `PLAN_UNIT_OF_WORK_MAX_FETCHES`): its `<RESEARCH>` section has it read every
+address the Strategy gives, look up every name in it, learn the tools and the current standard for the work, and
+then write the findings into the objectives as direction, never as the exact result. The evaluator only searches.
 
 **How a tool loop works.** `runToolLoop` calls `messages.create` with adaptive thinking and the tools
 (`strict: true`, input schemas from zod). Each turn's content goes back as the assistant message, so

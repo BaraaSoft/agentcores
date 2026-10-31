@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ReasoningModelClient } from '../reasoning-model.client';
 import {
   MAX_JOBS_PER_UNIT_OF_WORK,
+  PLAN_UNIT_OF_WORK_MAX_FETCHES,
+  PLAN_UNIT_OF_WORK_MAX_SEARCHES,
   PLAN_UNIT_OF_WORK_MAX_TOKENS,
   PLANNED_JOB_NAME_MAX_LENGTH,
   UNIT_OF_WORK_TITLE_MAX_LENGTH,
@@ -13,7 +15,8 @@ import type { UnitOfWorkPlan } from './types/unit-of-work-plan';
 
 /**
  * Strategy-level reasoning: writes the Jobs of a Strategy's next Unit of Work, learning from how the
- * Jobs of its earlier Units were marked. It reads Job outcomes and marks only — never Tasks or steps —
+ * Jobs of its earlier Units were marked. It may search the web and read pages first, to learn what it plans.
+ * It reads Job outcomes and marks only — never Tasks or steps —
  * and it never decides what a Unit is: the orchestrator opens the Unit, the planner only fills it.
  */
 @Injectable()
@@ -31,6 +34,8 @@ export class StrategyReasoningService {
       userPrompt: STRATEGY_REASONING_PROMPTS.planUnitOfWork.user(input),
       maxTokens: PLAN_UNIT_OF_WORK_MAX_TOKENS,
       schema: UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA,
+      webSearch: { maxSearches: PLAN_UNIT_OF_WORK_MAX_SEARCHES },
+      webFetch: { maxFetches: PLAN_UNIT_OF_WORK_MAX_FETCHES },
     });
 
     if (output.decision === 'done') {

@@ -1,6 +1,8 @@
 import type { ReasoningModelClient } from '../../reasoning-model.client';
 import {
   MAX_JOBS_PER_UNIT_OF_WORK,
+  PLAN_UNIT_OF_WORK_MAX_FETCHES,
+  PLAN_UNIT_OF_WORK_MAX_SEARCHES,
   PLAN_UNIT_OF_WORK_MAX_TOKENS,
   PLANNED_JOB_NAME_MAX_LENGTH,
   UNIT_OF_WORK_TITLE_MAX_LENGTH,
@@ -79,6 +81,20 @@ describe('StrategyReasoningService', () => {
       expect(userPrompt).toContain('1. [success] (ordered) Cut the footage');
       expect(userPrompt).toContain('   Mark: 4/10');
       expect(userPrompt).toContain('   Bad: No hook in the first 3 seconds.');
+    });
+
+    it('lets the planner search the web and read pages, and tells it to research before it plans', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue({ decision: 'plan', title: 'T', rationale: '', jobs: [job('Do it')] });
+
+      await t.service.planUnitOfWork(INPUT);
+
+      const { webSearch, webFetch, systemPrompt } = t.call();
+      expect(webSearch).toEqual({ maxSearches: PLAN_UNIT_OF_WORK_MAX_SEARCHES });
+      expect(webFetch).toEqual({ maxFetches: PLAN_UNIT_OF_WORK_MAX_FETCHES });
+      expect(systemPrompt).toContain('<RESEARCH>');
+      expect(systemPrompt).toContain('Read every address the Strategy or the owner context gives.');
+      expect(systemPrompt).toContain('Turn inspiration into direction, never into a copy.');
     });
 
     it('accepts "done" when the Unit may finish the Strategy', async () => {

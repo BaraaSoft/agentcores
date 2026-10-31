@@ -22,4 +22,9 @@ export interface CompletionInput<TOutput> {
    * client for another provider can satisfy it its own way.
    */
   readonly webSearch?: { readonly maxSearches: number };
+  /**
+   * Lets the model read a web page at a given address before it answers, at most `maxFetches` times. Left out,
+   * the call cannot open pages. With `webSearch` too, the model chooses which to use.
+   */
+  readonly webFetch?: { readonly maxFetches: number };
 }
