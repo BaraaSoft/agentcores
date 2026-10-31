@@ -8,24 +8,34 @@ import { PrivacyFilterService } from '../../../memory/privacy-filter.service';
 import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
+import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
+import { TASK_SKILLS } from '../../../reasoning/task/skills/task-skill-registry';
+import { renderTaskOutcomes } from '../../../reasoning/task-outcome.prompts';
 import { TaskReasoningService } from '../../../reasoning/task/task-reasoning.service';
 import type { PlannedStep } from '../../../reasoning/task/types/planned-step';
 import type { StepRecord } from '../../../reasoning/task/types/step-record';
 import type { TaskReasoningInput } from '../../../reasoning/task/types/task-reasoning-input';
 import { ReportingService } from '../../../reporting/reporting.service';
 import type { TaskEntity } from '../../entities/task.entity';
+import { JobScreenshotService } from '../../services/job-screenshot.service';
 import { MetricsService } from '../../services/metrics.service';
 import { TaskService } from '../../services/task.service';
+import { toTaskOutcome } from '../to-task-outcome';
 import {
   CHALLENGE_WINDOW_MS,
-  EXECUTION_MAX_STEPS,
+  EARLIER_TASKS_IN_EXECUTION_CONTEXT,
   MAX_TASK_ITERATIONS,
   TASK_CONTEXT_RECORD_LIMIT,
 } from './task-execution.constants';
 import { EXECUTION_PROVIDER } from './task-execution.tokens';
 import type { TaskRunOutcome } from './types/task-run-outcome';
 
-type TaskRun = { readonly workflowId: string; readonly task: TaskEntity; readonly safeContext: string };
+type TaskRun = {
+  readonly workflowId: string;
+  readonly task: TaskEntity;
+  readonly safeContext: string;
+  readonly earlierTasks: readonly TaskOutcome[];
+};
 
 type StepsEnd = Omit<TaskRunOutcome, 'taskId' | 'iterations'> & {
   readonly history: readonly StepRecord[];
@@ -42,7 +52,8 @@ const MS_PER_MINUTE = 60_000;
  *
  * Concurrency is 1: there is one screen and one mouse on the Mac Mini.
  *
- * Reasoning sees only text: privacy-filtered memory and execution results, never screenshots.
+ * Task reasoning sees only text: privacy-filtered memory, the Job's earlier Tasks, and execution results.
+ * A visual skill's final screen is saved for Job review and the evaluator, never sent to Task reasoning.
  * Logins come from IdentityService and go straight to the execution layer, never to reasoning.
  */
 @Processor(TASK_EXECUTION_QUEUE, { concurrency: 1 })
@@ -61,6 +72,7 @@ export class TaskExecutionProcessor extends WorkerHost {
     private readonly privacyFilter: PrivacyFilterService,
     private readonly identity: IdentityService,
     private readonly reporting: ReportingService,
+    private readonly screenshots: JobScreenshotService,
   ) {
     super();
   }
@@ -88,7 +100,7 @@ export class TaskExecutionProcessor extends WorkerHost {
         query: task.action,
         limit: TASK_CONTEXT_RECORD_LIMIT,
       });
-      const run: TaskRun = { workflowId, task, safeContext: context.promptBlock };
+      const run: TaskRun = { workflowId, task, safeContext: context.promptBlock, earlierTasks: await this.earlierTasks(task) };
       const end = await this.runSteps(run);
       await this.finish(run, owner, end);
       return {
@@ -115,8 +127,10 @@ export class TaskExecutionProcessor extends WorkerHost {
     let recentChallengeCount = 0;
     const input = (): TaskReasoningInput => ({
       taskAction: run.task.action,
+      skillType: run.task.skillType,
       jobObjective: run.task.job.objective,
       safeContext: run.safeContext,
+      earlierTasks: run.earlierTasks,
       history: [...history],
       recentChallengeCount,
     });
@@ -156,19 +170,42 @@ export class TaskExecutionProcessor extends WorkerHost {
     }
   }
 
+  /** The Job's Tasks that finished before this one, in order. */
+  private async earlierTasks(task: TaskEntity): Promise<TaskOutcome[]> {
+    const tasks = await this.tasks.listTasks(task.jobId);
+    return tasks
+      .filter((each) => each.sequence < task.sequence && (each.status === 'complete' || each.status === 'failed'))
+      .map(toTaskOutcome);
+  }
+
   /**
-   * Sends one step to the execution layer, with the login for `step.platform` when the Workflow has one.
+   * Sends one step to the execution layer, with the login for `step.platform` when the Workflow has one,
+   * and the step limit of the Task's skill. A skill that returns screenshots gets the final screen saved
+   * as the Task's latest; the screenshot itself never goes back into Task reasoning's history.
    */
   private async executeStep(run: TaskRun, step: PlannedStep): Promise<ExecutionResult> {
+    const skill = TASK_SKILLS[run.task.skillType];
     const credentials =
       step.platform === null ? null : await this.identity.getCredentials({ workflowId: run.workflowId, platform: step.platform });
-    return this.executionProvider.runTask({
+    const { finalScreenshot, ...result } = await this.executionProvider.runTask({
       taskId: run.task.id,
       instruction: step.instruction,
-      context: run.safeContext,
-      maxSteps: EXECUTION_MAX_STEPS,
+      context: this.executionContext(run),
+      maxSteps: skill.maxExecutionSteps,
       credentials,
+      returnsScreenshot: skill.returnsScreenshot,
     });
+    if (finalScreenshot !== undefined) {
+      await this.screenshots.saveTaskScreenshot({ jobId: run.task.jobId, taskId: run.task.id, screenshot: finalScreenshot });
+    }
+    return result;
+  }
+
+  /** The owner context, then what the Job's latest earlier Tasks did and where, so the agent can build on them. */
+  private executionContext(run: TaskRun): string {
+    const earlier = run.earlierTasks.slice(-EARLIER_TASKS_IN_EXECUTION_CONTEXT);
+    if (earlier.length === 0) return run.safeContext;
+    return `${run.safeContext}\n\nEarlier Tasks in this Job:\n${renderTaskOutcomes(earlier, '')}`.trim();
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus, Screenshot } from '@ahe/agent-core';
 import type { TaskOutcome } from '../../job/types/task-outcome';
 import type { GatheredEvidence } from './gathered-evidence';
 
@@ -20,4 +20,6 @@ export interface JudgeJobInput {
    * Null the first time round, and the signal not to ask again once set.
    */
   readonly evidence: GatheredEvidence | null;
+  /** The screen as the Job's latest visual Task ended; null when the Job did no visual work. */
+  readonly screenshot: Screenshot | null;
 }

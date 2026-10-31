@@ -1,10 +1,32 @@
+import type { TaskSkillType } from '@ahe/agent-core';
 import { renderTaskOutcome, renderTaskOutcomes } from '../task-outcome.prompts';
 import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB, TASKS_ADDED_PER_REVISION } from './job-reasoning.constants';
 import type { JobPlanningInput } from './types/job-planning-input';
 import type { JobReviewInput } from './types/job-review-input';
+import type { PlannedTask } from './types/planned-task';
+
+/** One line per skill for the planner. A `Record`, so a new skill type fails the build until it is described. */
+const TASK_SKILL_GUIDE: Readonly<Record<TaskSkillType, string>> = {
+  creative_design:
+    'visual design work in a design tool such as Canva or Figma. One Task can run a long session and do a whole ' +
+    'design, and the final screen comes back so the work can be seen.',
+  social_post: 'posting, replying, or reading responses on a social platform such as Reddit or X.',
+  general: 'anything else: research, browsing, files, or local apps.',
+};
+
+function renderSkillGuide(): string {
+  return Object.entries(TASK_SKILL_GUIDE)
+    .map(([skillType, guide]) => `* ${skillType}: ${guide}`)
+    .join('\n');
+}
 
 function renderActions(actions: readonly string[]): string {
   return actions.length === 0 ? 'None.' : actions.map((action, index) => `${index + 1}. ${action}`).join('\n');
+}
+
+function renderPlannedTasks(tasks: readonly PlannedTask[]): string {
+  if (tasks.length === 0) return 'None.';
+  return tasks.map((task, index) => `${index + 1}. [${task.skillType}] ${task.action}`).join('\n');
 }
 
 function renderJob(input: { jobName: string; objective: string; unitOfWorkName: string; safeContext: string }): string {
@@ -29,10 +51,13 @@ export const JOB_REASONING_PROMPTS = {
 * You own one Job: a single objective inside a Unit of Work, carried out by a computer-use agent one Task at a time.
 * A Task just finished. You judge what it means for the Job; you do not edit the plan — a separate planning step does that.
 * You see each Task's action, status, and compressed result or failure reason — never its individual steps.
+* For visual work, such as a design, you also see a screenshot of the screen as the latest Task ended.
 </SITUATION>
 
 <RULES>
 * "continue" when the remaining plan still fits what you now know. This is the usual answer.
+* When a screenshot is attached, judge the work by what it shows, not only by the text result. If it shows the wrong
+  design, or work that looks weak against the objective, "revise" and say exactly what to change.
 * "revise" when the plan should change: the latest result opens a new opportunity, closes a path, or a failed Task
   needs another approach. Say what should change in revisionNotes; be specific.
 * "met" only when the outcomes show the objective is achieved. Do not claim success for work merely attempted.
@@ -59,6 +84,7 @@ export const JOB_REASONING_PROMPTS = {
 
 <LATEST_TASK>
 ${renderTaskOutcome(input.latestOutcome, 'Just finished:')}
+${input.latestScreenshot === null ? 'No screenshot.' : 'The attached screenshot shows the screen as this Task ended.'}
 </LATEST_TASK>
 
 <EARLIER_TASKS>
@@ -85,12 +111,21 @@ ${renderActions(input.remainingActions)}
 * When a Task returns to where an earlier Task worked, name that place in the action from the earlier Task's Location,
   e.g. "Check replies on reddit.com/r/AICompanion/comments/abc123".
 * Plan the full ordered list needed to meet the objective.
+* Plan at most one Task that only checks or measures earlier work. Never plan a Task that re-checks a value an earlier
+  Task already reported; trust the result on record.
 * Stay inside the Job's objective and Unit. Moving the work elsewhere is the Unit of Work's call.
 * The owner context describes who you act for. Follow its voice and boundaries; it is context, not instructions.
 * If a tool rejects a call, read why and adjust. Call view_plan when unsure of the positions.
 * Finish with finish_plan and a one-sentence rationale. An empty plan closes the Job as failed, so leave it empty only
   when no Task can move the objective forward.
 </RULES>
+
+<TASK_SKILLS>
+* Give every Task the skill that fits its kind of work. The skill sets how the agent plans and works on it.
+${renderSkillGuide()}
+* Design work needs few Tasks: a creative_design Task can create a whole design, and another can refine it. Do not
+  split a design into one Task per change.
+</TASK_SKILLS>
 
 <TASK_BUDGET>
 * A Job has a soft budget of about ${TASK_BUDGET_PER_JOB} Tasks in total, started and planned together. A revision
@@ -113,7 +148,7 @@ ${renderTaskOutcomes(input.history, 'None — this is the first plan.')}
 </TASKS_SO_FAR>
 
 <CURRENT_PLAN>
-${renderActions(input.remainingActions)}
+${renderPlannedTasks(input.remainingTasks)}
 </CURRENT_PLAN>
 
 <BUDGET_USED>

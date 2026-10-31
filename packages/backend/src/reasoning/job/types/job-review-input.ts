@@ -1,3 +1,4 @@
+import type { Screenshot } from '@ahe/agent-core';
 import type { TaskOutcome } from './task-outcome';
 
 /**
@@ -15,4 +16,6 @@ export interface JobReviewInput {
   readonly history: readonly TaskOutcome[];
   /** Actions planned but not started yet, in order. */
   readonly remainingActions: readonly string[];
+  /** The screen as the latest Task ended, when its skill returns screenshots; otherwise null. */
+  readonly latestScreenshot: Screenshot | null;
 }

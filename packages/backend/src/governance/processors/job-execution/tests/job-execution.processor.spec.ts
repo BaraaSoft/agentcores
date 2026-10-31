@@ -6,7 +6,9 @@ import type { JobExecutionJobData } from '../../../../queue/types/job-execution-
 import type { TaskExecutionJobData } from '../../../../queue/types/task-execution-job-data';
 import type { JobReasoningService } from '../../../../reasoning/job/job-reasoning.service';
 import type { JobReview } from '../../../../reasoning/job/types/job-review';
+import type { PlannedTask } from '../../../../reasoning/job/types/planned-task';
 import type { JobEvaluationService } from '../../../services/job-evaluation.service';
+import type { JobScreenshotService } from '../../../services/job-screenshot.service';
 import type { JobService } from '../../../services/job.service';
 import type { TaskService } from '../../../services/task.service';
 import {
@@ -28,6 +30,7 @@ function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`)
     id: `task-${sequence}`,
     sequence,
     action,
+    skillType: 'general',
     status,
     result: null,
     failureReason: status === 'failed' ? 'Page not found' : null,
@@ -36,12 +39,14 @@ function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`)
   };
 }
 
+const plan = (...actions: string[]): PlannedTask[] => actions.map((action) => ({ action, skillType: 'general' }));
+
 function setup() {
   const taskQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const jobReasoning = {
     reviewJob: jest.fn().mockResolvedValue(review()),
-    planTasks: jest.fn().mockResolvedValue(['Open r/AICompanion', 'Reply']),
+    planTasks: jest.fn().mockResolvedValue(plan('Open r/AICompanion', 'Reply')),
   };
   const job = {
     id: JOB_ID,
@@ -71,6 +76,8 @@ function setup() {
     retrieveSafeContext: jest.fn().mockResolvedValue({ owner: 'owner-1', records: [], promptBlock: 'Voice: warm, short.' }),
   };
 
+  const screenshots = { findTaskScreenshot: jest.fn().mockResolvedValue(null) };
+
   const processor = new JobExecutionProcessor(
     taskQueue as unknown as Queue<TaskExecutionJobData>,
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
@@ -79,6 +86,7 @@ function setup() {
     tasks as unknown as TaskService,
     evaluations as unknown as JobEvaluationService,
     memory as unknown as MemoryRetrievalService,
+    screenshots as unknown as JobScreenshotService,
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, jobId: JOB_ID } } as Job<JobExecutionJobData>);
 
@@ -88,9 +96,10 @@ function setup() {
     tasks.listTasks.mockResolvedValue(existing);
     tasks.findUnreviewedTask.mockResolvedValue(finished.at(-1) ?? null);
   };
-  const savedActions = () => tasks.replaceRemainingTasks.mock.calls[0]?.[0].actions;
+  const savedActions = () =>
+    tasks.replaceRemainingTasks.mock.calls[0]?.[0].tasks.map((each: PlannedTask) => each.action);
 
-  return { run, reviewing, savedActions, taskQueue, evaluationQueue, jobReasoning, job, jobs, tasks, evaluations, memory };
+  return { run, reviewing, savedActions, taskQueue, evaluationQueue, jobReasoning, job, jobs, tasks, evaluations, memory, screenshots };
 }
 
 describe('JobExecutionProcessor', () => {
@@ -107,7 +116,7 @@ describe('JobExecutionProcessor', () => {
           safeContext: 'Voice: warm, short.',
           reason: expect.stringContaining('first plan'),
           history: [],
-          remainingActions: [],
+          remainingTasks: [],
           tasksStarted: 0,
         }),
       );
@@ -140,6 +149,17 @@ describe('JobExecutionProcessor', () => {
   });
 
   describe('reviewing a finished Task', () => {
+    it('shows the review the final screen of the latest Task when it has one', async () => {
+      const t = setup();
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+      t.screenshots.findTaskScreenshot.mockResolvedValue(screenshot);
+      t.reviewing([task(1, 'complete', 'Design the launch post'), task(2, 'pending', 'Export it')]);
+
+      await t.run();
+
+      expect(t.jobReasoning.reviewJob).toHaveBeenCalledWith(expect.objectContaining({ latestScreenshot: screenshot }));
+    });
+
     it('reviews the latest Task against the earlier ones and the remaining plan, then keeps the plan', async () => {
       const t = setup();
       t.reviewing([task(1, 'cancelled'), task(2, 'complete', 'Open r/AICompanion'), task(3, 'pending', 'Reply')]);
@@ -167,8 +187,10 @@ describe('JobExecutionProcessor', () => {
             },
           ],
           remainingActions: ['Reply'],
+          latestScreenshot: null,
         }),
       );
+      expect(t.screenshots.findTaskScreenshot).toHaveBeenCalledWith({ jobId: JOB_ID, taskId: 'task-2' });
       expect(t.jobReasoning.planTasks).not.toHaveBeenCalled();
       expect(t.tasks.replaceRemainingTasks).not.toHaveBeenCalled();
       expect(t.tasks.markTaskReviewed).toHaveBeenCalledWith('task-2');
@@ -181,7 +203,7 @@ describe('JobExecutionProcessor', () => {
       t.jobReasoning.reviewJob.mockResolvedValue(
         review({ decision: 'revise', revisionNotes: 'Links are banned; post text only.' }),
       );
-      t.jobReasoning.planTasks.mockResolvedValue(['Post a text-only intro', 'Reply']);
+      t.jobReasoning.planTasks.mockResolvedValue(plan('Post a text-only intro', 'Reply'));
 
       await t.run();
 
@@ -189,7 +211,7 @@ describe('JobExecutionProcessor', () => {
         expect.objectContaining({
           reason: expect.stringContaining('Links are banned; post text only.'),
           history: [expect.objectContaining({ action: 'Post the link', status: 'failed' })],
-          remainingActions: ['Reply'],
+          remainingTasks: [{ action: 'Reply', skillType: 'general' }],
           tasksStarted: 1,
         }),
       );
@@ -200,12 +222,12 @@ describe('JobExecutionProcessor', () => {
     it('plans again when the review continues but nothing is left to run, so the Job never sits idle', async () => {
       const t = setup();
       t.reviewing([task(1, 'complete')]);
-      t.jobReasoning.planTasks.mockResolvedValue(['Reply to the first comment']);
+      t.jobReasoning.planTasks.mockResolvedValue(plan('Reply to the first comment'));
 
       await t.run();
 
       expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: expect.stringContaining('plan ran out'), remainingActions: [] }),
+        expect.objectContaining({ reason: expect.stringContaining('plan ran out'), remainingTasks: [] }),
       );
       expect(t.savedActions()).toEqual(['Reply to the first comment']);
       expect(t.jobs.closeJob).not.toHaveBeenCalled();
@@ -297,7 +319,7 @@ describe('JobExecutionProcessor', () => {
       const t = setup();
       t.reviewing(Array.from({ length: TASK_BUDGET_PER_JOB }, (_, index) => task(index + 1, 'complete')));
       t.jobReasoning.reviewJob.mockResolvedValue(review({ decision: 'revise', revisionNotes: 'One more export pass.' }));
-      t.jobReasoning.planTasks.mockResolvedValue(['Export at 4K']);
+      t.jobReasoning.planTasks.mockResolvedValue(plan('Export at 4K'));
 
       await t.run();
 

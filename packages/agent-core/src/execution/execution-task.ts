@@ -14,4 +14,6 @@ export interface ExecutionTask {
   readonly maxSteps: number;
   /** Login for the account this task acts as, so a signed-out session can be resumed. `null` when none is needed. */
   readonly credentials: AccountCredentials | null;
+  /** Capture the screen once the instruction ends and return it as `finalScreenshot`. Off when left out. */
+  readonly returnsScreenshot?: boolean;
 }

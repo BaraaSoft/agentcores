@@ -1,9 +1,12 @@
+import { TASK_SKILL_TYPES } from '@ahe/agent-core';
 import * as z from 'zod/v4';
 import { ReasoningToolError } from '../../reasoning-tool.error';
 import type { ReasoningTool } from '../../types/reasoning-tool';
+import type { PlannedTask } from '../types/planned-task';
 
 const position = (what: string) => z.number().int().describe(`1-based position of the Task ${what}, as shown by view_plan.`);
 const action = z.string().describe('One concrete action with a clear end, e.g. "Reply to the top 3 new posts in r/AICompanion".');
+const skill = z.enum(TASK_SKILL_TYPES).describe('The kind of work the Task is; see TASK_SKILLS.');
 
 function tool<TInput>(definition: ReasoningTool<TInput>): ReasoningTool<TInput> {
   return definition;
@@ -20,19 +23,19 @@ function tool<TInput>(definition: ReasoningTool<TInput>): ReasoningTool<TInput> 
 export class JobPlanningToolset {
   /** The tools to hand to Job reasoning. */
   readonly tools: readonly ReasoningTool[];
-  private readonly draft: string[];
+  private readonly draft: PlannedTask[];
   private finished = false;
 
   constructor(
-    remainingActions: readonly string[],
+    remainingTasks: readonly PlannedTask[],
     private readonly maxTasks: number,
   ) {
-    this.draft = [...remainingActions];
+    this.draft = [...remainingTasks];
     this.tools = this.createTools();
   }
 
   /** The draft plan, in order. */
-  get actions(): readonly string[] {
+  get tasks(): readonly PlannedTask[] {
     return this.draft;
   }
 
@@ -55,23 +58,24 @@ export class JobPlanningToolset {
         description: 'Insert a Task at a position, or append it when position is null.',
         inputSchema: z.object({
           action,
+          skill,
           position: position('to insert before').nullable(),
         }),
         endsLoop: false,
         run: (input) => {
           if (this.draft.length >= this.maxTasks) throw new ReasoningToolError(this.fullMessage());
           const at = input.position === null ? this.draft.length : this.index(input.position, true);
-          this.draft.splice(at, 0, this.text(input.action));
+          this.draft.splice(at, 0, { action: this.text(input.action), skillType: input.skill });
           return this.view();
         },
       }),
       tool({
         name: 'update_task',
-        description: 'Rewrite the Task at a position.',
-        inputSchema: z.object({ position: position('to rewrite'), action }),
+        description: 'Rewrite the Task at a position, and its skill.',
+        inputSchema: z.object({ position: position('to rewrite'), action, skill }),
         endsLoop: false,
         run: (input) => {
-          this.draft[this.index(input.position)] = this.text(input.action);
+          this.draft[this.index(input.position)] = { action: this.text(input.action), skillType: input.skill };
           return this.view();
         },
       }),
@@ -128,7 +132,7 @@ export class JobPlanningToolset {
 
   private view(): string {
     if (this.draft.length === 0) return 'The plan is empty.';
-    return this.draft.map((each, index) => `${index + 1}. ${each}`).join('\n');
+    return this.draft.map((each, index) => `${index + 1}. [${each.skillType}] ${each.action}`).join('\n');
   }
 
   /** Array index of a 1-based position; `isInsert` also allows the slot after the last Task. */

@@ -20,6 +20,7 @@ export const EVALUATION_REASONING_PROMPTS = {
     system: `<SITUATION>
 * You are the examiner. You mark one Job — a single objective carried out by a computer-use agent — out of 10.
 * You see each Task's action, status, and compressed result or failure reason, never its individual steps.
+* For visual work, such as a design, you also see a screenshot of the screen as the Job's latest visual Task ended.
 * Your mark and your feedback are kept. Before planning a Job like this one, the planner reads them and tries to do
   better, so write for that reader and no one else.
 * The Job is marked once, after its round of work has closed and, for ongoing work, after a day for the response
@@ -59,7 +60,9 @@ export const EVALUATION_REASONING_PROMPTS = {
   an editor — only a Job running on their machine can open those. Ask for evidence when opening the work decides the
   mark and what it would show is not already on record.
 * Say exactly what to find out and where, using the Location and How to get there from the Task that did the work.
-* You will never see the work yourself, so when the mark turns on quality that has to be seen, do not ask for a
+* When a screenshot is attached and it shows the finished work, mark its quality from the screenshot yourself. Do not
+  ask for evidence about what it already shows; ask only for what it cannot show, such as responses or other pages.
+* Without a screenshot you cannot see the work, so when the mark turns on quality that has to be seen, do not ask for a
   description — set criteria. Each one names a key and what to examine, and comes back as a reading out of 10.
 * Write the criteria from what you learnt about how this kind of work is done well. They are how the standard reaches
   the one agent that can actually look at it, so be precise: "whether the titles stay readable at normal size", not
@@ -101,6 +104,10 @@ ${input.strategyObjective}
 <TASKS>
 ${renderTaskOutcomes(input.tasks, 'None — no Task of this Job has finished.')}
 </TASKS>
+
+<SCREENSHOT>
+${input.screenshot === null ? 'None — this Job did no visual work.' : 'Attached: the screen as the Job’s latest visual Task ended.'}
+</SCREENSHOT>
 
 <EVIDENCE_GATHERED>
 ${renderEvidence(input.evidence)}

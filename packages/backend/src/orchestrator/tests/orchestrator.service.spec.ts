@@ -1,6 +1,8 @@
 import type { StrategyWorkType, UnitOfWorkStatus } from '@ahe/agent-core';
 import type { Queue } from 'bullmq';
 import type { JobEvaluationService } from '../../governance/services/job-evaluation.service';
+import { STALE_SCREENSHOT_AGE_MS } from '../../governance/services/job-screenshot.constants';
+import type { JobScreenshotService } from '../../governance/services/job-screenshot.service';
 import type { JobService } from '../../governance/services/job.service';
 import type { StrategyService } from '../../governance/services/strategy.service';
 import type { UnitOfWorkService } from '../../governance/services/unit-of-work.service';
@@ -95,8 +97,11 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
   const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
 
+  const workflows = { listWorkflowsByState: jest.fn().mockResolvedValue([]) };
+  const screenshots = { deleteScreenshotsOlderThan: jest.fn().mockResolvedValue(0) };
+
   const service = new OrchestratorService(
-    {} as WorkflowService,
+    workflows as unknown as WorkflowService,
     strategyReasoning as unknown as StrategyReasoningService,
     strategies as unknown as StrategyService,
     unitsOfWork as unknown as UnitOfWorkService,
@@ -104,13 +109,34 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     evaluations as unknown as JobEvaluationService,
     jobQueue as unknown as Queue<JobExecutionJobData>,
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
+    screenshots as unknown as JobScreenshotService,
   );
   const schedule = (now = NOW) => service.scheduleWorkflow(workflow, now);
 
-  return { schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
+  return { service, screenshots, schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
 }
 
 describe('OrchestratorService', () => {
+  describe('the screenshot sweep', () => {
+    it('deletes the screenshots of Jobs untouched for two days on every pass', async () => {
+      const t = setup('one_off');
+      const before = Date.now();
+
+      await t.service.scheduleAllWorkflows();
+
+      const cutoff = t.screenshots.deleteScreenshotsOlderThan.mock.calls[0][0] as Date;
+      expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(STALE_SCREENSHOT_AGE_MS - 1000);
+      expect(before - cutoff.getTime()).toBeLessThanOrEqual(STALE_SCREENSHOT_AGE_MS + 1000);
+    });
+
+    it('never fails the pass when the sweep fails', async () => {
+      const t = setup('one_off');
+      t.screenshots.deleteScreenshotsOlderThan.mockRejectedValue(new Error('EACCES'));
+
+      await expect(t.service.scheduleAllWorkflows()).resolves.toEqual([]);
+    });
+  });
+
   describe('opening a Unit of Work', () => {
     it.each([
       ['continuous', 'Round 1'],

@@ -12,6 +12,7 @@ import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
 import type { JobEntity } from '../../entities/job.entity';
 import type { TaskEntity } from '../../entities/task.entity';
 import { JobEvaluationService } from '../../services/job-evaluation.service';
+import { JobScreenshotService } from '../../services/job-screenshot.service';
 import { JobService } from '../../services/job.service';
 import { TaskService } from '../../services/task.service';
 import { toTaskOutcome } from '../to-task-outcome';
@@ -48,6 +49,7 @@ export class JobExecutionProcessor extends WorkerHost {
     private readonly tasks: TaskService,
     private readonly evaluations: JobEvaluationService,
     private readonly memory: MemoryRetrievalService,
+    private readonly screenshots: JobScreenshotService,
   ) {
     super();
   }
@@ -142,6 +144,7 @@ export class JobExecutionProcessor extends WorkerHost {
       latestOutcome: toTaskOutcome(latest),
       history: this.history(tasks.filter((task) => task.id !== latest.id)),
       remainingActions,
+      latestScreenshot: await this.screenshots.findTaskScreenshot({ jobId: run.job.id, taskId: latest.id }),
     });
 
     switch (review.decision) {
@@ -185,16 +188,18 @@ export class JobExecutionProcessor extends WorkerHost {
       );
     }
 
-    const actions = await this.jobReasoning.planTasks({
+    const planned = await this.jobReasoning.planTasks({
       ...this.jobContext(run),
       reason,
       history: this.history(tasks),
-      remainingActions: this.remainingActions(tasks),
+      remainingTasks: tasks
+        .filter((task) => task.status === 'pending')
+        .map((task) => ({ action: task.action, skillType: task.skillType })),
       tasksStarted,
     });
-    if (actions.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
+    if (planned.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
 
-    await this.tasks.replaceRemainingTasks({ workflowId: run.workflowId, jobId: run.job.id, actions });
+    await this.tasks.replaceRemainingTasks({ workflowId: run.workflowId, jobId: run.job.id, tasks: planned });
     return false;
   }
 

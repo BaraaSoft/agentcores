@@ -11,8 +11,10 @@ import type { PlannedStep } from '../../../../reasoning/task/types/planned-step'
 import type { TaskReasoningInput } from '../../../../reasoning/task/types/task-reasoning-input';
 import type { ReportingService } from '../../../../reporting/reporting.service';
 import type { TaskEntity } from '../../../entities/task.entity';
+import type { JobScreenshotService } from '../../../services/job-screenshot.service';
 import type { MetricsService } from '../../../services/metrics.service';
 import type { TaskService } from '../../../services/task.service';
+import { TASK_SKILLS } from '../../../../reasoning/task/skills/task-skill-registry';
 import { MAX_TASK_ITERATIONS } from '../task-execution.constants';
 import { TaskExecutionProcessor } from '../task-execution.processor';
 
@@ -44,6 +46,26 @@ function result(overrides: Partial<ExecutionResult> = {}): ExecutionResult {
   };
 }
 
+const EARLIER_TASK = {
+  id: 'task-0',
+  sequence: 1,
+  status: 'complete',
+  action: 'Open r/AICompanion',
+  result: { summary: 'Subreddit open.', metricReadings: {}, completedAt: new Date() },
+  failureReason: null,
+  locationPath: 'reddit.com/r/AICompanion',
+  locationDetails: null,
+} as unknown as TaskEntity;
+
+const EARLIER_OUTCOME = {
+  action: 'Open r/AICompanion',
+  status: 'complete',
+  result: EARLIER_TASK.result,
+  failureReason: null,
+  locationPath: 'reddit.com/r/AICompanion',
+  locationDetails: null,
+};
+
 function decision(overrides: Partial<BlockerDecision> = {}): BlockerDecision {
   return { rationale: 'Rate limited', nextStep: null, retryAfterMinutes: null, ownerRequest: null, learning: null, ...overrides };
 }
@@ -54,6 +76,8 @@ function setup() {
     jobId: 'job-1',
     status: 'pending',
     action: 'Reply to the top thread on r/AICompanion',
+    skillType: 'general',
+    sequence: 2,
     job: {
       objective: 'Engage with r/AICompanion',
       unitOfWorkId: 'unit-1',
@@ -77,7 +101,9 @@ function setup() {
     markTaskDeferred: jest.fn(),
     markTaskComplete: jest.fn(),
     markTaskFailed: jest.fn(),
+    listTasks: jest.fn().mockResolvedValue([EARLIER_TASK, task, { ...EARLIER_TASK, id: 'task-3', sequence: 3, status: 'pending' }]),
   };
+  const screenshots = { saveTaskScreenshot: jest.fn() };
   const metrics = { recordReadings: jest.fn() };
   const memory = {
     retrieveSafeContext: jest.fn().mockResolvedValue({ owner: 'owner-1', records: [], promptBlock: 'Voice: warm, short.' }),
@@ -102,6 +128,7 @@ function setup() {
     privacyFilter as unknown as PrivacyFilterService,
     identity as unknown as IdentityService,
     reporting as unknown as ReportingService,
+    screenshots as unknown as JobScreenshotService,
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, taskId: TASK_ID } } as Job<TaskExecutionJobData>);
 
@@ -119,6 +146,7 @@ function setup() {
     privacyFilter,
     identity,
     reporting,
+    screenshots,
   };
 }
 
@@ -249,11 +277,46 @@ describe('TaskExecutionProcessor', () => {
 
     expect(t.reasoning.planNextStep).toHaveBeenLastCalledWith({
       taskAction: t.task.action,
+      skillType: 'general',
       jobObjective: 'Engage with r/AICompanion',
       safeContext: 'Voice: warm, short.',
+      earlierTasks: [EARLIER_OUTCOME],
       history: [{ instruction: step().instruction, platform: null, result: first }],
       recentChallengeCount: 0,
     });
+  });
+
+  it('gives the execution layer the earlier Tasks of the Job, and the general step limit', async () => {
+    const t = setup();
+    t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ isTaskDone: true }));
+    t.execution.runTask.mockResolvedValueOnce(result());
+
+    await t.run();
+
+    const sent = t.execution.runTask.mock.calls[0][0];
+    expect(sent.context).toBe(
+      'Voice: warm, short.\n\nEarlier Tasks in this Job:\n1. [complete] Open r/AICompanion\n   Result: Subreddit open.\n' +
+        '   Location: reddit.com/r/AICompanion',
+    );
+    expect(sent.maxSteps).toBe(TASK_SKILLS.general.maxExecutionSteps);
+    expect(sent.returnsScreenshot).toBe(false);
+  });
+
+  it('runs a design Task with long steps, saves its final screen, and keeps the screenshot out of reasoning', async () => {
+    const t = setup();
+    t.tasks.findTaskWithLineage.mockResolvedValue({ ...t.task, skillType: 'creative_design' });
+    const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+    t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ isTaskDone: true }));
+    t.execution.runTask.mockResolvedValueOnce(result({ finalScreenshot: screenshot }));
+
+    await t.run();
+
+    expect(t.execution.runTask).toHaveBeenCalledWith(
+      expect.objectContaining({ maxSteps: TASK_SKILLS.creative_design.maxExecutionSteps, returnsScreenshot: true }),
+    );
+    expect(t.screenshots.saveTaskScreenshot).toHaveBeenCalledWith({ jobId: 'job-1', taskId: TASK_ID, screenshot });
+    expect(t.reasoning.planNextStep).toHaveBeenLastCalledWith(expect.objectContaining({ skillType: 'creative_design' }));
+    expect(JSON.stringify(t.reasoning.planNextStep.mock.calls)).not.toContain(screenshot.base64);
   });
 
   it('sends the login to the execution layer only, never to reasoning', async () => {

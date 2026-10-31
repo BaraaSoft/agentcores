@@ -1,3 +1,4 @@
+import type { PlannedTask } from './planned-task';
 import type { TaskOutcome } from './task-outcome';
 
 /**
@@ -13,8 +14,8 @@ export interface JobPlanningInput {
   readonly reason: string;
   /** Every Task that finished or was dropped (cancelled), in order. Empty for the first plan. */
   readonly history: readonly TaskOutcome[];
-  /** The plan being edited: actions not started yet, in order. */
-  readonly remainingActions: readonly string[];
+  /** The plan being edited: Tasks not started yet, in order. */
+  readonly remainingTasks: readonly PlannedTask[];
   /** Tasks of the Job that have started (anything not pending or cancelled), measured against the soft budget. */
   readonly tasksStarted: number;
 }

@@ -31,16 +31,19 @@ export class TaskService {
   ) {}
 
   /**
-   * Makes `actions` the Job's plan for every Task that has not started: cancels its pending Tasks and
-   * appends the actions after its last Task. Leaves the plan alone when it is unchanged. Also used for
-   * the first plan, when the Job has no Tasks. Returns the Job's pending Tasks afterwards, in order.
+   * Makes `input.tasks` the Job's plan for every Task that has not started: cancels its pending Tasks
+   * and appends the new ones after its last Task. Leaves the plan alone when it is unchanged. Also used
+   * for the first plan, when the Job has no Tasks. Returns the Job's pending Tasks afterwards, in order.
    */
   async replaceRemainingTasks(input: ReplaceRemainingTasksInput): Promise<TaskEntity[]> {
     return this.tasks.manager.transaction(async (manager) => {
       const tasks = manager.getRepository(TaskEntity);
       const pending = await tasks.find({ where: { jobId: input.jobId, status: 'pending' }, order: { sequence: 'ASC' } });
       const isUnchanged =
-        pending.length === input.actions.length && pending.every((task, index) => task.action === input.actions[index]);
+        pending.length === input.tasks.length &&
+        pending.every(
+          (task, index) => task.action === input.tasks[index].action && task.skillType === input.tasks[index].skillType,
+        );
       if (isUnchanged) return pending;
 
       if (pending.length > 0) {
@@ -48,11 +51,12 @@ export class TaskService {
       }
       const lastSequence = (await tasks.maximum('sequence', { jobId: input.jobId })) ?? 0;
       return tasks.save(
-        input.actions.map((action, index) =>
+        input.tasks.map(({ action, skillType }, index) =>
           tasks.create({
             workflowId: input.workflowId,
             jobId: input.jobId,
             action,
+            skillType,
             sequence: lastSequence + index + 1,
             status: 'pending',
           }),

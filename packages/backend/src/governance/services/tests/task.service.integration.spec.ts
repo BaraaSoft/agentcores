@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';
 import { TestDatabaseModule } from '../../../database/tests/test-database.module';
+import type { PlannedTask } from '../../../reasoning/job/types/planned-task';
 import { TaskEntity } from '../../entities/task.entity';
 import { TaskService } from '../task.service';
 import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
@@ -43,15 +44,24 @@ describeWithDatabase('TaskService (Postgres)', () => {
   const statusesOf = async (jobId: string) =>
     (await service.listTasks(jobId)).map((task) => [task.action, task.sequence, task.status]);
 
+  const general = (...actions: string[]): PlannedTask[] => actions.map((action) => ({ action, skillType: 'general' }));
+
   describe('replaceRemainingTasks', () => {
     it('writes the first plan in order', async () => {
       const { workflow, job } = await jobWithTasks([]);
 
-      const pending = await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: ['Open', 'Reply'] });
+      const pending = await service.replaceRemainingTasks({
+        workflowId: workflow.id,
+        jobId: job.id,
+        tasks: [
+          { action: 'Open', skillType: 'general' },
+          { action: 'Design the post', skillType: 'creative_design' },
+        ],
+      });
 
-      expect(pending.map((task) => [task.action, task.sequence, task.status])).toEqual([
-        ['Open', 1, 'pending'],
-        ['Reply', 2, 'pending'],
+      expect(pending.map((task) => [task.action, task.skillType, task.sequence, task.status])).toEqual([
+        ['Open', 'general', 1, 'pending'],
+        ['Design the post', 'creative_design', 2, 'pending'],
       ]);
       expect(await service.hasTasks(job.id)).toBe(true);
     });
@@ -62,17 +72,29 @@ describeWithDatabase('TaskService (Postgres)', () => {
       const pending = await service.replaceRemainingTasks({
         workflowId: workflow.id,
         jobId: job.id,
-        actions: ['Action 2', 'Action 3'],
+        tasks: general('Action 2', 'Action 3'),
       });
 
       expect(pending.map((task) => task.id)).toEqual([tasks[1].id, tasks[2].id]);
       expect(await dataSource.getRepository(TaskEntity).count()).toBe(3);
     });
 
+    it('replaces the plan when only a skill changed', async () => {
+      const { workflow, job } = await jobWithTasks(['pending']);
+
+      const pending = await service.replaceRemainingTasks({
+        workflowId: workflow.id,
+        jobId: job.id,
+        tasks: [{ action: 'Action 1', skillType: 'creative_design' }],
+      });
+
+      expect(pending.map((task) => [task.action, task.skillType, task.sequence])).toEqual([['Action 1', 'creative_design', 2]]);
+    });
+
     it('cancels the pending Tasks and appends the new plan after the last Task', async () => {
       const { workflow, job } = await jobWithTasks(['complete', 'failed', 'pending', 'pending']);
 
-      await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: ['Retry differently', 'Action 4'] });
+      await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, tasks: general('Retry differently', 'Action 4') });
 
       expect(await statusesOf(job.id)).toEqual([
         ['Action 1', 1, 'complete'],
@@ -88,7 +110,7 @@ describeWithDatabase('TaskService (Postgres)', () => {
     it('cancels every pending Task for an empty plan', async () => {
       const { workflow, job } = await jobWithTasks(['complete', 'pending']);
 
-      expect(await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, actions: [] })).toEqual([]);
+      expect(await service.replaceRemainingTasks({ workflowId: workflow.id, jobId: job.id, tasks: [] })).toEqual([]);
       expect(await statusesOf(job.id)).toEqual([
         ['Action 1', 1, 'complete'],
         ['Action 2', 2, 'cancelled'],

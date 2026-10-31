@@ -1,4 +1,4 @@
-import type { ExecutionProvider, ExecutionResult, ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@ahe/agent-core';
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { ActionExecutor } from '../actions/action-executor';
 import { AnthropicComputerToolset } from '../anthropic/anthropic-computer-toolset';
@@ -12,7 +12,8 @@ import type { ExecutionTurn } from './types/execution-turn';
 
 /**
  * The execution layer. Runs one mechanical instruction through Anthropic's computer-use
- * tool runner (screenshot → model → actions, repeated) and returns only a compressed text summary.
+ * tool runner (screenshot → model → actions, repeated) and returns a compressed text summary, plus
+ * the final screen when the task asks for it.
  *
  * Each task gets a fresh conversation, a fresh toolset, and a pixel geometry fixed for its duration.
  */
@@ -30,7 +31,8 @@ export class ComputerUseProvider implements ExecutionProvider {
    */
   async runTask(task: ExecutionTask, signal?: AbortSignal): Promise<ExecutionResult> {
     await this.assertPermissions();
-    const toolset = await this.createToolset();
+    const geometry = await this.measureGeometry();
+    const toolset = this.createToolset(geometry);
 
     const secrets = task.credentials === null ? [] : [task.credentials.password];
     let stepsTaken = 0;
@@ -80,15 +82,35 @@ export class ComputerUseProvider implements ExecutionProvider {
       isStoppedAtStepLimit: lastMessage?.stop_reason === 'tool_use',
       secrets,
     });
-    return { ...state, stepsTaken };
+    if (task.returnsScreenshot !== true) return { ...state, stepsTaken };
+    const finalScreenshot = await this.captureFinalScreen(geometry);
+    return finalScreenshot === null ? { ...state, stepsTaken } : { ...state, stepsTaken, finalScreenshot };
   }
 
-  /** Builds this task's toolset around a geometry measured from the display right now. */
-  private async createToolset(): Promise<AnthropicComputerToolset> {
+  /** The pixel spaces for one task, measured from the display right now. */
+  private async measureGeometry(): Promise<DisplayGeometry> {
+    return DisplayGeometry.fit(await this.components.desktop.pointer.getDisplaySize(), this.options.maxScreenshotSize);
+  }
+
+  /** Builds this task's toolset around its geometry. */
+  private createToolset(geometry: DisplayGeometry): AnthropicComputerToolset {
     const { desktop, guard } = this.components;
-    const geometry = DisplayGeometry.fit(await desktop.pointer.getDisplaySize(), this.options.maxScreenshotSize);
     const executor = new ActionExecutor(desktop, geometry, this.options.settleDelayMs);
     return new AnthropicComputerToolset(executor, guard, desktop.pointer.maxClickCount >= 3);
+  }
+
+  /**
+   * The screen as the task ended, at the task's screenshot size. A failed capture returns null rather
+   * than throwing, so a finished task is never lost for want of its picture.
+   */
+  private async captureFinalScreen(geometry: DisplayGeometry): Promise<Screenshot | null> {
+    const { screen, images } = this.components.desktop;
+    try {
+      const image = await images.resize(await screen.capture(), geometry.screenshotSize);
+      return { mediaType: image.mediaType, base64: image.data.toString('base64') };
+    } catch {
+      return null;
+    }
   }
 
   /** Fails closed: without both macOS permissions, captures are blank and input is silently dropped. */

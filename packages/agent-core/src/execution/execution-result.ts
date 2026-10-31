@@ -1,9 +1,10 @@
 import type { ExecutionBlocker } from './execution-blocker';
 import type { ExecutionStatus } from './execution-status';
+import type { Screenshot } from './screenshot';
 
 /**
  * What the execution layer returns to the backend's Task processor after the loop ends.
- * Only this text is ever forwarded to the reasoning layer — screenshots never are.
+ * Task reasoning reads the text only. `finalScreenshot` goes to Job review and the evaluator.
  */
 export interface ExecutionResult {
   readonly status: ExecutionStatus;
@@ -21,4 +22,6 @@ export interface ExecutionResult {
   readonly stepsTaken: number;
   /** Metric values read off the screen, e.g. upvotes on a post. Empty when none. */
   readonly metricReadings: Readonly<Record<string, number>>;
+  /** The screen as the instruction ended; present only when the task set `returnsScreenshot`. */
+  readonly finalScreenshot?: Screenshot;
 }

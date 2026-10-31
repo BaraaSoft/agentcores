@@ -11,9 +11,10 @@ import type { ToolLoopInput } from './types/tool-loop-input';
 const MAX_PAUSED_TURNS = 5;
 
 /**
- * Thin wrapper around the Anthropic API for a reasoning model. Calls are text-only, with adaptive
- * thinking; screenshots never reach this client. Strategy reasoning and the evaluator use it with the
- * default model; levels with their own model get a subclass (`JobReasoningModelClient`, `TaskReasoningModelClient`).
+ * Thin wrapper around the Anthropic API for a reasoning model, with adaptive thinking. Calls are text,
+ * except that Job review and the evaluator may attach a visual Task's final screenshot. Strategy
+ * reasoning and the evaluator use it with the default model; levels with their own model get a
+ * subclass (`JobReasoningModelClient`, `TaskReasoningModelClient`).
  * `ReasoningModule` builds each one from config.
  */
 export class ReasoningModelClient {
@@ -33,7 +34,7 @@ export class ReasoningModelClient {
       input.webSearch === undefined
         ? undefined
         : [{ type: 'web_search_20260318' as const, name: 'web_search' as const, max_uses: input.webSearch.maxSearches }];
-    const messages: MessageParam[] = [{ role: 'user', content: input.userPrompt }];
+    const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
     for (let pause = 0; pause <= MAX_PAUSED_TURNS; pause++) {
       const message = await this.anthropic.messages.parse({
@@ -57,6 +58,18 @@ export class ReasoningModelClient {
       return message.parsed_output;
     }
     throw new Error(`Reasoning model paused more than ${MAX_PAUSED_TURNS} times without answering`);
+  }
+
+  /** The prompt alone, or the images first and the prompt after them, which is how the model reads images best. */
+  private userContent(input: CompletionInput<unknown>): MessageParam['content'] {
+    if (input.images === undefined || input.images.length === 0) return input.userPrompt;
+    return [
+      ...input.images.map((image) => ({
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: image.mediaType, data: image.base64 },
+      })),
+      { type: 'text' as const, text: input.userPrompt },
+    ];
   }
 
   /**

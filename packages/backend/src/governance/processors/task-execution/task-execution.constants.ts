@@ -1,8 +1,8 @@
 /** Max plan → execute rounds for one Task before it is failed. */
 export const MAX_TASK_ITERATIONS = 12;
 
-/** Max computer-use turns the execution layer may spend on one step. */
-export const EXECUTION_MAX_STEPS = 30;
+/** The latest earlier Tasks of the Job that go into the execution context; Task reasoning sees them all. */
+export const EARLIER_TASKS_IN_EXECUTION_CONTEXT = 10;
 
 /** Max memory records loaded into a Task's context. */
 export const TASK_CONTEXT_RECORD_LIMIT = 8;
