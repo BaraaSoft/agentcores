@@ -95,6 +95,7 @@ describe('JobReasoningService', () => {
       expect(images).toEqual([screenshot]);
       expect(userPrompt).toContain('The attached screenshot shows the screen as this Task ended.');
       expect(systemPrompt).toContain('judge the work by what it shows');
+      expect(systemPrompt).toContain('A piece of work gets one round of improvement inside a Job.');
     });
   });
 

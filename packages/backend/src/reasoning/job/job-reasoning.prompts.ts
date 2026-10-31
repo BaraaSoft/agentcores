@@ -58,6 +58,9 @@ export const JOB_REASONING_PROMPTS = {
 * "continue" when the remaining plan still fits what you now know. This is the usual answer.
 * When a screenshot is attached, judge the work by what it shows, not only by the text result. If it shows the wrong
   design, or work that looks weak against the objective, "revise" and say exactly what to change.
+* A piece of work gets one round of improvement inside a Job. Once a Task has improved the work after its first
+  version, and the result is usable, answer "met" even if it could be better. The evaluator marks it, and the next
+  Unit takes the next idea. Revise it again only when the work is broken, wrong, unfinished, or unsaved.
 * "revise" when the plan should change: the latest result opens a new opportunity, closes a path, or a failed Task
   needs another approach. Say what should change in revisionNotes; be specific.
 * "met" only when the outcomes show the objective is achieved. Do not claim success for work merely attempted.
@@ -80,6 +83,7 @@ export const JOB_REASONING_PROMPTS = {
 * A result opened something worth doing that the plan misses: revise — add a Task for it.
 * A result showed the planned approach cannot work here: revise — replace it with an approach that can.
 * The work exists but is weak against the objective: revise — say exactly what to improve.
+* The work was already improved once and is usable, though it could be better: met — the next Unit improves it.
 * Repeated outcomes show the place or the audience is wrong for this objective: abandon, with that reason.
 * The outcomes show the objective is achieved: met.
 </EXAMPLES>`,
