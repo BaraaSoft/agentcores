@@ -9,13 +9,14 @@ const SCHEMA = z.object({ answer: z.string() });
 function setup(reply: { stop_reason: string; parsed_output: unknown; content?: unknown }) {
   const parse = jest.fn().mockResolvedValue(reply);
   const client = new ReasoningModelClient({ messages: { parse } } as unknown as Anthropic, { modelId: 'opus', effort: 'high' });
-  const run = (webSearch?: { maxSearches: number }) =>
+  const run = (webSearch?: { maxSearches: number }, webFetch?: { maxFetches: number }) =>
     client.completeStructured({
       systemPrompt: 'You decide.',
       userPrompt: 'Decide.',
       maxTokens: 4000,
       schema: SCHEMA,
       webSearch,
+      webFetch,
     });
   return { parse, run };
 }
@@ -102,6 +103,24 @@ describe('ReasoningModelClient', () => {
       expect(t.parse.mock.calls[0][0].tools).toEqual([
         { type: 'web_search_20260318', name: 'web_search', max_uses: 3 },
       ]);
+    });
+
+    it('lets the model read pages, capped in count and in size per page', async () => {
+      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+
+      await t.run(undefined, { maxFetches: 2 });
+
+      expect(t.parse.mock.calls[0][0].tools).toEqual([
+        { type: 'web_fetch_20260318', name: 'web_fetch', max_uses: 2, max_content_tokens: expect.any(Number) },
+      ]);
+    });
+
+    it('offers both web tools when the call allows both, and lets the model choose', async () => {
+      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+
+      await t.run({ maxSearches: 3 }, { maxFetches: 2 });
+
+      expect(t.parse.mock.calls[0][0].tools.map((tool: { name: string }) => tool.name)).toEqual(['web_search', 'web_fetch']);
     });
 
     it('carries on from its own work when a search pauses the turn', async () => {
