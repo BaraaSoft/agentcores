@@ -1,5 +1,5 @@
 import { GENERAL_SKILL } from './general.skill';
-import { TaskSkillBuilder } from './task-skill.builder';
+import { TaskSkillBuilder } from '../builder/task-skill.builder';
 
 const MAX_EXECUTION_STEPS = 150;
 

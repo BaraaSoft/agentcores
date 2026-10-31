@@ -1,5 +1,5 @@
 import { GENERAL_SKILL } from './general.skill';
-import { TaskSkillBuilder } from './task-skill.builder';
+import { TaskSkillBuilder } from '../builder/task-skill.builder';
 
 const CRAFT = `
 * Write the full text of every post or reply into the instruction, in the owner's voice. Never let the agent improvise

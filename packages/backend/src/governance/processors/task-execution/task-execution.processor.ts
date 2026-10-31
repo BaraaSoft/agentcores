@@ -9,7 +9,7 @@ import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
-import { TASK_SKILLS } from '../../../reasoning/task/skills/task-skill-registry';
+import { TASK_SKILLS } from '../../../reasoning/task/skills';
 import { renderTaskOutcomes } from '../../../reasoning/task-outcome.prompts';
 import { TaskReasoningService } from '../../../reasoning/task/task-reasoning.service';
 import type { PlannedStep } from '../../../reasoning/task/types/planned-step';

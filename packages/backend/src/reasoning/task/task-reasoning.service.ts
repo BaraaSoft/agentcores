@@ -1,7 +1,6 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { PLANNED_STEP_SCHEMA } from './schemas/planned-step.schema';
-import { renderTaskSkillPrompt } from './skills/render-task-skill-prompt';
-import { TASK_SKILLS } from './skills/task-skill-registry';
+import { renderTaskSkillPrompt, TASK_SKILLS } from './skills';
 import { TaskReasoningModelClient } from './task-reasoning-model.client';
 import { PLAN_NEXT_STEP_MAX_TOKENS } from './task-reasoning.constants';
 import { TASK_REASONING_PROMPTS } from './task-reasoning.prompts';

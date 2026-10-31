@@ -1,7 +1,7 @@
 import type { TaskSkillType } from '@ahe/agent-core';
-import { CREATIVE_DESIGN_SKILL } from './creative-design.skill';
-import { GENERAL_SKILL } from './general.skill';
-import { SOCIAL_POST_SKILL } from './social-post.skill';
+import { CREATIVE_DESIGN_SKILL } from '../specialist/creative-design.skill';
+import { GENERAL_SKILL } from '../specialist/general.skill';
+import { SOCIAL_POST_SKILL } from '../specialist/social-post.skill';
 import type { TaskSkill } from './task-skill';
 
 /**

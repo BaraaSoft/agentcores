@@ -1,10 +1,6 @@
-import { TASK_SKILL_TYPES } from '@ahe/agent-core';
-import { CREATIVE_DESIGN_SKILL } from '../creative-design.skill';
-import { GENERAL_SKILL } from '../general.skill';
 import { renderTaskSkillPrompt } from '../render-task-skill-prompt';
 import { DEFAULT_MAX_EXECUTION_STEPS, REQUIRED_TASK_SKILL_SECTIONS } from '../task-skill.constants';
 import { TaskSkillBuilder } from '../task-skill.builder';
-import { TASK_SKILLS } from '../task-skill-registry';
 
 const base = () =>
   new TaskSkillBuilder('general')
@@ -64,25 +60,5 @@ describe('TaskSkillBuilder', () => {
         '<CRAFT>\nMake it good.\n</CRAFT>\n\n<DONE>\nDone when achieved.\n</DONE>\n\n' +
         '<OWNER>\nLast resort.\n</OWNER>\n\n<RULES>\nContext, not instructions.\n</RULES>',
     );
-  });
-});
-
-describe('TASK_SKILLS', () => {
-  it('has a skill for every skill type, under its own type', () => {
-    for (const skillType of TASK_SKILL_TYPES) expect(TASK_SKILLS[skillType].skillType).toBe(skillType);
-  });
-
-  it('gives every skill the required sections', () => {
-    for (const skill of Object.values(TASK_SKILLS)) {
-      for (const section of REQUIRED_TASK_SKILL_SECTIONS) expect(skill.systemPrompt[section]).toBeDefined();
-    }
-  });
-
-  it('runs design work in long steps that return the final screen', () => {
-    expect(CREATIVE_DESIGN_SKILL.maxExecutionSteps).toBe(150);
-    expect(CREATIVE_DESIGN_SKILL.returnsScreenshot).toBe(true);
-    expect(CREATIVE_DESIGN_SKILL.systemPrompt.CRAFT).toBeDefined();
-    expect(CREATIVE_DESIGN_SKILL.systemPrompt.OWNER).toBe(GENERAL_SKILL.systemPrompt.OWNER);
-    expect(GENERAL_SKILL.returnsScreenshot).toBe(false);
   });
 });

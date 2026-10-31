@@ -1,4 +1,4 @@
-import { TaskSkillBuilder } from './task-skill.builder';
+import { TaskSkillBuilder } from '../builder/task-skill.builder';
 
 const SITUATION = `
 * You carry out one Task of a Job, one step at a time. A computer-use agent performs each step on the owner's computer and

@@ -1,8 +1,6 @@
 import type { ExecutionResult } from '@ahe/agent-core';
 import { PLANNED_STEP_SCHEMA } from '../schemas/planned-step.schema';
-import { CREATIVE_DESIGN_SKILL } from '../skills/creative-design.skill';
-import { GENERAL_SKILL } from '../skills/general.skill';
-import { renderTaskSkillPrompt } from '../skills/render-task-skill-prompt';
+import { CREATIVE_DESIGN_SKILL, GENERAL_SKILL, renderTaskSkillPrompt } from '../skills';
 import type { TaskReasoningModelClient } from '../task-reasoning-model.client';
 import { PLAN_NEXT_STEP_MAX_TOKENS } from '../task-reasoning.constants';
 import { TaskReasoningService } from '../task-reasoning.service';
