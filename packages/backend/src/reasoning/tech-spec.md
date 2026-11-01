@@ -412,12 +412,17 @@ that needs its own model or effort gets a subclass and a settings entry in the c
 and the evaluator run rarely, so they share one level.
 
 **Providers.** Every client speaks the Anthropic Messages API through the Anthropic SDK. A `ReasoningProvider`
-(`providers/`) owns only what differs between vendors: the SDK instance, `serverTools` (the tools the vendor
-runs itself during a call), and `outputSchema`, the JSON schema built from a zod schema for the answer format
-and for custom tool inputs. Claude gets the SDK's `zodOutputFormat` schema, as before. Muse gets zod's full
-`z.toJSONSchema`, because the SDK's conversion moves `enum` and other limits into descriptions; Meta then
-constrains the answer only to "any string" there, and Muse invents values. The client always checks the
-answer against the zod schema itself. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
+(`providers/`) owns only what differs between vendors: the SDK instance, `canFetch`, and `serverTools` (the tools
+the vendor runs itself during a call).
+
+**Schemas.** Both vendors get the same JSON schema, built by `strictJsonSchema` (`strict-json-schema.ts`) for
+the answer format and for custom tool inputs. It starts from zod's `z.toJSONSchema` and keeps `enum`,
+`const`, `anyOf`, `$ref`, and `additionalProperties: false`, so the decoder enforces them. It moves the limits
+neither decoder takes (`minimum`, `maxLength`, `maxItems`, and the like) into the field's description, and
+drops the safe-integer bounds zod adds to every int. The SDK's `zodOutputFormat` is not used: it also moves
+`enum` and `const` into descriptions (anthropics/anthropic-sdk-typescript#1116), so the decoder allows any
+string there, and Muse then invented verdicts. The client always checks the answer against the zod schema
+itself, so the moved limits still hold. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
 
 | Provider | Endpoint and key | Web search | Web fetch |
 | --- | --- | --- | --- |
@@ -491,6 +496,7 @@ reasoning/
 ├── reasoning.config.ts             ← registerAs('reasoning'): API keys + provider, model, and effort per level
 ├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and evaluation use it as is
 ├── providers/                      ← ReasoningProvider, AnthropicReasoningProvider, MuseReasoningProvider, ReasoningProviders (+ tests/)
+├── strict-json-schema.ts           ← zod schema to the JSON schema both vendors constrain decoding to (+ tests/)
 ├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
 ├── tools/toolset.factory.ts        ← ToolsetFactory: a new toolset per run (+ tests/)
 ├── task-outcome.prompts.ts         ← renders Task outcomes as prompt text, shared by Job and evaluation prompts

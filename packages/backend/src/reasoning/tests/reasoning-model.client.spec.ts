@@ -16,7 +16,6 @@ function fakeReasoningProvider(messages: Partial<Anthropic['messages']>): Reason
   return {
     sdk: { messages } as unknown as Anthropic,
     canFetch: false,
-    outputSchema: (schema) => z.toJSONSchema(schema, { io: 'output' }),
     serverTools: jest.fn((input) => (input.webSearch === undefined ? undefined : [SEARCH_TOOL])),
   };
 }
@@ -38,7 +37,7 @@ function setup(first: ReturnType<typeof reply>) {
       webSearch,
       webFetch,
     });
-  return { create, reasoningProvider, run };
+  return { create, reasoningProvider, client, run };
 }
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown };
@@ -104,6 +103,22 @@ describe('ReasoningModelClient', () => {
       );
 
       expect(await t.run({ maxSearches: 3 })).toEqual({ answer: 'found' });
+    });
+
+    it('sends enum values as real schema constraints, not as description hints', async () => {
+      const t = setup(reply('end_turn', text('{"verdict":"scored"}')));
+
+      await t.client.completeStructured({
+        systemPrompt: 'You judge.',
+        userPrompt: 'Judge.',
+        maxTokens: 4000,
+        schema: z.object({ verdict: z.enum(['scored', 'needs_evidence']) }),
+      });
+
+      expect(t.create.mock.calls[0][0].output_config.format.schema.properties.verdict).toEqual({
+        type: 'string',
+        enum: ['scored', 'needs_evidence'],
+      });
     });
 
     it('throws when the answer does not match the schema', async () => {

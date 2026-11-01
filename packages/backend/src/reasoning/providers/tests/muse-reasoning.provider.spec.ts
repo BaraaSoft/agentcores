@@ -34,21 +34,6 @@ describe('MuseReasoningProvider', () => {
     expect(provider.serverTools(call({ webFetch: { maxFetches: 2 } }))).toBeUndefined();
   });
 
-  it('keeps enum values in the JSON schema, so Meta constrains the answer to them', () => {
-    const provider = MuseReasoningProvider.create('model-key');
-
-    const schema = provider.outputSchema(z.object({ verdict: z.enum(['scored', 'needs_evidence']).describe('The verdict.') }));
-
-    expect(schema).not.toHaveProperty('$schema');
-    expect(schema).toEqual(
-      expect.objectContaining({
-        additionalProperties: false,
-        required: ['verdict'],
-        properties: { verdict: { type: 'string', enum: ['scored', 'needs_evidence'], description: 'The verdict.' } },
-      }),
-    );
-  });
-
   it('offers web search without a limit, and drops web fetch, which Meta does not have', () => {
     const provider = MuseReasoningProvider.create('model-key');
 
