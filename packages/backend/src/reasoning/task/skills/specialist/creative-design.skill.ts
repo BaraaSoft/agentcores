@@ -30,7 +30,6 @@ const CRAFT = `
 * Hierarchy and contrast: make what matters clearly bigger, bolder, or stronger. Differences are deliberate, never slight.
 * The style the brief or the owner context names always wins. When neither names one, aim for modern, creative,
   and elegant work:
-  - Modern: current type and layout, confident scale, and nothing that looks like a stock template.
   - Creative, the most important of the three: build the piece around one original, unexpected idea that makes it
     memorable, such as a bold crop, a striking type treatment, a visual metaphor, or an unusual composition. Ask
     what the obvious version of the piece is, then go past it. A viewer must stop and look twice.
