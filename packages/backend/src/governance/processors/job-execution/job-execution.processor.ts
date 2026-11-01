@@ -1,7 +1,8 @@
 import type { TaskStatus } from '@ahe/agent-core';
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
+import { LoggedWorkerHost } from '../../../queue/logged-worker-host';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import type { JobEvaluationJobData } from '../../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
@@ -38,7 +39,7 @@ type JobRun = { readonly workflowId: string; readonly job: JobEntity; readonly s
  * evidence hands the evaluation waiting on it back to the evaluator.
  */
 @Processor(JOB_EXECUTION_QUEUE)
-export class JobExecutionProcessor extends WorkerHost {
+export class JobExecutionProcessor extends LoggedWorkerHost {
   constructor(
     @InjectQueue(TASK_EXECUTION_QUEUE)
     private readonly taskQueue: Queue<TaskExecutionJobData>,
@@ -156,7 +157,7 @@ export class JobExecutionProcessor extends WorkerHost {
         return this.planTasks(
           run,
           tasks,
-          `The review asked for changes: ${review.revisionNotes ?? review.rationale}`,
+          `The review asked for changes: ${review.revisionNotes}`,
           review.summary,
         );
       case 'continue':

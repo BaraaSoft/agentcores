@@ -405,7 +405,7 @@ without one it runs its provider's default model.
 | --- | --- | --- | --- | --- |
 | `ReasoningModelClient` | `StrategyReasoningService`, `EvaluationReasoningService` | `REASONING_STRATEGY_` | `claude-opus-5-5` / `muse-wonder-1.0` | high |
 | `JobReasoningModelClient` | `JobReasoningService` | `REASONING_JOB_` | `claude-opus-5-5` / `muse-wonder-1.0` | high |
-| `TaskReasoningModelClient` | `TaskReasoningService` | `REASONING_TASK_` | `claude-opus-5-5` / `muse-spark-1.3` | medium (hot path) |
+| `TaskReasoningModelClient` | `TaskReasoningService` | `REASONING_TASK_` | `claude-opus-5-5` / `muse-wonder-1.0` | medium (hot path) |
 
 The subclasses add no behaviour; they exist so each service injects its level's client by class. A level
 that needs its own model or effort gets a subclass and a settings entry in the config; the Strategy planner
@@ -423,6 +423,27 @@ drops the safe-integer bounds zod adds to every int. The SDK's `zodOutputFormat`
 `enum` and `const` into descriptions (anthropics/anthropic-sdk-typescript#1116), so the decoder allows any
 string there, and Muse then invented verdicts. The client always checks the answer against the zod schema
 itself, so the moved limits still hold. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
+
+A decision whose fields depend on it is a `z.discriminatedUnion`, one branch per decision, so the decoder
+makes each answer carry what its decision needs. zod writes it as `oneOf`, which Claude rejects, so the
+builder writes `anyOf`; the branches fix the discriminator to different values, so the meaning is the same.
+
+| Schema | Branches | What the decoder now enforces |
+| --- | --- | --- |
+| `JOB_JUDGEMENT_OUTPUT_SCHEMA` | `scored`, `needs_evidence` | a mark has a score; an evidence request has its objective and criteria |
+| `UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA` | `plan`, `done` | a plan has a title and at least one Job |
+| `JOB_REVIEW_SCHEMA` | `revise`, the other three | a revision has its notes |
+| `PLANNED_STEP_SCHEMA` | none, flat | — |
+
+Three limits came out of live tests on Claude, Muse Wonder, and Muse Spark:
+
+- `PLANNED_STEP_SCHEMA` stays flat. With branches, Muse Spark answered "done" on Tasks it had not started,
+  in either field order. The service still throws on an empty step.
+- Branch order steers the model. With `needs_evidence` first, Claude asked for evidence on work it could
+  plainly mark, so `scored` is first.
+- No decoder enforces a number's range. Muse Wonder, unsure whether to ask for evidence, sometimes wrote a
+  score of 0. zod rejects a score off the 1–10 scale, so the queue retries the judgement rather than
+  recording a clamped, fake 1.
 
 | Provider | Endpoint and key | Web search | Web fetch |
 | --- | --- | --- | --- |

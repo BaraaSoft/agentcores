@@ -2,7 +2,8 @@ import * as z from 'zod/v4';
 
 /**
  * What `planNextStep` must answer. Sent as the JSON schema output format, so every field is required;
- * the service turns the flat answer into a `PlannedStep`.
+ * the service turns the flat answer into a `PlannedStep`. It stays flat rather than one branch per
+ * `isTaskDone`: with branches, Muse Spark answered "done" on Tasks it had not started.
  */
 export const PLANNED_STEP_SCHEMA = z.object({
   rationale: z

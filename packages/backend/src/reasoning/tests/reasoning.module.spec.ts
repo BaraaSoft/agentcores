@@ -55,7 +55,7 @@ describe('ReasoningModule', () => {
     expect(new Set([strategy, job, task].map((client) => client.reasoningProvider)).size).toBe(1);
   });
 
-  it('runs Muse Wonder for Strategy and Job, and Muse Spark for the hot Task path, by default', async () => {
+  it('runs Muse Wonder at every level by default, with less effort on the hot Task path', async () => {
     const { strategy, job, task } = await compile({
       META_API_KEY: 'model-key',
       REASONING_STRATEGY_PROVIDER: 'muse',
@@ -66,7 +66,7 @@ describe('ReasoningModule', () => {
     expect([strategy, job, task].map((client) => client.settings.modelId)).toEqual([
       'muse-wonder-1.0',
       'muse-wonder-1.0',
-      'muse-spark-1.3',
+      'muse-wonder-1.0',
     ]);
     expect(task.reasoningProvider).toBeInstanceOf(MuseReasoningProvider);
     expect(task.settings.effort).toBe('medium');

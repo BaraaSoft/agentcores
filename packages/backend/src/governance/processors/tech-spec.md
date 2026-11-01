@@ -71,9 +71,13 @@ twice, or out of order without breaking it.
 
 | Processor | Queue | Payload | Concurrency | Queue retries | Calls |
 | --- | --- | --- | --- | --- | --- |
-| `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
+| `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff from 60 s | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
 | `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1** — one screen, one mouse | **none** — a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
-| `JobEvaluationProcessor` | `job-evaluation` | `{ workflowId, evaluationId }` | default | 3, exponential backoff | `EvaluationReasoningService.judgeJob` |
+| `JobEvaluationProcessor` | `job-evaluation` | `{ workflowId, evaluationId }` | default | 3, exponential backoff from 5 s — a judgement throws on a bad answer, not a rate limit | `EvaluationReasoningService.judgeJob` |
+
+Every processor extends `LoggedWorkerHost` (`queue/logged-worker-host.ts`), which logs each failed delivery
+with its error and whether the queue tries again. Without it, the error stays in Redis and a retry looks
+like a silent pause.
 
 The Job queue uses the Job's ID as the queue job ID and removes entries on completion, so a Job already
 waiting is never queued twice, and the same Job can be queued again later. The orchestrator queues a

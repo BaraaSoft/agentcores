@@ -1,5 +1,6 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
+import { LoggedWorkerHost } from '../../queue/logged-worker-host';
 import { DAILY_REPORT_QUEUE } from '../../queue/queue.constants';
 import type { WorkflowJobData } from '../../queue/types/workflow-job-data';
 import { ReportingService } from '../reporting.service';
@@ -9,7 +10,7 @@ import { ReportingService } from '../reporting.service';
  * Scheduled once a day per running Workflow by the orchestrator.
  */
 @Processor(DAILY_REPORT_QUEUE)
-export class DailyReportProcessor extends WorkerHost {
+export class DailyReportProcessor extends LoggedWorkerHost {
   constructor(private readonly reporting: ReportingService) {
     super();
   }
