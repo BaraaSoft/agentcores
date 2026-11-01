@@ -80,6 +80,14 @@ export class TaskService {
   }
 
   /**
+   * Every Task of these Jobs, in sequence order within each Job — the progress view of the work.
+   */
+  async listTasksInJobs(jobIds: readonly string[]): Promise<TaskEntity[]> {
+    if (jobIds.length === 0) return [];
+    return this.tasks.find({ where: { jobId: In([...jobIds]) }, order: { sequence: 'ASC' } });
+  }
+
+  /**
    * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs: the
    * Unit's state gates the run, and the Strategy names the owner.
    */

@@ -21,6 +21,7 @@ function setup(found: unknown = WORKFLOW, strategy: unknown = WORKFLOW.strategy)
   const workflows = {
     createWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
     findWorkflowById: jest.fn().mockResolvedValue(found),
+    listWorkflows: jest.fn().mockResolvedValue([WORKFLOW]),
   };
   const strategies = { findStrategyById: jest.fn().mockResolvedValue(strategy) };
   const orchestrator = {
@@ -59,6 +60,10 @@ describe('WorkflowsApiService', () => {
   it('gets a Workflow, and answers 404 when it does not exist', async () => {
     expect(await setup().service.getWorkflow('wf-1')).toEqual(RESPONSE);
     await expect(setup(null).service.getWorkflow('wf-x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists the Workflows with only the public fields', async () => {
+    expect(await setup().service.listWorkflows()).toEqual([RESPONSE]);
   });
 
   it('starts and pauses through the orchestrator', async () => {

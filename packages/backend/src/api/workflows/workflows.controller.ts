@@ -19,6 +19,13 @@ export class WorkflowsController {
     return this.workflows.createWorkflow(body);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'List every Workflow, newest first' })
+  @ApiOkResponse({ type: [WorkflowResponseDto] })
+  async listWorkflows(): Promise<WorkflowResponseDto[]> {
+    return this.workflows.listWorkflows();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a Workflow' })
   @ApiOkResponse({ type: WorkflowResponseDto })
