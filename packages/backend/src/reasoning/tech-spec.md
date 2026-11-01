@@ -412,8 +412,12 @@ that needs its own model or effort gets a subclass and a settings entry in the c
 and the evaluator run rarely, so they share one level.
 
 **Providers.** Every client speaks the Anthropic Messages API through the Anthropic SDK. A `ReasoningProvider`
-(`providers/`) owns only what differs between vendors: the SDK instance and `serverTools`, the tools the vendor
-runs itself during a call. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
+(`providers/`) owns only what differs between vendors: the SDK instance, `serverTools` (the tools the vendor
+runs itself during a call), and `outputSchema`, the JSON schema built from a zod schema for the answer format
+and for custom tool inputs. Claude gets the SDK's `zodOutputFormat` schema, as before. Muse gets zod's full
+`z.toJSONSchema`, because the SDK's conversion moves `enum` and other limits into descriptions; Meta then
+constrains the answer only to "any string" there, and Muse invents values. The client always checks the
+answer against the zod schema itself. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
 
 | Provider | Endpoint and key | Web search | Web fetch |
 | --- | --- | --- | --- |

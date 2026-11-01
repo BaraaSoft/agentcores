@@ -1,4 +1,3 @@
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { ReasoningProvider } from './providers/reasoning-provider';
 import { ReasoningToolError } from './reasoning-tool.error';
@@ -36,7 +35,7 @@ export class ReasoningModelClient {
    * here. Throws when the reply is cut off, refused, or doesn't match.
    */
   async completeStructured<TOutput>(input: CompletionInput<TOutput>): Promise<TOutput> {
-    const format = zodOutputFormat(input.schema);
+    const schema = this.reasoningProvider.outputSchema(input.schema);
     const tools = this.reasoningProvider.serverTools(input);
     const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
@@ -47,7 +46,7 @@ export class ReasoningModelClient {
         system: input.systemPrompt,
         messages,
         thinking: { type: 'adaptive' },
-        output_config: { effort: this.settings.effort, format: { type: format.type, schema: format.schema } },
+        output_config: { effort: this.settings.effort, format: { type: 'json_schema', schema } },
         tools,
       });
       // Searching can run long enough that the API hands the turn back unfinished. Returning its own
@@ -61,7 +60,7 @@ export class ReasoningModelClient {
         throw new Error(`Reasoning model gave no structured answer (stop reason: ${message.stop_reason ?? 'unknown'})`);
       }
       // Some models (Muse) narrate in text blocks between searches; only the last text block is the answer.
-      return format.parse(answer.text);
+      return input.schema.parse(JSON.parse(answer.text));
     }
     throw new Error(`Reasoning model paused more than ${MAX_PAUSED_TURNS} times without answering`);
   }
@@ -139,7 +138,7 @@ export class ReasoningModelClient {
     return {
       name: tool.name,
       description: tool.description,
-      input_schema: zodOutputFormat(tool.inputSchema).schema as Tool['input_schema'],
+      input_schema: this.reasoningProvider.outputSchema(tool.inputSchema) as Tool['input_schema'],
       strict: true,
     };
   }

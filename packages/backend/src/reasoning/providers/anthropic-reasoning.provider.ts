@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { ToolUnion } from '@anthropic-ai/sdk/resources/messages';
+import type * as z from 'zod/v4';
 import type { CompletionInput } from '../types/completion-input';
 import type { ReasoningProvider } from './reasoning-provider';
 
@@ -33,5 +35,10 @@ export class AnthropicReasoningProvider implements ReasoningProvider {
       });
     }
     return tools.length === 0 ? undefined : tools;
+  }
+
+  /** The SDK's own conversion, which keeps only the keywords Claude's decoder takes and moves the rest into descriptions. */
+  outputSchema(schema: z.ZodType): Record<string, unknown> {
+    return zodOutputFormat(schema).schema;
   }
 }

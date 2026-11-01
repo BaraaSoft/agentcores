@@ -19,6 +19,13 @@ describe('AnthropicReasoningProvider', () => {
     expect(provider.canFetch).toBe(true);
   });
 
+  it("builds the JSON schema with the SDK's conversion, as Claude expects", () => {
+    const schema = provider.outputSchema(z.object({ verdict: z.enum(['scored', 'needs_evidence']) }));
+
+    expect(schema).toEqual(expect.objectContaining({ type: 'object', additionalProperties: false, required: ['verdict'] }));
+    expect(schema.properties).toEqual({ verdict: expect.objectContaining({ type: 'string' }) });
+  });
+
   it('offers no server tools unless the call asks for one', () => {
     expect(provider.serverTools(call())).toBeUndefined();
   });
