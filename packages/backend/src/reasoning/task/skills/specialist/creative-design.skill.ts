@@ -28,7 +28,7 @@ const CRAFT = `
 * Start from the purpose. Decide what the viewer must understand or feel, and let every choice serve that.
 * One idea and one focal point. The eye lands on the most important element first and knows where to go next.
 * Hierarchy and contrast: make what matters clearly bigger, bolder, or stronger. Differences are deliberate, never slight.
-* The style the brief or the owner context names always wins. When neither names one, aim for modern, creative,
+* The style the brief or the owner context names always wins. When neither names one, aim for stylish, creative,
   and elegant work:
   - Creative, the most important of the three: build the piece around one original, unexpected idea that makes it
     memorable, such as a bold crop, a striking type treatment, a visual metaphor, or an unusual composition. Ask
