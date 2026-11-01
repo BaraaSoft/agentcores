@@ -5,8 +5,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "build:libs": "pnpm --filter @ahe/agent-core --filter @ahe/execution build",
-    "dev": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
+    "dev:backend": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
     "dev:reset": "bash scripts/reset-dev.sh",
+    "dev:start": "concurrently --kill-others --names backend,web --prefix-colors \"#0081FB.bold,#4CB782.bold\" \"pnpm dev:backend\" \"wait-on --timeout 180000 tcp:localhost:3088 && pnpm dev:web\"",
     "dev:web": "pnpm --filter @ahe/web-ui dev",
     "typecheck": "pnpm build:libs && pnpm -r typecheck",
     "test": "pnpm -r test",
@@ -18,5 +19,9 @@
     "migration:check": "pnpm --filter @ahe/migrations migration:check",
     "migration:generate": "pnpm --filter @ahe/migrations migration:generate:main",
     "migration:revert": "pnpm --filter @ahe/migrations migration:revert:main"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "wait-on": "^9.5.1"
   }
 }
