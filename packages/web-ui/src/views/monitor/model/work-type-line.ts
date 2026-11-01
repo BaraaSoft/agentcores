@@ -1,0 +1,8 @@
+import type { WorkflowProgress } from '../../../api/types/workflow-progress';
+
+/** A short, readable line for the Strategy's work type, such as "one-off · up to 3 attempts". */
+export function workTypeLine(strategy: WorkflowProgress['strategy']): string {
+  if (strategy.workType === 'continuous') return 'continuous';
+  if (strategy.workType === 'multi_version') return `multi-version · ${strategy.versionCount ?? '?'} versions`;
+  return `one-off · up to ${strategy.maxAttempts} attempts`;
+}
