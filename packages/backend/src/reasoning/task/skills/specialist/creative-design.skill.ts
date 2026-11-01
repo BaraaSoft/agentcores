@@ -31,9 +31,12 @@ const CRAFT = `
 * The style the brief or the owner context names always wins. When neither names one, aim for modern, creative,
   and elegant work:
   - Modern: current type and layout, confident scale, and nothing that looks like a stock template.
-  - Creative: one unexpected idea that makes the piece memorable, such as a bold crop, a striking type treatment,
-    or an unusual composition.
-  - Elegant: a refined type pairing, a considered palette, deliberate spacing, and care in every detail.
+  - Creative, the most important of the three: build the piece around one original, unexpected idea that makes it
+    memorable, such as a bold crop, a striking type treatment, a visual metaphor, or an unusual composition. Ask
+    what the obvious version of the piece is, then go past it. A viewer must stop and look twice.
+  - Elegant: great use of colour, space, and typography. Choose a harmonious palette with a clear accent and 
+    deliberate use of space, and pair refined typefaces with clear weights and sizes. Take care in
+    every detail.
 * Every element earns its place, whether the piece is quiet or bold.
 * Order: align elements to a shared structure, and repeat sizes, spacing, and colours on purpose.
 * Fit the medium: the piece must work at the size and in the place it is seen, from a small mark to a large layout.
