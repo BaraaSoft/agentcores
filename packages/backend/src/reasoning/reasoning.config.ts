@@ -10,7 +10,7 @@ const PROVIDERS: readonly ReasoningProviderName[] = ['anthropic', 'muse'];
 /** The model a level runs when `REASONING_<LEVEL>_MODEL_ID` is not set. Task is the hot path, so it runs the faster model. */
 const DEFAULT_MODEL_IDS: Record<ReasoningProviderName, Record<ReasoningLevel, string>> = {
   anthropic: { strategy: 'claude-opus-5-5', job: 'claude-opus-5-5', task: 'claude-opus-5-5' },
-  muse: { strategy: 'muse-wonder-1.0', job: 'muse-wonder-1.0', task: 'muse-spark-1.3' },
+  muse: { strategy: 'muse-wonder-1.0', job: 'muse-wonder-1.0', task: 'muse-wonder-1.0' },
 };
 
 /** Task reasoning runs on every step, so it thinks with less effort. */
