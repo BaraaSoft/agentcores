@@ -52,13 +52,20 @@ function setup() {
   };
   const job = {
     id: JOB_ID,
+    unitOfWorkId: 'unit-1',
     name: 'Engage r/AICompanion',
     objective: 'Join the conversation on r/AICompanion',
     unitOfWork: { name: 'Community engagement', state: 'running', strategy: { owner: 'owner-1' } },
     outcomeStatus: null,
   };
+  const unitJobs = [
+    { id: 'job-done', name: 'Find the subreddit', objective: 'Pick the right community', outcomeStatus: 'success' },
+    job,
+    { id: 'job-next', name: 'Report the replies', objective: 'Write up the replies the intro earned', outcomeStatus: null },
+  ];
   const jobs = {
     findJobById: jest.fn().mockResolvedValue(job),
+    listJobsInUnits: jest.fn().mockResolvedValue(unitJobs),
     closeJob: jest.fn().mockResolvedValue(true),
     recordReviewingAttempt: jest.fn().mockResolvedValue(1),
     resetReviewingAttempts: jest.fn().mockResolvedValue(undefined),
@@ -129,6 +136,17 @@ describe('JobExecutionProcessor', () => {
       expect(t.taskQueue.add).toHaveBeenCalledWith('task-1', { workflowId: WORKFLOW_ID, taskId: 'task-1' });
     });
 
+    it("shows planning only the Unit's other open Jobs: not the Job itself, and not the closed ones", async () => {
+      const t = setup();
+
+      await t.run();
+
+      expect(t.jobs.listJobsInUnits).toHaveBeenCalledWith(['unit-1']);
+      expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(
+        expect.objectContaining({ openSiblingJobs: [{ name: 'Report the replies', objective: 'Write up the replies the intro earned' }] }),
+      );
+    });
+
     it('closes it as failed when planning leaves no Tasks', async () => {
       const t = setup();
       t.jobReasoning.planTasks.mockResolvedValue([]);
@@ -177,6 +195,17 @@ describe('JobExecutionProcessor', () => {
 
       expect(t.screenshots.findTaskScreenshot).toHaveBeenCalledTimes(1);
       expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(expect.objectContaining({ latestScreenshot: screenshot }));
+    });
+
+    it("shows the review the Unit's other open Jobs", async () => {
+      const t = setup();
+      t.reviewing([task(1, 'complete', 'Open r/AICompanion'), task(2, 'pending', 'Reply')]);
+
+      await t.run();
+
+      expect(t.jobReasoning.reviewJob).toHaveBeenCalledWith(
+        expect.objectContaining({ openSiblingJobs: [{ name: 'Report the replies', objective: 'Write up the replies the intro earned' }] }),
+      );
     });
 
     it('reviews the latest Task against the earlier ones and the remaining plan, then keeps the plan', async () => {

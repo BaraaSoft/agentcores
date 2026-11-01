@@ -18,8 +18,10 @@ const JOB = {
   jobName: 'Engage r/AICompanion',
   objective: 'Join the conversation on r/AICompanion',
   unitOfWorkName: 'Community engagement',
+  openSiblingJobs: [{ name: 'Report the replies', objective: 'Write up the replies the intro earned' }],
   safeContext: 'Voice: warm, short.',
 };
+const OPEN_SIBLING_JOBS_BLOCK = '<OTHER_JOBS_IN_UNIT>\n1. Report the replies: Write up the replies the intro earned\n</OTHER_JOBS_IN_UNIT>';
 
 const OPENED: TaskOutcome = {
   action: 'Open r/AICompanion',
@@ -82,6 +84,18 @@ describe('JobReasoningService', () => {
       );
       expect(userPrompt).toContain('<REMAINING_PLAN>\n1. Reply to the top thread\n</REMAINING_PLAN>');
       expect(t.structured().images).toBeUndefined();
+    });
+
+    it("shows the Unit's other open Jobs, and judges the Job against its own objective only", async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(REVIEW);
+
+      await t.service.reviewJob({ ...JOB, latestOutcome: OPENED, history: [], remainingActions: [], latestScreenshot: null });
+
+      const { systemPrompt, userPrompt } = t.structured();
+      expect(userPrompt).toContain(OPEN_SIBLING_JOBS_BLOCK);
+      expect(systemPrompt).toContain('Judge the Job against its own objective only.');
+      expect(systemPrompt).toContain('revise to add their work, and never hold back "met" because their work is not done yet.');
     });
 
     it('attaches the latest Task screenshot and tells the model it is there', async () => {
@@ -177,6 +191,23 @@ describe('JobReasoningService', () => {
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');
       expect(t.loop().images).toBeUndefined();
       expect(t.loop().userPrompt).not.toContain('attached screenshot');
+    });
+
+    it("shows the Unit's other open Jobs, and tells the planner to leave their work to them", async () => {
+      const t = setup();
+
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0, latestScreenshot: null });
+
+      expect(t.loop().userPrompt).toContain(OPEN_SIBLING_JOBS_BLOCK);
+      expect(t.loop().systemPrompt).toContain('never\n  start their work, even when it looks like the natural next step.');
+    });
+
+    it('says None when the Job is the only open Job of its Unit', async () => {
+      const t = setup();
+
+      await t.service.planTasks({ ...JOB, openSiblingJobs: [], reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0, latestScreenshot: null });
+
+      expect(t.loop().userPrompt).toContain('<OTHER_JOBS_IN_UNIT>\nNone.\n</OTHER_JOBS_IN_UNIT>');
     });
 
     it('shows the planner the screenshot the review judged, and tells it the screenshot is there', async () => {

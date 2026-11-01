@@ -119,7 +119,8 @@ export class JobService {
   }
 
   /**
-   * Every Job of these Units, oldest first — the planner's view of what earlier Units tried.
+   * Every Job of these Units, oldest first: the Strategy planner's view of what earlier Units tried, and a Job's
+   * view of the other Jobs in its own Unit.
    */
   async listJobsInUnits(unitOfWorkIds: readonly string[]): Promise<JobEntity[]> {
     if (unitOfWorkIds.length === 0) return [];

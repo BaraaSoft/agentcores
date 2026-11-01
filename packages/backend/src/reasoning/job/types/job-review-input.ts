@@ -1,4 +1,5 @@
 import type { Screenshot } from '@ahe/agent-core';
+import type { OpenSiblingJob } from './open-sibling-job';
 import type { TaskOutcome } from './task-outcome';
 
 /**
@@ -8,6 +9,8 @@ export interface JobReviewInput {
   readonly jobName: string;
   readonly objective: string;
   readonly unitOfWorkName: string;
+  /** The Unit's other Jobs that have not closed yet. The review never asks this Job to do their work. */
+  readonly openSiblingJobs: readonly OpenSiblingJob[];
   /** Owner context from the safe memory zone, already rendered as text. */
   readonly safeContext: string;
   /** The Task that just finished (complete or failed) — the one to react to. */

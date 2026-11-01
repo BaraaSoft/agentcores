@@ -75,7 +75,7 @@ flowchart TB
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
 | `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs, and what it finds on the web | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
-| `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes**, and the final screenshot of a visual Task | `JobReview` (continue / revise / met / abandon), plan edits through tools, each Task with its skill | `JobExecutionProcessor` |
+| `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes**, the final screenshot of a visual Task, and the names and objectives of the Unit's other open Jobs, so it leaves their work to them | `JobReview` (continue / revise / met / abandon), plan edits through tools, each Task with its skill | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer, and the Job's earlier Task outcomes | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 | `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the final screenshot of visual work, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
 
@@ -115,14 +115,14 @@ sequenceDiagram
     O->>DB: createUnitOfWork — the Unit and its Jobs in one write
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
-        JW->>J: reviewJob(job, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
+        JW->>J: reviewJob(job, openSiblingJobs, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
         J-->>JW: JobReview { decision, rationale, revisionNotes, summary }
         opt met, abandoned, or a guardrail hit
             JW->>DB: JobService.closeJob (success · abandoned · failed)
         end
     end
     opt no Tasks yet, or the review says revise
-        JW->>J: planTasks(job, reason, history, remainingTasks, tasksStarted)
+        JW->>J: planTasks(job, openSiblingJobs, reason, history, remainingTasks, tasksStarted)
         J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
         J-->>JW: the edited plan (action + skill per Task)
         JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty

@@ -115,6 +115,7 @@ ${researchTools(canFetch)}
 * Write at most ${MAX_JOBS_PER_UNIT_OF_WORK} Jobs. Fewer, sharper Jobs beat many thin ones.
 * A Job has one clear outcome: what to produce or achieve, where, and how anyone could tell it is done. Never a vague
   direction such as "work on content".
+* Give each Job a distinct part of the work. No two Job objectives may ask for the same work.
 * Set the bar in the objective. Say what good looks like for this piece of work, so the Job aims at the best result,
   not the first one that counts as finished.
 * "Done" in the objective is a result anyone could see, never a procedure. Never tell the Job how to prove it: no

@@ -9,6 +9,7 @@ import type { JobExecutionJobData } from '../../../queue/types/job-execution-job
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import { MAX_TASKS_PER_JOB } from '../../../reasoning/job/job-reasoning.constants';
 import { JobReasoningService } from '../../../reasoning/job/job-reasoning.service';
+import type { OpenSiblingJob } from '../../../reasoning/job/types/open-sibling-job';
 import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
 import type { JobEntity } from '../../entities/job.entity';
 import type { TaskEntity } from '../../entities/task.entity';
@@ -26,7 +27,12 @@ import {
 /** Tasks Job reasoning sees as history: everything that finished or was dropped. */
 const HISTORY_STATUSES: readonly TaskStatus[] = ['complete', 'failed', 'cancelled'];
 
-type JobRun = { readonly workflowId: string; readonly job: JobEntity; readonly safeContext: string };
+type JobRun = {
+  readonly workflowId: string;
+  readonly job: JobEntity;
+  readonly safeContext: string;
+  readonly openSiblingJobs: readonly OpenSiblingJob[];
+};
 
 /**
  * Moves a Job forward in two separate steps. **Reviewing** judges each finished Task in one structured
@@ -118,13 +124,19 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
     return isClosed;
   }
 
+  /**
+   * Gathers what one review or plan needs beyond the Job itself: the owner context, and the Job's open
+   * siblings in its Unit, so Job reasoning leaves their work to them instead of doing it early.
+   */
   private async startRun(workflowId: string, job: JobEntity): Promise<JobRun> {
-    const context = await this.memory.retrieveSafeContext({
-      owner: job.unitOfWork.strategy.owner,
-      query: job.objective,
-      limit: JOB_CONTEXT_RECORD_LIMIT,
-    });
-    return { workflowId, job, safeContext: context.promptBlock };
+    const [context, unitJobs] = await Promise.all([
+      this.memory.retrieveSafeContext({ owner: job.unitOfWork.strategy.owner, query: job.objective, limit: JOB_CONTEXT_RECORD_LIMIT }),
+      this.jobs.listJobsInUnits([job.unitOfWorkId]),
+    ]);
+    const openSiblingJobs = unitJobs
+      .filter((unitJob) => unitJob.id !== job.id && unitJob.outcomeStatus === null)
+      .map((siblingJob) => ({ name: siblingJob.name, objective: siblingJob.objective }));
+    return { workflowId, job, safeContext: context.promptBlock, openSiblingJobs };
   }
 
   /**
@@ -214,6 +226,7 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
       jobName: run.job.name,
       objective: run.job.objective,
       unitOfWorkName: run.job.unitOfWork.name,
+      openSiblingJobs: run.openSiblingJobs,
       safeContext: run.safeContext,
     };
   }
