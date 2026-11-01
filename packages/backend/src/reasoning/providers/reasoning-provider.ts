@@ -1,6 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { ToolUnion } from '@anthropic-ai/sdk/resources/messages';
-import type * as z from 'zod/v4';
 import type { CompletionInput } from '../types/completion-input';
 
 /**
@@ -17,9 +16,4 @@ export interface ReasoningProvider {
    * the call allows; undefined when the call allows none.
    */
   serverTools(input: CompletionInput<unknown>): ToolUnion[] | undefined;
-  /**
-   * The JSON schema this vendor constrains an answer or a tool's input to, built from the zod schema the
-   * client checks it against.
-   */
-  outputSchema(schema: z.ZodType): Record<string, unknown>;
 }

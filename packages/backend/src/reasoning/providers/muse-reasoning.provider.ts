@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ToolUnion } from '@anthropic-ai/sdk/resources/messages';
-import * as z from 'zod/v4';
 import type { CompletionInput } from '../types/completion-input';
 import type { ReasoningProvider } from './reasoning-provider';
 
@@ -28,14 +27,5 @@ export class MuseReasoningProvider implements ReasoningProvider {
     if (input.webSearch === undefined) return undefined;
     // Meta takes the unversioned type and rejects `max_uses` with HTTP 400; the SDK types know only versioned ones.
     return [{ type: 'web_search', name: 'web_search' } as unknown as ToolUnion];
-  }
-
-  /**
-   * zod's full JSON schema. Meta constrains decoding to exactly what it is sent, so `enum` and other limits
-   * must stay in the schema; the SDK's conversion moves them into descriptions, which Muse treats as advice.
-   */
-  outputSchema(schema: z.ZodType): Record<string, unknown> {
-    const { $schema: _draft, ...jsonSchema } = z.toJSONSchema(schema, { io: 'output' });
-    return jsonSchema;
   }
 }

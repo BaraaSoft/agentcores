@@ -1,6 +1,7 @@
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { ReasoningProvider } from './providers/reasoning-provider';
 import { ReasoningToolError } from './reasoning-tool.error';
+import { strictJsonSchema } from './strict-json-schema';
 import type { CompletionInput } from './types/completion-input';
 import type { ReasoningModelSettings } from './types/reasoning-model-settings';
 import type { ReasoningTool } from './types/reasoning-tool';
@@ -35,7 +36,7 @@ export class ReasoningModelClient {
    * here. Throws when the reply is cut off, refused, or doesn't match.
    */
   async completeStructured<TOutput>(input: CompletionInput<TOutput>): Promise<TOutput> {
-    const schema = this.reasoningProvider.outputSchema(input.schema);
+    const schema = strictJsonSchema(input.schema);
     const tools = this.reasoningProvider.serverTools(input);
     const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
@@ -138,7 +139,7 @@ export class ReasoningModelClient {
     return {
       name: tool.name,
       description: tool.description,
-      input_schema: this.reasoningProvider.outputSchema(tool.inputSchema) as Tool['input_schema'],
+      input_schema: strictJsonSchema(tool.inputSchema) as Tool['input_schema'],
       strict: true,
     };
   }
