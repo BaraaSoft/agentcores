@@ -16,6 +16,7 @@ function fakeReasoningProvider(messages: Partial<Anthropic['messages']>): Reason
   return {
     sdk: { messages } as unknown as Anthropic,
     canFetch: false,
+    outputSchema: (schema) => z.toJSONSchema(schema, { io: 'output' }),
     serverTools: jest.fn((input) => (input.webSearch === undefined ? undefined : [SEARCH_TOOL])),
   };
 }
