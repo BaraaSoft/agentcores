@@ -32,6 +32,8 @@ export const EVALUATION_REASONING_PROMPTS = {
 * Where the objective is vague, fall back to what the Strategy as a whole is trying to achieve.
 * Where neither settles it, work out the test this kind of work deserves and say so in the rubric. Judge the result
   the work was for (the response it earned, how well it serves its purpose), never the activity that produced it.
+* For visual work whose brief and owner context name no style, the bar is modern, creative, and elegant work.
+  Safe or plain work that only meets the brief is 5-6.
 * Judge the outcome, never the effort. Tasks completed are not an achievement.
 * If you genuinely do not know what good looks like for this kind of work, do not mark on instinct — search
   the web and find out.

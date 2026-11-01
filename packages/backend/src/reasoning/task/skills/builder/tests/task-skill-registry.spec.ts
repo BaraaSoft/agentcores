@@ -18,7 +18,8 @@ describe('TASK_SKILLS', () => {
   it('runs design work in long steps that return the final screen', () => {
     expect(CREATIVE_DESIGN_SKILL.maxExecutionSteps).toBe(150);
     expect(CREATIVE_DESIGN_SKILL.returnsScreenshot).toBe(true);
-    expect(CREATIVE_DESIGN_SKILL.systemPrompt.CRAFT).toBeDefined();
+    expect(CREATIVE_DESIGN_SKILL.systemPrompt.CRAFT).toContain('The style the brief or the owner context names always wins.');
+    expect(CREATIVE_DESIGN_SKILL.systemPrompt.CRAFT).toContain('aim for modern, creative,\n  and elegant work');
     expect(CREATIVE_DESIGN_SKILL.systemPrompt.OWNER).toBe(GENERAL_SKILL.systemPrompt.OWNER);
     expect(GENERAL_SKILL.returnsScreenshot).toBe(false);
   });

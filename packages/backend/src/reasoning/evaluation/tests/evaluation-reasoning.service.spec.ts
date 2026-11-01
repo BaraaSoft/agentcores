@@ -69,6 +69,7 @@ describe('EvaluationReasoningService', () => {
       expect(schema).toBe(JOB_JUDGEMENT_OUTPUT_SCHEMA);
       expect(maxTokens).toBe(JUDGE_JOB_MAX_TOKENS);
       expect(systemPrompt).toContain('Do not drift to the middle');
+      expect(systemPrompt).toContain('name no style, the bar is modern, creative, and elegant work');
       expect(userPrompt).toContain('Objective: Post an introduction and earn at least 50 upvotes');
       expect(userPrompt).toContain('Status: success');
       expect(userPrompt).toContain('<STRATEGY_OBJECTIVE>\nGet the first 100 people to try AHE\n</STRATEGY_OBJECTIVE>');

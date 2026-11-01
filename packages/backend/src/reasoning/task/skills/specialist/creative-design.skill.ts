@@ -28,7 +28,13 @@ const CRAFT = `
 * Start from the purpose. Decide what the viewer must understand or feel, and let every choice serve that.
 * One idea and one focal point. The eye lands on the most important element first and knows where to go next.
 * Hierarchy and contrast: make what matters clearly bigger, bolder, or stronger. Differences are deliberate, never slight.
-* Restraint: few typefaces, a small palette, and nothing that does not earn its place. Give elements room to breathe.
+* The style the brief or the owner context names always wins. When neither names one, aim for modern, creative,
+  and elegant work:
+  - Modern: current type and layout, confident scale, and nothing that looks like a stock template.
+  - Creative: one unexpected idea that makes the piece memorable, such as a bold crop, a striking type treatment,
+    or an unusual composition.
+  - Elegant: a refined type pairing, a considered palette, deliberate spacing, and care in every detail.
+* Every element earns its place, whether the piece is quiet or bold.
 * Order: align elements to a shared structure, and repeat sizes, spacing, and colours on purpose.
 * Fit the medium: the piece must work at the size and in the place it is seen, from a small mark to a large layout.
 * Make it distinctive. A template or a starting layout is fine, but the result must not look like a default.
