@@ -1,8 +1,3 @@
-export { REASONING_MODELS } from './config/reasoning-model';
-export type { ReasoningModel } from './config/reasoning-model';
-export { EXECUTION_MODELS } from './config/execution-model';
-export type { ExecutionModel } from './config/execution-model';
-
 export { WORKFLOW_STATES } from './workflow/workflow-state';
 export type { WorkflowState } from './workflow/workflow-state';
 export type { WorkflowResources } from './workflow/workflow-resources';
