@@ -5,7 +5,7 @@ import type { WorkflowService } from '../../../workflow/workflow.service';
 import { WorkflowResponseDto } from '../dtos/workflow-response.dto';
 import { WorkflowsApiService } from '../workflows-api.service';
 
-const RESOURCES = { reasoningModel: 'opus', executionModel: 'sonnet', maxConcurrentJobs: 2, budgetLimit: 500 } as const;
+const RESOURCES = { maxConcurrentJobs: 2, budgetLimit: 500 } as const;
 const WORKFLOW = {
   id: 'wf-1',
   strategyId: 'strategy-1',
