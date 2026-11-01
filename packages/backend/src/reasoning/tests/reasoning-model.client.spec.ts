@@ -20,9 +20,13 @@ function fakeReasoningProvider(messages: Partial<Anthropic['messages']>): Reason
   };
 }
 
-function setup(reply: { stop_reason: string; parsed_output: unknown; content?: unknown }) {
-  const parse = jest.fn().mockResolvedValue(reply);
-  const reasoningProvider = fakeReasoningProvider({ parse } as unknown as Partial<Anthropic['messages']>);
+const text = (value: string) => ({ type: 'text', text: value });
+const reply = (stopReason: string, ...content: unknown[]) => ({ stop_reason: stopReason, content });
+const ANSWERED = reply('end_turn', text('{"answer":"yes"}'));
+
+function setup(first: ReturnType<typeof reply>) {
+  const create = jest.fn().mockResolvedValue(first);
+  const reasoningProvider = fakeReasoningProvider({ create } as unknown as Partial<Anthropic['messages']>);
   const client = new ReasoningModelClient(reasoningProvider, SETTINGS);
   const run = (webSearch?: { maxSearches: number }, webFetch?: { maxFetches: number }) =>
     client.completeStructured({
@@ -33,7 +37,7 @@ function setup(reply: { stop_reason: string; parsed_output: unknown; content?: u
       webSearch,
       webFetch,
     });
-  return { parse, reasoningProvider, run };
+  return { create, reasoningProvider, run };
 }
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown };
@@ -70,11 +74,11 @@ function setupLoop(...turns: ReturnType<typeof turn>[]) {
 describe('ReasoningModelClient', () => {
   describe('completeStructured', () => {
     it('thinks adaptively and answers in the schema as a JSON output format', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+      const t = setup(ANSWERED);
 
       expect(await t.run()).toEqual({ answer: 'yes' });
 
-      const params = t.parse.mock.calls[0][0];
+      const params = t.create.mock.calls[0][0];
       expect(params).toEqual(
         expect.objectContaining({
           model: 'opus',
@@ -93,49 +97,64 @@ describe('ReasoningModelClient', () => {
       );
     });
 
-    it.each([
-      ['cut off at max tokens', { stop_reason: 'max_tokens', parsed_output: null }],
-      ['refused', { stop_reason: 'refusal', parsed_output: null }],
-    ])('throws when the answer is %s', async (_label, reply) => {
-      const t = setup(reply);
+    it('reads the answer from the last text block, past any narration between searches', async () => {
+      const t = setup(
+        reply('end_turn', text('Searching the web first.'), { type: 'server_tool_use' }, text('{"answer":"found"}')),
+      );
 
-      await expect(t.run()).rejects.toThrow(`stop reason: ${reply.stop_reason}`);
+      expect(await t.run({ maxSearches: 3 })).toEqual({ answer: 'found' });
+    });
+
+    it('throws when the answer does not match the schema', async () => {
+      const t = setup(reply('end_turn', text('{"answer":3}')));
+
+      await expect(t.run()).rejects.toThrow();
+    });
+
+    it.each([
+      ['cut off at max tokens', reply('max_tokens')],
+      ['refused', reply('refusal')],
+      ['empty', reply('end_turn')],
+    ])('throws when the answer is %s', async (_label, first) => {
+      const t = setup(first);
+
+      await expect(t.run()).rejects.toThrow(`stop reason: ${first.stop_reason}`);
     });
 
     it('offers no server tools unless the call asks for one', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+      const t = setup(ANSWERED);
 
       await t.run();
 
-      expect(t.parse.mock.calls[0][0].tools).toBeUndefined();
+      expect(t.create.mock.calls[0][0].tools).toBeUndefined();
     });
 
     it('sends the server tools the reasoning provider builds for the call', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+      const t = setup(ANSWERED);
 
       await t.run({ maxSearches: 3 }, { maxFetches: 2 });
 
       expect(t.reasoningProvider.serverTools).toHaveBeenCalledWith(
         expect.objectContaining({ webSearch: { maxSearches: 3 }, webFetch: { maxFetches: 2 } }),
       );
-      expect(t.parse.mock.calls[0][0].tools).toEqual([SEARCH_TOOL]);
+      expect(t.create.mock.calls[0][0].tools).toEqual([SEARCH_TOOL]);
     });
 
     it('carries on from its own work when a search pauses the turn', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
+      const t = setup(ANSWERED);
       const searching = [{ type: 'server_tool_use', name: 'web_search' }];
-      t.parse.mockResolvedValueOnce({ stop_reason: 'pause_turn', content: searching, parsed_output: null });
+      t.create.mockResolvedValueOnce(reply('pause_turn', ...searching));
 
       expect(await t.run({ maxSearches: 3 })).toEqual({ answer: 'yes' });
 
-      expect(t.parse.mock.calls[1][0].messages).toEqual([
+      expect(t.create.mock.calls[1][0].messages).toEqual([
         { role: 'user', content: 'Decide.' },
         { role: 'assistant', content: searching },
       ]);
     });
 
     it('gives up on a turn that keeps pausing without answering', async () => {
-      const t = setup({ stop_reason: 'pause_turn', parsed_output: null, content: [] });
+      const t = setup(reply('pause_turn'));
 
       await expect(t.run({ maxSearches: 3 })).rejects.toThrow('paused more than');
     });

@@ -36,17 +36,18 @@ export class ReasoningModelClient {
    * here. Throws when the reply is cut off, refused, or doesn't match.
    */
   async completeStructured<TOutput>(input: CompletionInput<TOutput>): Promise<TOutput> {
+    const format = zodOutputFormat(input.schema);
     const tools = this.reasoningProvider.serverTools(input);
     const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
     for (let pause = 0; pause <= MAX_PAUSED_TURNS; pause++) {
-      const message = await this.reasoningProvider.sdk.messages.parse({
+      const message = await this.reasoningProvider.sdk.messages.create({
         model: this.settings.modelId,
         max_tokens: input.maxTokens,
         system: input.systemPrompt,
         messages,
         thinking: { type: 'adaptive' },
-        output_config: { effort: this.settings.effort, format: zodOutputFormat(input.schema) },
+        output_config: { effort: this.settings.effort, format: { type: format.type, schema: format.schema } },
         tools,
       });
       // Searching can run long enough that the API hands the turn back unfinished. Returning its own
@@ -55,10 +56,12 @@ export class ReasoningModelClient {
         messages.push({ role: 'assistant', content: message.content });
         continue;
       }
-      if (message.stop_reason !== 'end_turn' || message.parsed_output === null) {
+      const answer = message.content.filter((block) => block.type === 'text').at(-1);
+      if (message.stop_reason !== 'end_turn' || answer === undefined) {
         throw new Error(`Reasoning model gave no structured answer (stop reason: ${message.stop_reason ?? 'unknown'})`);
       }
-      return message.parsed_output;
+      // Some models (Muse) narrate in text blocks between searches; only the last text block is the answer.
+      return format.parse(answer.text);
     }
     throw new Error(`Reasoning model paused more than ${MAX_PAUSED_TURNS} times without answering`);
   }
