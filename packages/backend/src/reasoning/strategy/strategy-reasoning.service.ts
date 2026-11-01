@@ -30,7 +30,7 @@ export class StrategyReasoningService {
    */
   async planUnitOfWork(input: PlanUnitOfWorkInput): Promise<UnitOfWorkPlan> {
     const output = await this.model.completeStructured({
-      systemPrompt: STRATEGY_REASONING_PROMPTS.planUnitOfWork.system,
+      systemPrompt: STRATEGY_REASONING_PROMPTS.planUnitOfWork.system({ canFetch: this.model.canFetch }),
       userPrompt: STRATEGY_REASONING_PROMPTS.planUnitOfWork.user(input),
       maxTokens: PLAN_UNIT_OF_WORK_MAX_TOKENS,
       schema: UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA,

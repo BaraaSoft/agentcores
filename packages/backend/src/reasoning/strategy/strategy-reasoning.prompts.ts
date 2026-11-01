@@ -53,13 +53,26 @@ function renderRelated(evaluations: readonly JobEvaluation[]): string {
     .join('\n');
 }
 
+/** How the research section opens: with both web tools, or with search alone when the model cannot fetch pages. */
+function researchTools(canFetch: boolean): string {
+  if (canFetch) {
+    return `* Before you write the Jobs, learn what you are about to plan. You have two web tools, and you choose which fits:
+  web_search finds pages on a subject, up to ${PLAN_UNIT_OF_WORK_MAX_SEARCHES} times; web_fetch reads one page at an
+  address you already have, up to ${PLAN_UNIT_OF_WORK_MAX_FETCHES} times.
+* Read every address the Strategy or the owner context gives. Search for every name it gives: a brand, company, topic and so on.`;
+  }
+  return `* Before you write the Jobs, learn what you are about to plan. Your web tool is web_search: it finds pages on a
+  subject, up to ${PLAN_UNIT_OF_WORK_MAX_SEARCHES} times.
+* Search for every address the Strategy or the owner context gives. Search for every name it gives: a brand, company, topic and so on.`;
+}
+
 /**
- * Prompts for the Strategy planner: a fixed system prompt, and a user prompt rendered from the
- * Strategy and the record of its earlier Units.
+ * Prompts for the Strategy planner: a system prompt that fits the web tools the model has, and a user
+ * prompt rendered from the Strategy and the record of its earlier Units.
  */
 export const STRATEGY_REASONING_PROMPTS = {
   planUnitOfWork: {
-    system: `<SITUATION>
+    system: ({ canFetch }: { canFetch: boolean }): string => `<SITUATION>
 * You plan the next Unit of Work of a Strategy: the set of Jobs a computer-use agent carries out next, on the owner's
   own machine, towards the outcome the owner asked for.
 * Each Job you write is handed to its own planner, which breaks it into Tasks — research first where it is needed,
@@ -79,10 +92,7 @@ export const STRATEGY_REASONING_PROMPTS = {
 </WORK_TYPES>
 
 <RESEARCH>
-* Before you write the Jobs, learn what you are about to plan. You have two web tools, and you choose which fits:
-  web_search finds pages on a subject, up to ${PLAN_UNIT_OF_WORK_MAX_SEARCHES} times; web_fetch reads one page at an
-  address you already have, up to ${PLAN_UNIT_OF_WORK_MAX_FETCHES} times.
-* Read every address the Strategy or the owner context gives. Search for every name it gives: a brand, company,
+${researchTools(canFetch)}
   product, person, community, style, or design language. Learn what it is, who it is for, how it speaks, and how it looks.
 * Research the kind of work: how the best people do it now, what strong recent examples have in common, and what
   sets them apart from the ordinary. Read one or two of the strongest examples when a search finds them.

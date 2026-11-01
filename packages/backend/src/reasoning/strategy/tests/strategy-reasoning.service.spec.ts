@@ -45,8 +45,8 @@ const job = (name: string, objective = `Do ${name}`, orderType: 'ordered' | 'uno
   orderType,
 });
 
-function setup() {
-  const model = { completeStructured: jest.fn() };
+function setup(canFetch = true) {
+  const model = { completeStructured: jest.fn(), canFetch };
   const service = new StrategyReasoningService(model as unknown as ReasoningModelClient);
   const call = () => model.completeStructured.mock.calls[0][0];
   return { model, service, call };
@@ -93,7 +93,21 @@ describe('StrategyReasoningService', () => {
       expect(webSearch).toEqual({ maxSearches: PLAN_UNIT_OF_WORK_MAX_SEARCHES });
       expect(webFetch).toEqual({ maxFetches: PLAN_UNIT_OF_WORK_MAX_FETCHES });
       expect(systemPrompt).toContain('<RESEARCH>');
-      expect(systemPrompt).toContain('Read every address the Strategy or the owner context gives.');
+      expect(systemPrompt).toContain('You have two web tools, and you choose which fits');
+      expect(systemPrompt).toContain('Read every address the Strategy or the owner context gives. Search for every name');
+      expect(systemPrompt).toContain('Turn inspiration into direction, never into a copy.');
+    });
+
+    it('tells a model that cannot fetch pages to search for addresses, and never mentions web_fetch', async () => {
+      const t = setup(false);
+      t.model.completeStructured.mockResolvedValue({ decision: 'plan', title: 'T', rationale: '', jobs: [job('Do it')] });
+
+      await t.service.planUnitOfWork(INPUT);
+
+      const { systemPrompt } = t.call();
+      expect(systemPrompt).toContain('Your web tool is web_search');
+      expect(systemPrompt).toContain('Search for every address the Strategy or the owner context gives.');
+      expect(systemPrompt).not.toContain('web_fetch');
       expect(systemPrompt).toContain('Turn inspiration into direction, never into a copy.');
     });
 
