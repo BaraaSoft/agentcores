@@ -41,6 +41,13 @@ export class WorkflowService {
   }
 
   /**
+   * Returns every Workflow, newest first, each with its Strategy loaded.
+   */
+  async listWorkflows(): Promise<WorkflowEntity[]> {
+    return this.workflows.find({ relations: { strategy: true }, order: { createdAt: 'DESC' } });
+  }
+
+  /**
    * Moves a Workflow to `running` or `paused`, and returns it with its Strategy loaded.
    */
   async updateWorkflowState(input: UpdateWorkflowStateInput): Promise<WorkflowEntity> {

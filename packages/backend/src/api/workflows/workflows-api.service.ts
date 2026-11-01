@@ -23,6 +23,10 @@ export class WorkflowsApiService {
     return WorkflowResponseDto.fromEntity(await this.workflows.createWorkflow(body));
   }
 
+  async listWorkflows(): Promise<WorkflowResponseDto[]> {
+    return (await this.workflows.listWorkflows()).map((workflow) => WorkflowResponseDto.fromEntity(workflow));
+  }
+
   async getWorkflow(workflowId: string): Promise<WorkflowResponseDto> {
     const workflow = await this.workflows.findWorkflowById(workflowId);
     if (workflow === null) throw new NotFoundException(`Workflow ${workflowId} not found`);
