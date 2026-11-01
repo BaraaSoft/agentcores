@@ -25,8 +25,8 @@ export class StrategyReasoningService {
 
   /**
    * Plans the next Unit's Jobs, or answers `done` when `input.canFinish` and the outcome is met.
-   * Throws when the answer is unusable — no Jobs, or `done` where it is not allowed — so the
-   * orchestrator tries again on its next pass.
+   * Throws when it answers `done` where that is not allowed, so the orchestrator tries again on its
+   * next pass; the answer schema already makes a plan carry at least one Job.
    */
   async planUnitOfWork(input: PlanUnitOfWorkInput): Promise<UnitOfWorkPlan> {
     const output = await this.model.completeStructured({
@@ -42,15 +42,11 @@ export class StrategyReasoningService {
       if (!input.canFinish) throw new Error(`Strategy reasoning answered "done" for ${input.unitOfWorkName}, which must be planned`);
       return { decision: 'done', rationale: output.rationale };
     }
-    const jobs = output.jobs
-      .filter((job) => job.objective.trim() !== '')
-      .slice(0, MAX_JOBS_PER_UNIT_OF_WORK)
-      .map((job) => ({
-        name: (job.name.trim() || job.objective).slice(0, PLANNED_JOB_NAME_MAX_LENGTH),
-        objective: job.objective,
-        orderType: job.orderType,
-      }));
-    if (jobs.length === 0) throw new Error(`Strategy reasoning planned no Jobs for ${input.unitOfWorkName}`);
+    const jobs = output.jobs.slice(0, MAX_JOBS_PER_UNIT_OF_WORK).map((job) => ({
+      name: (job.name.trim() || job.objective).slice(0, PLANNED_JOB_NAME_MAX_LENGTH),
+      objective: job.objective,
+      orderType: job.orderType,
+    }));
     const title = (output.title.trim() || jobs[0].name).slice(0, UNIT_OF_WORK_TITLE_MAX_LENGTH);
     return { decision: 'plan', title, rationale: output.rationale.trim(), jobs };
   }

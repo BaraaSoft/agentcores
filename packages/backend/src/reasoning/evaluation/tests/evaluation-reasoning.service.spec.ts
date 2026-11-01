@@ -32,20 +32,14 @@ const SCORED = {
   objectiveSummary: 'Introduce a product to a small, topic-focused online community through a text post.',
   whatGood: 'Led with a question, which pulled replies.',
   whatBad: 'Posted at 3am local time, so the thread was buried by morning.',
-  evidenceJobName: null,
-  evidenceObjective: null,
 };
 
 const NEEDS_EVIDENCE = {
   verdict: 'needs_evidence' as const,
   rubric: 'Upvotes decide the score and the post was only minutes old.',
-  score: null,
-  objectiveSummary: null,
-  whatGood: null,
-  whatBad: null,
   evidenceJobName: 'Read upvotes on the intro post',
   evidenceObjective: 'Open reddit.com/r/AICompanion/comments/abc123 and report its upvotes, comments, and views.',
-  evidenceCriteria: null,
+  evidenceCriteria: [],
 };
 
 function setup() {
@@ -187,35 +181,29 @@ describe('EvaluationReasoningService', () => {
       expect(userPrompt).toContain('Came back with: 61 upvotes, 14 comments.');
     });
 
-    it.each([
-      [42, MAX_JOB_SCORE],
-      [0, MIN_JOB_SCORE],
-    ])('keeps a score of %i inside the scale', async (given, expected) => {
-      const t = setup();
-      t.model.completeStructured.mockResolvedValue({ ...SCORED, score: given });
-
-      expect(await t.service.judgeJob(JOB)).toMatchObject({ score: expected });
-    });
-
     it('falls back to the raw objective rather than losing the mark', async () => {
       const t = setup();
-      t.model.completeStructured.mockResolvedValue({ ...SCORED, objectiveSummary: null });
+      t.model.completeStructured.mockResolvedValue({ ...SCORED, objectiveSummary: '' });
 
       expect(await t.service.judgeJob(JOB)).toMatchObject({ objectiveSummary: JOB.objective });
     });
+  });
 
-    it('throws when the model asks for evidence without saying what to find out', async () => {
-      const t = setup();
-      t.model.completeStructured.mockResolvedValue({ ...NEEDS_EVIDENCE, evidenceObjective: null });
-
-      await expect(t.service.judgeJob(JOB)).rejects.toThrow('without saying what to find out');
+  describe('the answer schema', () => {
+    it.each([
+      ['an evidence request without an objective', { ...NEEDS_EVIDENCE, evidenceObjective: '' }],
+      ['an evidence request with no objective field', { ...NEEDS_EVIDENCE, evidenceObjective: undefined }],
+      ['a mark without a score', { ...SCORED, score: undefined }],
+      ['a mark that carries a null score', { ...SCORED, score: null }],
+      ['a mark below the scale', { ...SCORED, score: MIN_JOB_SCORE - 1 }],
+      ['a mark above the scale', { ...SCORED, score: MAX_JOB_SCORE + 1 }],
+    ])('rejects %s', (_case, answer) => {
+      expect(JOB_JUDGEMENT_OUTPUT_SCHEMA.safeParse(answer).success).toBe(false);
     });
 
-    it('throws when the model marks the Job without a score', async () => {
-      const t = setup();
-      t.model.completeStructured.mockResolvedValue({ ...SCORED, score: null });
-
-      await expect(t.service.judgeJob(JOB)).rejects.toThrow('without a score');
+    it('accepts a full mark and a full evidence request', () => {
+      expect(JOB_JUDGEMENT_OUTPUT_SCHEMA.safeParse(SCORED).success).toBe(true);
+      expect(JOB_JUDGEMENT_OUTPUT_SCHEMA.safeParse(NEEDS_EVIDENCE).success).toBe(true);
     });
   });
 });

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ReasoningModelClient } from '../reasoning-model.client';
-import { JUDGE_JOB_MAX_SEARCHES, JUDGE_JOB_MAX_TOKENS, MAX_JOB_SCORE, MIN_JOB_SCORE } from './evaluation-reasoning.constants';
+import { JUDGE_JOB_MAX_SEARCHES, JUDGE_JOB_MAX_TOKENS } from './evaluation-reasoning.constants';
 import { EVALUATION_REASONING_PROMPTS } from './evaluation-reasoning.prompts';
 import { JOB_JUDGEMENT_OUTPUT_SCHEMA } from './schemas/job-judgement-output.schema';
 import type { JobJudgement } from './types/job-judgement';
@@ -33,27 +33,22 @@ export class EvaluationReasoningService {
     });
 
     if (output.verdict === 'needs_evidence') {
-      if (output.evidenceObjective === null || output.evidenceObjective === '') {
-        throw new Error('Evaluation reasoning asked for evidence without saying what to find out');
-      }
       return {
         verdict: 'needs_evidence',
         evidenceJobName: output.evidenceJobName || `Measure: ${input.jobName}`,
         evidenceObjective: output.evidenceObjective,
-        evidenceCriteria: output.evidenceCriteria ?? [],
+        evidenceCriteria: output.evidenceCriteria,
         rubric: output.rubric,
       };
     }
-
-    if (output.score === null) throw new Error('Evaluation reasoning marked the Job without a score');
     return {
       verdict: 'scored',
-      score: Math.min(MAX_JOB_SCORE, Math.max(MIN_JOB_SCORE, output.score)),
+      score: output.score,
       // Falling back to the raw objective keeps the mark rather than losing it; the summary is only
       // what the search matches on.
       objectiveSummary: output.objectiveSummary || input.objective,
-      whatGood: output.whatGood ?? '',
-      whatBad: output.whatBad ?? '',
+      whatGood: output.whatGood,
+      whatBad: output.whatBad,
       rubric: output.rubric,
     };
   }

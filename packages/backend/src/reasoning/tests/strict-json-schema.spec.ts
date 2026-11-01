@@ -41,6 +41,18 @@ describe('strictJsonSchema', () => {
     expect(schema.properties).toEqual({ position: { type: 'integer', description: '1-based position.' } });
   });
 
+  it('writes a discriminated union as anyOf, which both decoders take', () => {
+    const schema = strictJsonSchema(
+      z.discriminatedUnion('kind', [z.object({ kind: z.literal('a'), a: z.string() }), z.object({ kind: z.literal('b') })]),
+    );
+
+    expect(schema).not.toHaveProperty('oneOf');
+    expect(schema.anyOf).toEqual([
+      expect.objectContaining({ properties: { kind: { type: 'string', const: 'a' }, a: { type: 'string' } }, required: ['kind', 'a'] }),
+      expect.objectContaining({ properties: { kind: { type: 'string', const: 'b' } }, required: ['kind'] }),
+    ]);
+  });
+
   it('never reads a property name as a keyword', () => {
     const schema = strictJsonSchema(z.object({ maximum: z.string() }));
 

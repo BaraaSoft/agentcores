@@ -1,5 +1,6 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
+import { LoggedWorkerHost } from '../../../queue/logged-worker-host';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import type { JobEvaluationJobData } from '../../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
@@ -45,7 +46,7 @@ import { JOB_NAME_MAX_LENGTH, MAX_JUDGING_ATTEMPTS } from './job-evaluation.cons
  * evidence Job is queued, so the Job can never close looking for a judgement that is not yet waiting.
  */
 @Processor(JOB_EVALUATION_QUEUE)
-export class JobEvaluationProcessor extends WorkerHost {
+export class JobEvaluationProcessor extends LoggedWorkerHost {
   constructor(
     @InjectQueue(JOB_EVALUATION_QUEUE)
     private readonly evaluationQueue: Queue<JobEvaluationJobData>,

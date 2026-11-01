@@ -22,6 +22,12 @@ const SUPPORTED_FORMATS = new Set(['date-time', 'time', 'date', 'duration', 'ema
 /** Keys whose value maps names to schemas, so the names themselves are never read as keywords. */
 const SCHEMA_MAPS = new Set(['properties', '$defs', 'definitions']);
 
+/**
+ * zod writes a discriminated union as `oneOf`, which Claude rejects. Its branches each fix the
+ * discriminator to a different `const`, so no answer matches two of them and `anyOf` means the same.
+ */
+const ONE_OF = 'oneOf';
+
 /** The bounds zod adds to every `.int()`; they say nothing, so they are dropped rather than moved. */
 const SAFE_INTEGER_BOUNDS = new Set([Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]);
 
@@ -42,6 +48,7 @@ function strip(node: unknown): unknown {
   const moved: string[] = [];
   for (const [key, value] of Object.entries(node)) {
     if (SCHEMA_MAPS.has(key)) kept[key] = stripMap(value as JsonSchema);
+    else if (key === ONE_OF) kept.anyOf = strip(value);
     else if (!isUnsupported(key, value)) kept[key] = strip(value);
     else if (!SAFE_INTEGER_BOUNDS.has(value as number)) moved.push(`${key}: ${JSON.stringify(value)}`);
   }
@@ -52,7 +59,7 @@ function strip(node: unknown): unknown {
 
 /**
  * The JSON schema a reasoning model's answer or tool input is constrained to, built from the zod schema
- * the client checks it against. It keeps `enum` and `const`, which the decoders enforce, and moves the
+ * the client checks it against. It keeps `enum`, `const`, and union branches, which the decoders enforce, and moves the
  * limits they cannot enforce into the field's description as a hint. The SDK's `zodOutputFormat` is not
  * used: it also moves `enum` and `const` into descriptions, so no decoder enforces them.
  */

@@ -113,25 +113,18 @@ describe('StrategyReasoningService', () => {
 
     it('accepts "done" when the Unit may finish the Strategy', async () => {
       const t = setup();
-      t.model.completeStructured.mockResolvedValue({ decision: 'done', title: '', rationale: 'Marked 9/10.', jobs: [] });
+      t.model.completeStructured.mockResolvedValue({ decision: 'done', rationale: 'Marked 9/10.' });
 
       await expect(t.service.planUnitOfWork(INPUT)).resolves.toEqual({ decision: 'done', rationale: 'Marked 9/10.' });
     });
 
     it('rejects "done" for a Unit that must be planned', async () => {
       const t = setup();
-      t.model.completeStructured.mockResolvedValue({ decision: 'done', title: '', rationale: 'Looks fine.', jobs: [] });
+      t.model.completeStructured.mockResolvedValue({ decision: 'done', rationale: 'Looks fine.' });
 
       await expect(t.service.planUnitOfWork({ ...INPUT, canFinish: false, earlierUnitsOfWork: [] })).rejects.toThrow('"done"');
       expect(t.call().userPrompt).toContain('"done" is not allowed');
       expect(t.call().userPrompt).toContain('None — this is the first Unit of the Strategy.');
-    });
-
-    it('drops Jobs with no objective, and throws when none are left', async () => {
-      const t = setup();
-      t.model.completeStructured.mockResolvedValue({ decision: 'plan', title: 'Empty', rationale: '', jobs: [job('Empty', '  ')] });
-
-      await expect(t.service.planUnitOfWork(INPUT)).rejects.toThrow('no Jobs');
     });
 
     it(`keeps at most ${MAX_JOBS_PER_UNIT_OF_WORK} Jobs and names a nameless Job by its objective`, async () => {
@@ -154,12 +147,23 @@ describe('StrategyReasoningService', () => {
 
     it('shows only the name of an earlier Unit of Work that has no title', async () => {
       const t = setup();
-      t.model.completeStructured.mockResolvedValue({ decision: 'done', title: '', rationale: 'Met.', jobs: [] });
+      t.model.completeStructured.mockResolvedValue({ decision: 'done', rationale: 'Met.' });
       const [earlier] = INPUT.earlierUnitsOfWork;
 
       await t.service.planUnitOfWork({ ...INPUT, earlierUnitsOfWork: [{ ...earlier, title: '', rationale: '' }] });
 
       expect(t.call().userPrompt).toContain('Attempt 1 (complete)\n1. [success]');
+    });
+  });
+
+  describe('the answer schema', () => {
+    it.each([
+      ['a plan with no Jobs', { decision: 'plan', title: 'T', rationale: '', jobs: [] }],
+      ['a plan with a Job that has no objective', { decision: 'plan', title: 'T', rationale: '', jobs: [job('Empty', '')] }],
+      ['a plan with no title', { decision: 'plan', rationale: '', jobs: [job('Do it')] }],
+      ['"done" with no reason', { decision: 'done' }],
+    ])('rejects %s', (_case, answer) => {
+      expect(UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA.safeParse(answer).success).toBe(false);
     });
   });
 });

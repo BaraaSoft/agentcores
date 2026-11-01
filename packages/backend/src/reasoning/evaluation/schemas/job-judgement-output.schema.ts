@@ -1,52 +1,33 @@
 import * as z from 'zod/v4';
-import { JOB_JUDGEMENT_VERDICTS } from '../types/job-judgement-verdict';
+import { MAX_JOB_SCORE, MIN_JOB_SCORE } from '../evaluation-reasoning.constants';
 
-/**
- * What `judgeJob` must answer. Sent as the JSON schema output format, so every field is required:
- * the fields belonging to the other verdict come back null, and the service turns the flat answer
- * into a `ScoredJob` or an `EvidenceRequest`.
- */
-export const JOB_JUDGEMENT_OUTPUT_SCHEMA = z.object({
-  verdict: z
-    .enum(JOB_JUDGEMENT_VERDICTS)
-    .describe(
-      '"scored": you can judge the Job from what is on record. ' +
-        '"needs_evidence": its real outcome has to be read in the world first.',
-    ),
-  rubric: z
-    .string()
-    .describe(
-      'For "scored": the standard you held the Job to and where the evidence came from. ' +
-        'For "needs_evidence": why that evidence decides the score. One or two sentences.',
-    ),
+const SCORED = z.object({
+  verdict: z.literal('scored').describe('"scored": you can judge the Job from what is on record.'),
+  rubric: z.string().describe('The standard you held the Job to and where the evidence came from. One or two sentences.'),
   score: z
     .number()
     .int()
-    .nullable()
-    .describe('For "scored": 1-10 against the objective, on the scale in the rules. Null for "needs_evidence".'),
+    .min(MIN_JOB_SCORE)
+    .max(MAX_JOB_SCORE)
+    .describe('1-10 against the objective, on the scale in the rules. When you cannot mark the Job yet, ask for evidence instead.'),
   objectiveSummary: z
     .string()
-    .nullable()
     .describe(
-      'For "scored": what this Job set out to do, in general terms — the kind of work, the medium, and the intent, ' +
-        'with names, numbers, and one-off specifics left out. Null for "needs_evidence".',
+      'What this Job set out to do, in general terms — the kind of work, the medium, and the intent, ' +
+        'with names, numbers, and one-off specifics left out.',
     ),
-  whatGood: z
-    .string()
-    .nullable()
-    .describe('For "scored": what worked, as advice to the next planner. Brief and specific. Empty string when nothing did.'),
-  whatBad: z
-    .string()
-    .nullable()
-    .describe('For "scored": what went wrong and must not be repeated, same voice. Empty string when nothing did.'),
-  evidenceJobName: z.string().nullable().describe('For "needs_evidence": a short name for the Job that reads the evidence.'),
+  whatGood: z.string().describe('What worked, as advice to the next planner. Brief and specific. Empty string when nothing did.'),
+  whatBad: z.string().describe('What went wrong and must not be repeated, same voice. Empty string when nothing did.'),
+});
+
+const NEEDS_EVIDENCE = z.object({
+  verdict: z.literal('needs_evidence').describe('"needs_evidence": its real outcome has to be read in the world first.'),
+  rubric: z.string().describe('Why that evidence decides the score. One or two sentences.'),
+  evidenceJobName: z.string().describe('A short name for the Job that reads the evidence.'),
   evidenceObjective: z
     .string()
-    .nullable()
-    .describe(
-      'For "needs_evidence": exactly what that Job must find out and where, concrete enough for a computer-use ' +
-        'agent to carry out. Null for "scored".',
-    ),
+    .min(1)
+    .describe('Exactly what that Job must find out and where, concrete enough for a computer-use agent to carry out.'),
   evidenceCriteria: z
     .array(
       z.object({
@@ -56,10 +37,18 @@ export const JOB_JUDGEMENT_OUTPUT_SCHEMA = z.object({
           .describe('What to look at and what would make it good, in one sentence an agent looking at the work can act on.'),
       }),
     )
-    .nullable()
     .describe(
-      'For "needs_evidence" where the mark turns on quality that has to be seen: what to rate once the work is open, ' +
-        'drawn from what you learnt about how this kind of work is done well. Each comes back as a 1-10 reading under ' +
-        'its key. Empty or null when the errand is only reading a figure off a page.',
+      'Where the mark turns on quality that has to be seen: what to rate once the work is open, drawn from what you ' +
+        'learnt about how this kind of work is done well. Each comes back as a 1-10 reading under its key. ' +
+        'Empty when the errand is only reading a figure off a page.',
     ),
 });
+
+/**
+ * What `judgeJob` must answer: one branch per verdict, so the decoder makes the model give every field
+ * its verdict needs — a score, or the evidence to fetch — and none of the other's. `scored` stays first:
+ * with `needs_evidence` first, Claude asked for evidence on work it could plainly mark. No decoder
+ * enforces the score's range, so zod rejects a score off the scale (a model unsure of the mark wrote 0)
+ * and the queue tries again, rather than the mark being clamped into a fake 1.
+ */
+export const JOB_JUDGEMENT_OUTPUT_SCHEMA = z.discriminatedUnion('verdict', [SCORED, NEEDS_EVIDENCE]);

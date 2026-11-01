@@ -1,10 +1,11 @@
 import type { ExecutionProvider, ExecutionResult } from '@ahe/agent-core';
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { IdentityService } from '../../../identity/identity.service';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
 import { PrivacyFilterService } from '../../../memory/privacy-filter.service';
+import { LoggedWorkerHost } from '../../../queue/logged-worker-host';
 import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
 import type { JobExecutionJobData } from '../../../queue/types/job-execution-job-data';
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
@@ -58,7 +59,7 @@ const MS_PER_SECOND = 1_000;
  * Logins come from IdentityService and go straight to the execution layer, never to reasoning.
  */
 @Processor(TASK_EXECUTION_QUEUE, { concurrency: 1 })
-export class TaskExecutionProcessor extends WorkerHost {
+export class TaskExecutionProcessor extends LoggedWorkerHost {
   private readonly logger = new Logger(TaskExecutionProcessor.name);
 
   constructor(

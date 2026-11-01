@@ -21,8 +21,10 @@ import { JobExecutionProcessor } from '../job-execution.processor';
 const WORKFLOW_ID = 'wf-1';
 const JOB_ID = 'job-1';
 
-function review(changes: Partial<JobReview> = {}): JobReview {
-  return { decision: 'continue', rationale: 'On track.', revisionNotes: null, summary: 'So far so good.', ...changes };
+type ReviewFields = { decision: JobReview['decision']; rationale: string; revisionNotes: string; summary: string };
+
+function review(changes: Partial<ReviewFields> = {}): JobReview {
+  return { decision: 'continue', rationale: 'On track.', summary: 'So far so good.', ...changes } as JobReview;
 }
 
 function task(sequence: number, status: TaskStatus, action = `Task ${sequence}`) {

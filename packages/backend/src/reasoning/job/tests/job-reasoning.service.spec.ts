@@ -185,4 +185,18 @@ describe('JobReasoningService', () => {
       expect(systemPrompt).toContain('Never plan a Task that only checks earlier work.');
     });
   });
+
+  describe('the review schema', () => {
+    it.each([
+      ['a revision without notes', { ...REVIEW, revisionNotes: '' }],
+      ['a revision with null notes', { ...REVIEW, revisionNotes: null }],
+      ['an unknown decision', { ...REVIEW, decision: 'retry' }],
+    ])('rejects %s', (_case, answer) => {
+      expect(JOB_REVIEW_SCHEMA.safeParse(answer).success).toBe(false);
+    });
+
+    it('accepts a decision other than revise without notes', () => {
+      expect(JOB_REVIEW_SCHEMA.safeParse({ decision: 'met', rationale: 'Posted.', summary: 'Done.' }).success).toBe(true);
+    });
+  });
 });
