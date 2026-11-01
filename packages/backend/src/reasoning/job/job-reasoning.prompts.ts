@@ -158,7 +158,9 @@ ${input.reason}
 </WHY_PLANNING>
 
 <TASKS_SO_FAR>
-${renderTaskOutcomes(input.history, 'None — this is the first plan.')}
+${renderTaskOutcomes(input.history, 'None — this is the first plan.')}${
+  input.latestScreenshot === null ? '' : '\nThe attached screenshot shows the screen as the latest Task ended: the work as it stands now.'
+}
 </TASKS_SO_FAR>
 
 <CURRENT_PLAN>

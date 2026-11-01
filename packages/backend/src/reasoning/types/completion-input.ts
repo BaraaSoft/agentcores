@@ -9,8 +9,8 @@ export interface CompletionInput<TOutput> {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   /**
-   * Images sent before the prompt. Only Job review and the evaluator attach any: the final screen of a
-   * visual Task, so they can see the work. Task reasoning never does.
+   * Images sent before the prompt. Only Job review and the evaluator attach any here (Job planning does in
+   * its tool loop): the final screen of a visual Task, so they can see the work. Task reasoning never does.
    */
   readonly images?: readonly Screenshot[];
   /** Covers thinking and the answer together. */

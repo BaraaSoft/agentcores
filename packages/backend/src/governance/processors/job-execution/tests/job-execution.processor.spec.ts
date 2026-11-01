@@ -120,6 +120,7 @@ describe('JobExecutionProcessor', () => {
           history: [],
           remainingTasks: [],
           tasksStarted: 0,
+          latestScreenshot: null,
         }),
       );
       expect(t.tasks.replaceRemainingTasks).toHaveBeenCalledTimes(1);
@@ -160,6 +161,22 @@ describe('JobExecutionProcessor', () => {
       await t.run();
 
       expect(t.jobReasoning.reviewJob).toHaveBeenCalledWith(expect.objectContaining({ latestScreenshot: screenshot }));
+    });
+
+    it.each([
+      ['a revision', review({ decision: 'revise', revisionNotes: 'Make the headline larger.' }), [task(1, 'complete', 'Design the post')]],
+      ['an empty plan', review(), [task(1, 'complete', 'Design the post')]],
+    ])('shows planning the screenshot the review saw, after %s', async (_case, verdict, tasks) => {
+      const t = setup();
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+      t.screenshots.findTaskScreenshot.mockResolvedValue(screenshot);
+      t.reviewing(tasks);
+      t.jobReasoning.reviewJob.mockResolvedValue(verdict);
+
+      await t.run();
+
+      expect(t.screenshots.findTaskScreenshot).toHaveBeenCalledTimes(1);
+      expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(expect.objectContaining({ latestScreenshot: screenshot }));
     });
 
     it('reviews the latest Task against the earlier ones and the remaining plan, then keeps the plan', async () => {

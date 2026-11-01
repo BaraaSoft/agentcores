@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@ahe/agent-core';
+import type { Screenshot, TaskStatus } from '@ahe/agent-core';
 import { InjectQueue, Processor } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';
@@ -72,7 +72,7 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
       const isClosed = await this.withReviewingAttempts(job, async () => {
         const run = await this.startRun(workflowId, job);
         return unreviewed === null
-          ? this.planTasks(run, tasks, 'This is a new Job: write its first plan.', '')
+          ? this.planTasks(run, tasks, { reason: 'This is a new Job: write its first plan.', summary: '', screenshot: null })
           : this.reviewJob(run, tasks, unreviewed);
       });
       if (unreviewed !== null) await this.tasks.markTaskReviewed(unreviewed.id);
@@ -140,12 +140,13 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
     }
 
     const remainingActions = this.remainingActions(tasks);
+    const screenshot = await this.screenshots.findTaskScreenshot({ jobId: run.job.id, taskId: latest.id });
     const review = await this.jobReasoning.reviewJob({
       ...this.jobContext(run),
       latestOutcome: toTaskOutcome(latest),
       history: this.history(tasks.filter((task) => task.id !== latest.id)),
       remainingActions,
-      latestScreenshot: await this.screenshots.findTaskScreenshot({ jobId: run.job.id, taskId: latest.id }),
+      latestScreenshot: screenshot,
     });
 
     switch (review.decision) {
@@ -154,22 +155,20 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
       case 'abandon':
         return this.close(run.job.id, 'abandoned', `${review.summary}\nAbandoned: ${review.rationale}`);
       case 'revise':
-        return this.planTasks(
-          run,
-          tasks,
-          `The review asked for changes: ${review.revisionNotes}`,
-          review.summary,
-        );
+        return this.planTasks(run, tasks, {
+          reason: `The review asked for changes: ${review.revisionNotes}`,
+          summary: review.summary,
+          screenshot,
+        });
       case 'continue':
         // A Job left open with nothing to run would hold its Unit of Work open for ever, so an empty
         // plan goes back to planning. Planning nothing more closes the Job as failed.
         if (remainingActions.length > 0) return false;
-        return this.planTasks(
-          run,
-          tasks,
-          'The plan ran out before the objective was met: plan what is left to do.',
-          review.summary,
-        );
+        return this.planTasks(run, tasks, {
+          reason: 'The plan ran out before the objective was met: plan what is left to do.',
+          summary: review.summary,
+          screenshot,
+        });
     }
   }
 
@@ -177,9 +176,14 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
    * Lets Job reasoning edit the remaining plan over a draft, then saves the draft in one write. The
    * Task budget is soft: Job reasoning sees how many Tasks have started and may plan past the budget
    * when the objective needs it. A Job that needs planning with `MAX_TASKS_PER_JOB` Tasks already
-   * started closes as failed, and so does an empty plan. Returns whether the Job closed.
+   * started closes as failed, and so does an empty plan. After a review, planning sees the screenshot the
+   * review saw, so it can improve the work it is looking at. Returns whether the Job closed.
    */
-  private async planTasks(run: JobRun, tasks: readonly TaskEntity[], reason: string, summary: string): Promise<boolean> {
+  private async planTasks(
+    run: JobRun,
+    tasks: readonly TaskEntity[],
+    { reason, summary, screenshot }: { reason: string; summary: string; screenshot: Screenshot | null },
+  ): Promise<boolean> {
     const tasksStarted = tasks.filter((task) => task.status !== 'pending' && task.status !== 'cancelled').length;
     if (tasksStarted >= MAX_TASKS_PER_JOB) {
       return this.fail(
@@ -197,6 +201,7 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
         .filter((task) => task.status === 'pending')
         .map((task) => ({ action: task.action, skillType: task.skillType })),
       tasksStarted,
+      latestScreenshot: screenshot,
     });
     if (planned.length === 0) return this.fail(run.job.id, summary, 'Planning left no Tasks to run.');
 

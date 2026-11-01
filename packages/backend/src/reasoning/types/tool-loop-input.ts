@@ -1,3 +1,4 @@
+import type { Screenshot } from '@ahe/agent-core';
 import type { ReasoningTool } from './reasoning-tool';
 
 /**
@@ -7,6 +8,8 @@ import type { ReasoningTool } from './reasoning-tool';
 export interface ToolLoopInput {
   readonly systemPrompt: string;
   readonly userPrompt: string;
+  /** Images sent before the prompt in the first message; they stay in the history for every turn. */
+  readonly images?: readonly Screenshot[];
   /** Per model turn, thinking included. */
   readonly maxTokens: number;
   /** Model turns allowed before the loop gives up. */

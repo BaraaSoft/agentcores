@@ -1,3 +1,4 @@
+import type { Screenshot } from '@ahe/agent-core';
 import type { PlannedTask } from './planned-task';
 import type { TaskOutcome } from './task-outcome';
 
@@ -18,4 +19,9 @@ export interface JobPlanningInput {
   readonly remainingTasks: readonly PlannedTask[];
   /** Tasks of the Job that have started (anything not pending or cancelled), measured against the soft budget. */
   readonly tasksStarted: number;
+  /**
+   * The final screen of the Task the review just judged, when its skill returns one, so planning sees the
+   * work it must improve. Null for the first plan and for Tasks with no screenshot.
+   */
+  readonly latestScreenshot: Screenshot | null;
 }
