@@ -6,6 +6,7 @@ import { ReasoningToolError } from '../reasoning-tool.error';
 import { ReasoningModelClient } from '../reasoning-model.client';
 import type { ReasoningModelSettings } from '../types/reasoning-model-settings';
 import type { ReasoningTool } from '../types/reasoning-tool';
+import type { ToolLoopInput } from '../types/tool-loop-input';
 
 const SCHEMA = z.object({ answer: z.string() });
 const SETTINGS: ReasoningModelSettings = { providerName: 'anthropic', modelId: 'opus', effort: 'high' };
@@ -65,8 +66,8 @@ function setupLoop(...turns: ReturnType<typeof turn>[]) {
     { name: 'finish', description: 'Stop.', inputSchema: z.object({}), endsLoop: true, run: () => 'Finished.' },
   ];
   const client = new ReasoningModelClient(fakeReasoningProvider({ create } as unknown as Partial<Anthropic['messages']>), SETTINGS);
-  const run = (maxTurns = 5) =>
-    client.runToolLoop({ systemPrompt: 'You plan.', userPrompt: 'Plan.', maxTokens: 4000, maxTurns, tools });
+  const run = (maxTurns = 5, images?: ToolLoopInput['images']) =>
+    client.runToolLoop({ systemPrompt: 'You plan.', userPrompt: 'Plan.', images, maxTokens: 4000, maxTurns, tools });
   const messages = () => create.mock.calls.at(-1)![0].messages;
   return { create, added, run, messages };
 }
@@ -210,6 +211,28 @@ describe('ReasoningModelClient', () => {
       expect(t.messages()[2].content[0]).toEqual(
         expect.objectContaining({ is_error: true, content: expect.stringContaining(error) }),
       );
+    });
+
+    it('sends images before the prompt in the first message, and keeps them for every turn', async () => {
+      const t = setupLoop(turn('tool_use', useTool('1', 'add', { item: 'a' })), turn('tool_use', useTool('2', 'finish', {})));
+
+      await t.run(5, [{ mediaType: 'image/png', base64: 'iVBORw0KGgo=' }]);
+
+      expect(t.messages()[0]).toEqual({
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' } },
+          { type: 'text', text: 'Plan.' },
+        ],
+      });
+    });
+
+    it('sends the prompt alone when there are no images', async () => {
+      const t = setupLoop(turn('tool_use', useTool('1', 'finish', {})));
+
+      await t.run();
+
+      expect(t.messages()[0]).toEqual({ role: 'user', content: 'Plan.' });
     });
 
     it('nudges the model when a turn has no tool call', async () => {

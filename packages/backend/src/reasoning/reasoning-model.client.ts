@@ -12,7 +12,7 @@ const MAX_PAUSED_TURNS = 5;
 
 /**
  * Thin wrapper around the Messages API for a reasoning model, with adaptive thinking. Calls are text,
- * except that Job review and the evaluator may attach a visual Task's final screenshot. The reasoning
+ * except that Job review, Job planning, and the evaluator may attach a visual Task's final screenshot. The reasoning
  * provider (Claude or Muse) supplies the endpoint and the server tools; the calls are the same for both. Strategy
  * reasoning and the evaluator use this class; Job and Task get a subclass (`JobReasoningModelClient`,
  * `TaskReasoningModelClient`). `ReasoningModule` builds each one from config.
@@ -67,7 +67,7 @@ export class ReasoningModelClient {
   }
 
   /** The prompt alone, or the images first and the prompt after them, which is how the model reads images best. */
-  private userContent(input: CompletionInput<unknown>): MessageParam['content'] {
+  private userContent(input: Pick<CompletionInput<unknown>, 'userPrompt' | 'images'>): MessageParam['content'] {
     if (input.images === undefined || input.images.length === 0) return input.userPrompt;
     return [
       ...input.images.map((image) => ({
@@ -86,7 +86,7 @@ export class ReasoningModelClient {
   async runToolLoop(input: ToolLoopInput): Promise<void> {
     const tools = new Map(input.tools.map((tool) => [tool.name, tool]));
     const endTool = input.tools.find((tool) => tool.endsLoop)?.name ?? 'the final tool';
-    const messages: MessageParam[] = [{ role: 'user', content: input.userPrompt }];
+    const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
     for (let turn = 0; turn < input.maxTurns; turn++) {
       const message = await this.reasoningProvider.sdk.messages.create({

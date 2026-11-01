@@ -114,6 +114,7 @@ describe('JobReasoningService', () => {
         history: [OPENED, LINK_FAILED],
         remainingTasks: [{ action: 'Reply', skillType: 'social_post' }],
         tasksStarted: 2,
+        latestScreenshot: null,
       });
 
       expect(actions).toEqual([
@@ -160,6 +161,7 @@ describe('JobReasoningService', () => {
         history: [],
         remainingTasks: [],
         tasksStarted: MAX_TASKS_PER_JOB - 1,
+        latestScreenshot: null,
       });
 
       expect(actions).toEqual([{ action: 'Export', skillType: 'general' }]);
@@ -169,16 +171,37 @@ describe('JobReasoningService', () => {
     it('marks the first plan as having no history and no plan', async () => {
       const t = setup();
 
-      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0 });
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0, latestScreenshot: null });
 
       expect(t.loop().userPrompt).toContain('None — this is the first plan.');
       expect(t.loop().userPrompt).toContain('<CURRENT_PLAN>\nNone.\n</CURRENT_PLAN>');
+      expect(t.loop().images).toBeUndefined();
+      expect(t.loop().userPrompt).not.toContain('attached screenshot');
+    });
+
+    it('shows the planner the screenshot the review judged, and tells it the screenshot is there', async () => {
+      const t = setup();
+      const screenshot = { mediaType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+
+      await t.service.planTasks({
+        ...JOB,
+        reason: 'Make the headline larger.',
+        history: [OPENED],
+        remainingTasks: [],
+        tasksStarted: 1,
+        latestScreenshot: screenshot,
+      });
+
+      expect(t.loop().images).toEqual([screenshot]);
+      expect(t.loop().userPrompt).toContain(
+        'The attached screenshot shows the screen as the latest Task ended: the work as it stands now.\n</TASKS_SO_FAR>',
+      );
     });
 
     it('describes every skill type to the planner, and limits checking Tasks', async () => {
       const t = setup();
 
-      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0 });
+      await t.service.planTasks({ ...JOB, reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0, latestScreenshot: null });
 
       const { systemPrompt } = t.loop();
       for (const skillType of TASK_SKILL_TYPES) expect(systemPrompt).toContain(`* ${skillType}: `);

@@ -51,6 +51,7 @@ export class JobReasoningService {
     await this.model.runToolLoop({
       systemPrompt: JOB_REASONING_PROMPTS.planTasks.system,
       userPrompt: JOB_REASONING_PROMPTS.planTasks.user(input),
+      images: input.latestScreenshot === null ? undefined : [input.latestScreenshot],
       maxTokens: PLAN_TASKS_MAX_TOKENS,
       maxTurns: PLAN_TASKS_MAX_TURNS,
       tools: toolset.tools,

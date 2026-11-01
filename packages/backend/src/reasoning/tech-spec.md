@@ -379,6 +379,7 @@ screen of every step. The Task processor saves it with `JobScreenshotService` at
 | Who reads it | What |
 | --- | --- |
 | `reviewJob` | The latest Task's screenshot |
+| `planTasks` | The same screenshot, when it runs right after a review (`revise`, or `continue` with an empty plan); none for a Job's first plan. It goes in the tool loop's first message, so it stays for every turn |
 | `judgeJob` | The Job's newest screenshot |
 | Task reasoning | Nothing: the screenshot is stripped from the `ExecutionResult` before it enters `history` |
 
