@@ -48,8 +48,8 @@ export function StatusBadge({ label, tone }: StatusBadgeProps) {
       {tone === 'live' && (
         <Dot palette={palette} animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} />
       )}
-      {tone === 'done' && <Check size={10} strokeWidth={3} color={theme.color.live} aria-hidden />}
       {label}
+      {tone === 'done' && <Check size={10} strokeWidth={3} color={theme.color.live} aria-hidden />}
     </Chip>
   );
 }

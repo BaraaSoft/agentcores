@@ -1,79 +1,44 @@
 import { useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
-import type { StatusTone } from '../types/status-tone';
-import { tonePalette } from '../types/tone-palette';
+import { glassSurface } from '../../../theme/glass-surface';
+import { StatHero, type StatHeroProps } from './stat-hero';
+import { StatMetric, type StatMetricProps } from './stat-metric';
 
-/** One figure in the strip, such as "Tasks done · 4/9". */
-interface StatItem {
-  readonly label: string;
-  readonly value: string;
-  readonly tone?: StatusTone;
-}
-
-/** The figures to show, left to right. The first one is the widest, for the Strategy. */
+/** The lead block, and the metrics to its right. */
 export interface StatStripProps {
-  readonly items: readonly StatItem[];
+  readonly hero: StatHeroProps;
+  readonly metrics: readonly StatMetricProps[];
 }
 
-const Strip = styled.div`
-  display: grid;
-  grid-template-columns: minmax(220px, 2fr) repeat(auto-fit, minmax(120px, 1fr));
-  gap: ${({ theme }) => theme.space(2)};
+const Wrap = styled.div`
   padding: ${({ theme }) => `${theme.space(5)} ${theme.space(7)} 0`};
 `;
 
-const Tile = styled(motion.div)`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: ${({ theme }) => `${theme.space(3)} ${theme.space(4)}`};
+const Bar = styled(motion.div)<{ metricCount: number }>`
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(240px, 1.6fr) repeat(${({ metricCount }) => metricCount}, minmax(150px, 1fr));
+  align-items: center;
+  min-height: 84px;
   border-radius: ${({ theme }) => theme.radius.lg};
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  ${({ theme }) => glassSurface(theme, 'raised')};
+  & > * {
+    position: relative;
+  }
 `;
 
-const Label = styled.span`
-  color: ${({ theme }) => theme.color.textMuted};
-  font-family: ${({ theme }) => theme.font.mono};
-  font-size: 10px;
-  font-weight: ${({ theme }) => theme.font.weight.semibold};
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-`;
-
-const Value = styled.span<{ valueColor: string }>`
-  overflow: hidden;
-  color: ${({ valueColor }) => valueColor};
-  font-size: ${({ theme }) => theme.font.size.lg};
-  font-weight: ${({ theme }) => theme.font.weight.semibold};
-  letter-spacing: -0.015em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-`;
-
-/** A row of small glossy tiles with the key figures of the work. */
-export function StatStrip({ items }: StatStripProps) {
+/** One glossy glass bar: the Strategy on the left, then the live metrics split by soft dividers. */
+export function StatStrip({ hero, metrics }: StatStripProps) {
   const theme = useTheme();
   return (
-    <Strip>
-      {items.map((item, index) => (
-        <Tile
-          key={item.label}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...theme.motion.spring, delay: index * 0.04 }}
-        >
-          <Label>{item.label}</Label>
-          <Value valueColor={item.tone === undefined ? theme.color.text : tonePalette(theme, item.tone).fg} title={item.value}>
-            {item.value}
-          </Value>
-        </Tile>
-      ))}
-    </Strip>
+    <Wrap>
+      <Bar metricCount={metrics.length} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={theme.motion.spring}>
+        <StatHero {...hero} />
+        {metrics.map((metric) => (
+          <StatMetric key={metric.label} {...metric} />
+        ))}
+      </Bar>
+    </Wrap>
   );
 }

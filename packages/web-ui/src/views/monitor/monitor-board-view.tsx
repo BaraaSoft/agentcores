@@ -57,7 +57,7 @@ export function MonitorBoardView() {
   const selected = board.nodes.find((node) => node.id === selectedId) ?? null;
   return (
     <Frame>
-      <StatStrip items={stats} />
+      <StatStrip hero={stats.hero} metrics={stats.metrics} />
       <BoardCanvas
         label="Work board"
         width={board.width}

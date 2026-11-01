@@ -41,7 +41,7 @@ export const theme = {
     sheen: 'linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent)',
     shadow: '0 8px 24px -12px rgba(0, 0, 0, 0.6)',
   },
-  radius: { sm: '4px', md: '6px', lg: '10px' },
+  radius: { sm: '4px', md: '6px', lg: '8px' },
   space: (steps: number): string => `${steps * 4}px`,
   layout: { railWidth: '76px', headerHeight: '68px', pageInset: '8px' },
   motion: {
