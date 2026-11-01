@@ -430,9 +430,11 @@ With fetch, the model reads every address; without it, the model searches for ea
 never names `web_fetch`.
 `pnpm --filter @ahe/backend muse:smoke` checks every call shape against the live Muse models.
 
-**How a call works.** `completeStructured` calls `messages.parse` with adaptive thinking and the method's
+**How a call works.** `completeStructured` calls `messages.create` with adaptive thinking and the method's
 zod schema as the JSON schema output format (`output_config.format`). The model thinks first, then must
-answer in that shape; the SDK parses the answer into `parsed_output`. A reply that stops for any reason
+answer in that shape. The client parses the last text block against the schema: Muse writes short progress
+notes as text blocks between searches, so only the last one is the answer (Claude writes just the one). The
+SDK's `messages.parse` is not used, because it parses every text block and fails on the first note. A reply that stops for any reason
 other than `end_turn` (cut off at `maxTokens`, refused) throws, so the caller's queue retry handles it.
 `maxTokens` covers thinking and the answer together; it stays under the SDK's non-streaming limit.
 
