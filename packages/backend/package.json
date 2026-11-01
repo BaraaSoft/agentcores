@@ -13,7 +13,8 @@
     "test": "jest --passWithNoTests",
     "test:integration": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgres://ahe:ahe@localhost:5433/ahe_test} jest integration",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "muse:smoke": "ts-node scripts/muse-smoke.ts"
   },
   "dependencies": {
     "@ahe/agent-core": "workspace:*",

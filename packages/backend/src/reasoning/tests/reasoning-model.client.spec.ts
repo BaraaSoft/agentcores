@@ -1,14 +1,29 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import type { ToolUnion } from '@anthropic-ai/sdk/resources/messages';
 import * as z from 'zod/v4';
+import type { ReasoningProvider } from '../providers/reasoning-provider';
 import { ReasoningToolError } from '../reasoning-tool.error';
 import { ReasoningModelClient } from '../reasoning-model.client';
+import type { ReasoningModelSettings } from '../types/reasoning-model-settings';
 import type { ReasoningTool } from '../types/reasoning-tool';
 
 const SCHEMA = z.object({ answer: z.string() });
+const SETTINGS: ReasoningModelSettings = { providerName: 'anthropic', modelId: 'opus', effort: 'high' };
+const SEARCH_TOOL = { type: 'web_search', name: 'web_search' } as unknown as ToolUnion;
+
+/** A reasoning provider over a fake SDK that offers one search tool whenever the call asks for search. */
+function fakeReasoningProvider(messages: Partial<Anthropic['messages']>): ReasoningProvider & { serverTools: jest.Mock } {
+  return {
+    sdk: { messages } as unknown as Anthropic,
+    canFetch: false,
+    serverTools: jest.fn((input) => (input.webSearch === undefined ? undefined : [SEARCH_TOOL])),
+  };
+}
 
 function setup(reply: { stop_reason: string; parsed_output: unknown; content?: unknown }) {
   const parse = jest.fn().mockResolvedValue(reply);
-  const client = new ReasoningModelClient({ messages: { parse } } as unknown as Anthropic, { modelId: 'opus', effort: 'high' });
+  const reasoningProvider = fakeReasoningProvider({ parse } as unknown as Partial<Anthropic['messages']>);
+  const client = new ReasoningModelClient(reasoningProvider, SETTINGS);
   const run = (webSearch?: { maxSearches: number }, webFetch?: { maxFetches: number }) =>
     client.completeStructured({
       systemPrompt: 'You decide.',
@@ -18,7 +33,7 @@ function setup(reply: { stop_reason: string; parsed_output: unknown; content?: u
       webSearch,
       webFetch,
     });
-  return { parse, run };
+  return { parse, reasoningProvider, run };
 }
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown };
@@ -45,7 +60,7 @@ function setupLoop(...turns: ReturnType<typeof turn>[]) {
     },
     { name: 'finish', description: 'Stop.', inputSchema: z.object({}), endsLoop: true, run: () => 'Finished.' },
   ];
-  const client = new ReasoningModelClient({ messages: { create } } as unknown as Anthropic, { modelId: 'opus', effort: 'high' });
+  const client = new ReasoningModelClient(fakeReasoningProvider({ create } as unknown as Partial<Anthropic['messages']>), SETTINGS);
   const run = (maxTurns = 5) =>
     client.runToolLoop({ systemPrompt: 'You plan.', userPrompt: 'Plan.', maxTokens: 4000, maxTurns, tools });
   const messages = () => create.mock.calls.at(-1)![0].messages;
@@ -87,7 +102,7 @@ describe('ReasoningModelClient', () => {
       await expect(t.run()).rejects.toThrow(`stop reason: ${reply.stop_reason}`);
     });
 
-    it('offers no web search unless the call asks for one', async () => {
+    it('offers no server tools unless the call asks for one', async () => {
       const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
 
       await t.run();
@@ -95,32 +110,15 @@ describe('ReasoningModelClient', () => {
       expect(t.parse.mock.calls[0][0].tools).toBeUndefined();
     });
 
-    it('lets the model search the web, capped at the number of searches asked for', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
-
-      await t.run({ maxSearches: 3 });
-
-      expect(t.parse.mock.calls[0][0].tools).toEqual([
-        { type: 'web_search_20260318', name: 'web_search', max_uses: 3 },
-      ]);
-    });
-
-    it('lets the model read pages, capped in count and in size per page', async () => {
-      const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
-
-      await t.run(undefined, { maxFetches: 2 });
-
-      expect(t.parse.mock.calls[0][0].tools).toEqual([
-        { type: 'web_fetch_20260318', name: 'web_fetch', max_uses: 2, max_content_tokens: expect.any(Number) },
-      ]);
-    });
-
-    it('offers both web tools when the call allows both, and lets the model choose', async () => {
+    it('sends the server tools the reasoning provider builds for the call', async () => {
       const t = setup({ stop_reason: 'end_turn', parsed_output: { answer: 'yes' } });
 
       await t.run({ maxSearches: 3 }, { maxFetches: 2 });
 
-      expect(t.parse.mock.calls[0][0].tools.map((tool: { name: string }) => tool.name)).toEqual(['web_search', 'web_fetch']);
+      expect(t.reasoningProvider.serverTools).toHaveBeenCalledWith(
+        expect.objectContaining({ webSearch: { maxSearches: 3 }, webFetch: { maxFetches: 2 } }),
+      );
+      expect(t.parse.mock.calls[0][0].tools).toEqual([SEARCH_TOOL]);
     });
 
     it('carries on from its own work when a search pauses the turn', async () => {

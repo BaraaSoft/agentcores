@@ -1,6 +1,6 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import type { MessageParam, Tool, ToolResultBlockParam, ToolUnion, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
+import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
+import type { ReasoningProvider } from './providers/reasoning-provider';
 import { ReasoningToolError } from './reasoning-tool.error';
 import type { CompletionInput } from './types/completion-input';
 import type { ReasoningModelSettings } from './types/reasoning-model-settings';
@@ -10,34 +10,37 @@ import type { ToolLoopInput } from './types/tool-loop-input';
 /** How many times a call that searches the web may hand the turn back unfinished before we give up. */
 const MAX_PAUSED_TURNS = 5;
 
-/** Most tokens one fetched page may add to the prompt, so a long page cannot crowd out the rest. */
-const WEB_FETCH_MAX_CONTENT_TOKENS = 20_000;
-
 /**
- * Thin wrapper around the Anthropic API for a reasoning model, with adaptive thinking. Calls are text,
- * except that Job review and the evaluator may attach a visual Task's final screenshot. Strategy
- * reasoning and the evaluator use it with the default model; levels with their own model get a
- * subclass (`JobReasoningModelClient`, `TaskReasoningModelClient`).
- * `ReasoningModule` builds each one from config.
+ * Thin wrapper around the Messages API for a reasoning model, with adaptive thinking. Calls are text,
+ * except that Job review and the evaluator may attach a visual Task's final screenshot. The reasoning
+ * provider (Claude or Muse) supplies the endpoint and the server tools; the calls are the same for both. Strategy
+ * reasoning and the evaluator use this class; Job and Task get a subclass (`JobReasoningModelClient`,
+ * `TaskReasoningModelClient`). `ReasoningModule` builds each one from config.
  */
 export class ReasoningModelClient {
   constructor(
-    private readonly anthropic: Anthropic,
+    private readonly reasoningProvider: ReasoningProvider,
     private readonly settings: ReasoningModelSettings,
   ) {}
+
+  /** Whether calls on this client can read pages (web fetch), so a prompt can ask for it only when it works. */
+  get canFetch(): boolean {
+    return this.reasoningProvider.canFetch;
+  }
 
   /**
    * Sends one prompt and returns the reply parsed against `input.schema`. The schema is sent as the
    * output format, so the model can think first and still must answer in that shape. With
-   * `input.webSearch` or `input.webFetch` it may also search or read pages before answering; the API runs
-   * those tools itself, which is why no tool has to be executed here. Throws when the reply is cut off, refused, or doesn't match.
+   * `input.webSearch` or `input.webFetch` it may also search or read pages before answering, as far as the
+   * reasoning provider offers those tools; the API runs them itself, which is why no tool has to be executed
+   * here. Throws when the reply is cut off, refused, or doesn't match.
    */
   async completeStructured<TOutput>(input: CompletionInput<TOutput>): Promise<TOutput> {
-    const tools = this.webTools(input);
+    const tools = this.reasoningProvider.serverTools(input);
     const messages: MessageParam[] = [{ role: 'user', content: this.userContent(input) }];
 
     for (let pause = 0; pause <= MAX_PAUSED_TURNS; pause++) {
-      const message = await this.anthropic.messages.parse({
+      const message = await this.reasoningProvider.sdk.messages.parse({
         model: this.settings.modelId,
         max_tokens: input.maxTokens,
         system: input.systemPrompt,
@@ -58,23 +61,6 @@ export class ReasoningModelClient {
       return message.parsed_output;
     }
     throw new Error(`Reasoning model paused more than ${MAX_PAUSED_TURNS} times without answering`);
-  }
-
-  /** The web tools the call allows, run by the API itself; undefined when it allows none. */
-  private webTools(input: CompletionInput<unknown>): ToolUnion[] | undefined {
-    const tools: ToolUnion[] = [];
-    if (input.webSearch !== undefined) {
-      tools.push({ type: 'web_search_20260318', name: 'web_search', max_uses: input.webSearch.maxSearches });
-    }
-    if (input.webFetch !== undefined) {
-      tools.push({
-        type: 'web_fetch_20260318',
-        name: 'web_fetch',
-        max_uses: input.webFetch.maxFetches,
-        max_content_tokens: WEB_FETCH_MAX_CONTENT_TOKENS,
-      });
-    }
-    return tools.length === 0 ? undefined : tools;
   }
 
   /** The prompt alone, or the images first and the prompt after them, which is how the model reads images best. */
@@ -100,7 +86,7 @@ export class ReasoningModelClient {
     const messages: MessageParam[] = [{ role: 'user', content: input.userPrompt }];
 
     for (let turn = 0; turn < input.maxTurns; turn++) {
-      const message = await this.anthropic.messages.create({
+      const message = await this.reasoningProvider.sdk.messages.create({
         model: this.settings.modelId,
         max_tokens: input.maxTokens,
         system: input.systemPrompt,

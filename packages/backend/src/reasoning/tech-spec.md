@@ -397,19 +397,38 @@ a lagging listing or preview.
 ## Model clients and config
 
 `ReasoningModule` builds the clients with factory providers; nothing in the module reads env vars
-directly. `reasoning.config.ts` (`registerAs('reasoning')`) reads them once and fails at boot when a
-required one is missing.
+directly. `reasoning.config.ts` (`registerAs('reasoning')`) reads them once. Each level reads
+`REASONING_<LEVEL>_PROVIDER` (`anthropic`, the default, or `muse`) and an optional `REASONING_<LEVEL>_MODEL_ID`;
+without one it runs its provider's default model.
 
-| Provider | Built from | Used by | Model | Effort |
+| Client | Used by | Env prefix | Default model (anthropic / muse) | Effort |
 | --- | --- | --- | --- | --- |
-| `ANTHROPIC_CLIENT` | `ANTHROPIC_API_KEY` | every model client | — | — |
-| `ReasoningModelClient` | `ANTHROPIC_CLIENT` + `defaultModel` | `StrategyReasoningService`, `EvaluationReasoningService` | `REASONING_MODEL_ID` | high |
-| `JobReasoningModelClient` | `ANTHROPIC_CLIENT` + `jobModel` | `JobReasoningService` | `REASONING_JOB_MODEL_ID`, else the default | high |
-| `TaskReasoningModelClient` | `ANTHROPIC_CLIENT` + `taskModel` | `TaskReasoningService` | `REASONING_TASK_MODEL_ID`, else the default | medium (hot path) |
+| `ReasoningModelClient` | `StrategyReasoningService`, `EvaluationReasoningService` | `REASONING_STRATEGY_` | `claude-opus-5-5` / `muse-wonder-1.0` | high |
+| `JobReasoningModelClient` | `JobReasoningService` | `REASONING_JOB_` | `claude-opus-5-5` / `muse-wonder-1.0` | high |
+| `TaskReasoningModelClient` | `TaskReasoningService` | `REASONING_TASK_` | `claude-opus-5-5` / `muse-spark-1.3` | medium (hot path) |
 
 The subclasses add no behaviour; they exist so each service injects its level's client by class. A level
 that needs its own model or effort gets a subclass and a settings entry in the config; the Strategy planner
-and the evaluator run rarely, so they share the default.
+and the evaluator run rarely, so they share one level.
+
+**Providers.** Every client speaks the Anthropic Messages API through the Anthropic SDK. A `ReasoningProvider`
+(`providers/`) owns only what differs between vendors: the SDK instance and `serverTools`, the tools the vendor
+runs itself during a call. The client holds it as `reasoningProvider`; a level's settings name it by `providerName`.
+
+| Provider | Endpoint and key | Web search | Web fetch |
+| --- | --- | --- | --- |
+| `AnthropicReasoningProvider` | api.anthropic.com, `ANTHROPIC_API_KEY` | capped at `maxSearches` | capped at `maxFetches` |
+| `MuseReasoningProvider` | api.meta.ai (Meta's Anthropic-compatible Messages API), `META_API_KEY` as a bearer token | no cap: Meta rejects `max_uses`, so only the prompt limits it | dropped: Meta has none |
+
+`ReasoningProviders` builds each provider on first use and shares it between levels, so a key is needed only
+for a provider some level uses; a missing one fails at boot with its env name. This is true for reasoning
+only: execution (computer use) always runs on Anthropic, so the app still needs `ANTHROPIC_API_KEY` when every
+reasoning level runs on Muse. The Muse SDK sets `apiKey: null`,
+so the Anthropic key is never sent to Meta. Prompts and schemas are the same for both, with one exception: each
+provider declares `canFetch`, the client exposes it, and the Strategy prompt's `<RESEARCH>` opening depends on it.
+With fetch, the model reads every address; without it, the model searches for each address, and the prompt
+never names `web_fetch`.
+`pnpm --filter @ahe/backend muse:smoke` checks every call shape against the live Muse models.
 
 **How a call works.** `completeStructured` calls `messages.parse` with adaptive thinking and the method's
 zod schema as the JSON schema output format (`output_config.format`). The model thinks first, then must
@@ -462,10 +481,10 @@ a nudge. The loop ends when the tool marked `endsLoop` succeeds, and throws afte
 
 ```
 reasoning/
-├── reasoning.module.ts             ← factory providers for the Anthropic SDK + model clients; every reasoner
-├── reasoning.config.ts             ← registerAs('reasoning'): API key + model per level
-├── reasoning.tokens.ts             ← ANTHROPIC_CLIENT
+├── reasoning.module.ts             ← factory providers for the reasoning providers + model clients; every reasoner
+├── reasoning.config.ts             ← registerAs('reasoning'): API keys + provider, model, and effort per level
 ├── reasoning-model.client.ts       ← base model client (structured call + tool loop); Strategy and evaluation use it as is
+├── providers/                      ← ReasoningProvider, AnthropicReasoningProvider, MuseReasoningProvider, ReasoningProviders (+ tests/)
 ├── reasoning-tool.error.ts         ← thrown by a tool to send an error result back to the model
 ├── tools/toolset.factory.ts        ← ToolsetFactory: a new toolset per run (+ tests/)
 ├── task-outcome.prompts.ts         ← renders Task outcomes as prompt text, shared by Job and evaluation prompts
