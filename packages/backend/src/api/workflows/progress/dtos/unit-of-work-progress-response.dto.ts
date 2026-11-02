@@ -1,5 +1,5 @@
-import { UNIT_OF_WORK_STATUSES } from '@ahe/agent-core';
-import type { UnitOfWorkStatus } from '@ahe/agent-core';
+import { UNIT_OF_WORK_STATES, UNIT_OF_WORK_STATUSES } from '@ahe/agent-core';
+import type { UnitOfWorkState, UnitOfWorkStatus } from '@ahe/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { UnitOfWorkEntity } from '../../../../governance/entities/unit-of-work.entity';
 import { JobProgressResponseDto } from './job-progress-response.dto';
@@ -26,6 +26,9 @@ export class UnitOfWorkProgressResponseDto {
   @ApiProperty({ enum: UNIT_OF_WORK_STATUSES })
   status: UnitOfWorkStatus;
 
+  @ApiProperty({ enum: UNIT_OF_WORK_STATES, description: 'Whether its Jobs may run; `paused` while the run is paused' })
+  state: UnitOfWorkState;
+
   @ApiProperty({ type: Date, nullable: true, description: 'When its Jobs may be evaluated; set when the last Job closes' })
   evaluateAfter: Date | null;
 
@@ -43,6 +46,7 @@ export class UnitOfWorkProgressResponseDto {
       title: entity.title,
       rationale: entity.rationale,
       status: entity.status,
+      state: entity.state,
       evaluateAfter: entity.evaluateAfter,
       createdAt: entity.createdAt,
       jobs,

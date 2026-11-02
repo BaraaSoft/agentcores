@@ -17,7 +17,7 @@ export function boardStats(progress: WorkflowProgress): StatStripProps {
   const limit = progress.strategy.workType === 'one_off' ? progress.strategy.maxAttempts : progress.strategy.versionCount;
   const finishedUnits = units.filter((unit) => unit.status === 'complete').length;
   const unitsTotal = Math.max(limit ?? units.length, units.length);
-  const currentLive = units.some((unit) => unit.status !== 'complete');
+  const currentLive = progress.workflowState === 'running' && units.some((unit) => unit.status !== 'complete');
   return {
     hero: { icon: Target, label: 'Strategy', title: progress.strategy.name, meta: workTypeLine(progress.strategy) },
     metrics: [

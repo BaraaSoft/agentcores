@@ -164,11 +164,17 @@ describe('ProgressApiService', () => {
 
     expect(progress.strategy).not.toHaveProperty('owner');
     expect(progress.strategy).not.toHaveProperty('goldStandards');
-    expect(progress.unitsOfWork[0]).not.toHaveProperty('state');
     expect(progress.unitsOfWork[0].jobs[0]).not.toHaveProperty('reviewingAttempts');
     expect(progress.unitsOfWork[0].jobs[0].evaluation).not.toHaveProperty('attempts');
   });
 
+  it('shows whether each Unit of Work is paused, so the board can mark its open work paused', async () => {
+    const t = setup();
+
+    const progress = await t.service.getWorkflowProgress('wf-1');
+
+    expect(progress.unitsOfWork[0].state).toBe('running');
+  });
   it('answers 404 for an unknown Workflow', async () => {
     const t = setup(null);
 

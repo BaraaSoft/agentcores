@@ -64,7 +64,7 @@ export function buildBoard(progress: WorkflowProgress): Board {
   progress.unitsOfWork.forEach((unit, unitIndex) => {
     if (unitIndex > 0) cursor += UNIT_GAP;
     const unitY = cursor;
-    const jobs = unit.jobs.map((job) => ({ job, presentation: presentJob(job, waitsForEarlierJob(job, unit)) }));
+    const jobs = unit.jobs.map((job) => ({ job, presentation: presentJob(job, waitsForEarlierJob(job, unit), unit.state === 'paused') }));
     const unitNode = place(`unit:${unit.id}`, 1, unitY, presentUnit(unit, jobs.some(({ presentation }) => presentation.tone === 'live')));
     connect(strategy, unitNode);
     if (jobs.length === 0) cursor += CARD_HEIGHT + ROW_GAP;
