@@ -8,7 +8,7 @@ import type { WorkflowSummary } from './types/workflow-summary';
 export const strategiesApi = {
   listStrategies: (): Promise<Strategy[]> => getJson('/strategies'),
   createStrategy: (request: CreateStrategyRequest): Promise<Strategy> => postJson('/strategies', request),
-  /** Starts a fresh Workflow of the Strategy at attempt 1. The backend pauses the Workflow that runs on the machine now. */
+  /** Starts a fresh Workflow of the Strategy at iteration 1. The backend pauses the Workflow that runs on the machine now. */
   runStrategy: (strategyId: string, request: RunStrategyRequest): Promise<WorkflowSummary> =>
     postJson(`/strategies/${strategyId}/run`, request),
 };

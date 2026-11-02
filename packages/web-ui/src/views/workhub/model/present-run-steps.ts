@@ -18,7 +18,7 @@ type StepCopy = Record<'label' | LaunchStepState['status'], string>;
 
 const FIRST_UNIT_NAMES: Record<StrategyWorkType, string> = {
   continuous: 'round 1',
-  one_off: 'attempt 1',
+  one_off: 'iteration 1',
   multi_version: 'version 1',
 };
 

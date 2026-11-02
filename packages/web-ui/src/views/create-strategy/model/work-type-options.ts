@@ -9,7 +9,7 @@ export const WORK_TYPE_OPTIONS: readonly WorkTypeOption<StrategyWorkType>[] = [
     label: 'One-off',
     tagline: 'Done once, not repeated.',
     description:
-      'One-off means the work does not repeat. It does not mean a single task: your co-worker can take many steps, such as design a post, publish it, and email you the link. Each attempt is marked out of 10, and the next attempt fixes what the mark said was wrong, up to your attempt limit.',
+      'One-off means the work does not repeat. It does not mean a single task: your co-worker can take many steps, such as design a post, publish it, and email you the link. Each iteration is marked out of 10, and the next iteration fixes what the mark said was wrong, up to your iteration limit.',
     icon: Target,
   },
   {

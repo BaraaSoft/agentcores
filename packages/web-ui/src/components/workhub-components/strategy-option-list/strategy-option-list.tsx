@@ -7,7 +7,7 @@ import type { KeyboardEvent } from 'react';
 export interface StrategyOption {
   readonly id: string;
   readonly name: string;
-  /** Such as "one-off · up to 3 attempts". */
+  /** Such as "one-off · up to 3 iterations". */
   readonly workTypeLine: string;
   /** Such as "Runs on Macbook" or "No workflow yet". */
   readonly usageLine: string;

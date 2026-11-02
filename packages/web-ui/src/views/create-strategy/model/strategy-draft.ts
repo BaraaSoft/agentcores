@@ -27,7 +27,7 @@ export const DRAFT_LIMITS = {
 /** The one machine the co-worker works on. Every Strategy and Workflow runs here for now. */
 export const AHE_MACHINE = 'Macbook';
 
-/** A new form: one-off work with three attempts, one Job at a time, and a $50 ceiling. */
+/** A new form: one-off work with three iterations, one Job at a time, and a $50 ceiling. */
 export const EMPTY_STRATEGY_DRAFT: StrategyDraft = {
   name: '',
   objective: '',

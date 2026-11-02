@@ -27,7 +27,7 @@ export interface RunStrategyViewProps {
 const RESOURCES = { maxConcurrentJobs: EMPTY_STRATEGY_DRAFT.maxConcurrentJobs, budgetLimit: Number(EMPTY_STRATEGY_DRAFT.budgetLimit) };
 
 /**
- * The side panel that runs a Strategy again: a fresh Workflow that begins at its first attempt and plans
+ * The side panel that runs a Strategy again: a fresh Workflow that begins at its first iteration and plans
  * with what the earlier runs learned. It first pauses the Workflow that runs on the machine, with all its work.
  */
 export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProps) {
@@ -89,7 +89,7 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
     <ComposerPanel
       eyebrow="Run again"
       title="Run a strategy again"
-      description="Start a fresh workflow for a strategy you already have. Your co-worker begins at attempt 1 and plans with what earlier runs learned."
+      description="Start a strategy you already have from the beginning. Your co-worker begins again at iteration 1, and it uses what the earlier runs learned."
       actions={
         <ActionButton icon={RotateCcw} onClick={submit} isBusy={isBusy} isDisabled={strategyId === null || isBusy}>
           {buttonLabel}

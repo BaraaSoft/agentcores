@@ -67,7 +67,7 @@ const Note = styled(motion.div)`
 const Swap = styled(motion.div)``;
 
 function workTypeCount(draft: StrategyDraft): string {
-  if (draft.workType === 'one_off') return `Up to ${draft.maxAttempts} attempt${draft.maxAttempts === 1 ? '' : 's'}`;
+  if (draft.workType === 'one_off') return `Up to ${draft.maxAttempts} iteration${draft.maxAttempts === 1 ? '' : 's'}`;
   if (draft.workType === 'multi_version') return `${draft.versionCount} version${draft.versionCount === 1 ? '' : 's'}`;
   return 'Until you pause it';
 }
@@ -221,13 +221,13 @@ export function CreateStrategyView() {
                   {draft.workType === 'one_off' && (
                     <NumberStepper
                       id="strategy-attempts"
-                      label="Attempts"
-                      unit="attempts"
+                      label="Iterations"
+                      unit="iterations"
                       value={draft.maxAttempts}
                       min={DRAFT_LIMITS.attempts.min}
                       max={DRAFT_LIMITS.attempts.max}
                       onChange={(value) => update('maxAttempts', value)}
-                      hint="Each attempt is marked out of 10. Your co-worker stops early once the work is good."
+                      hint="Each iteration is marked out of 10. Your co-worker stops early once the work is good."
                     />
                   )}
                   {draft.workType === 'multi_version' && (
