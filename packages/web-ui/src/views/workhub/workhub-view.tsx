@@ -8,6 +8,7 @@ import { EmptyState } from '../../components/empty-state/empty-state';
 import { PageIntro } from '../../components/page-intro/page-intro';
 import { SidePanelLayout } from '../../components/side-panel-layout/side-panel-layout';
 import { ActionButton } from '../../components/strategy-components/action-button/action-button';
+import { InfoTip } from '../../components/strategy-components/work-type-picker/info-tip';
 import { HubMetric } from '../../components/workhub-components/hub-metric/hub-metric';
 import { InlineNotice } from '../../components/workhub-components/inline-notice/inline-notice';
 import { SearchField } from '../../components/workhub-components/search-field/search-field';
@@ -26,6 +27,9 @@ import { RunStrategyView } from './run-strategy-view';
 const CLOCK_TICK_MS = 30_000;
 /** How long a revealed or new card keeps its blue ring. */
 const RING_MS = 3_200;
+
+const WORKFLOW_EXPLAINER =
+  'A strategy is your goal. A workflow is one run of that goal on your machine, and it is running, paused, or done. Pause a run and resume it later, or run the strategy again: the new run starts over and learns from the earlier ones.';
 
 const Metrics = styled.div`
   display: grid;
@@ -225,8 +229,8 @@ export function WorkHubView() {
       main={
         <>
           <PageIntro eyebrow="WorkHub" title="Every workflow, in one place.">
-            A strategy is your goal. A workflow is one run of that goal on your machine, and it is running, paused, or done. Pause a run and
-            resume it later, or run the strategy again: the new run starts over and learns from the earlier ones.
+            Start a strategy you already have from the beginning. Your co-worker begins again at iteration 1, and it uses what the earlier
+            runs learned. <InfoTip label="What is a workflow?" text={WORKFLOW_EXPLAINER} />
           </PageIntro>
           <Metrics>
             <HubMetric label="Running" value={runningCount} hint="Working right now" icon={Activity} tone="live" />
