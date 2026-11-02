@@ -89,7 +89,7 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
     <ComposerPanel
       eyebrow="Run again"
       title="Run a strategy again"
-      description="Start a strategy you already have from the beginning. Your co-worker begins again at iteration 1, and it uses what the earlier runs learned."
+      description="Pick a strategy to run again on your machine. The fresh run starts at iteration 1."
       actions={
         <ActionButton icon={RotateCcw} onClick={submit} isBusy={isBusy} isDisabled={strategyId === null || isBusy}>
           {buttonLabel}

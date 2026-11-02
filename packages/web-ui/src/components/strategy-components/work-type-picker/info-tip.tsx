@@ -14,6 +14,7 @@ export interface InfoTipProps {
 const Anchor = styled.span`
   position: relative;
   display: inline-flex;
+  vertical-align: middle;
 `;
 
 const Trigger = styled.button`
