@@ -1,7 +1,7 @@
 import type { ExecutionProvider } from '@ahe/agent-core';
-import { createComputerUseProvider } from '@ahe/execution';
+import { createExecutionProvider } from '@ahe/execution';
 import { Logger, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, type ConfigType } from '@nestjs/config';
 import { IdentityModule } from '../../../identity/identity.module';
 import { MemoryModule } from '../../../memory/memory.module';
 import { JOB_EXECUTION_QUEUE, TASK_EXECUTION_QUEUE } from '../../../queue/queue.constants';
@@ -9,6 +9,7 @@ import { registerQueues } from '../../../queue/register-queues';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
 import { ReportingModule } from '../../../reporting/reporting.module';
 import { GovernanceModule } from '../../governance.module';
+import { executionConfig } from './execution.config';
 import { TaskExecutionProcessor } from './task-execution.processor';
 import { EXECUTION_PROVIDER } from './task-execution.tokens';
 
@@ -21,6 +22,7 @@ const executionLogger = new Logger('Execution');
  */
 @Module({
   imports: [
+    ConfigModule.forFeature(executionConfig),
     registerQueues(TASK_EXECUTION_QUEUE, JOB_EXECUTION_QUEUE),
     GovernanceModule,
     IdentityModule,
@@ -31,15 +33,14 @@ const executionLogger = new Logger('Execution');
   providers: [
     {
       provide: EXECUTION_PROVIDER,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService): ExecutionProvider =>
-        createComputerUseProvider({
-          apiKey: config.getOrThrow<string>('ANTHROPIC_API_KEY'),
-          modelId: config.getOrThrow<string>('EXECUTION_MODEL_ID'),
-          maxScreenshotWidth: Number(config.getOrThrow<string>('SCREENSHOT_MAX_WIDTH')),
-          maxScreenshotHeight: Number(config.getOrThrow<string>('SCREENSHOT_MAX_HEIGHT')),
+      inject: [executionConfig.KEY],
+      useFactory: (config: ConfigType<typeof executionConfig>): ExecutionProvider => {
+        executionLogger.log(`Computer use runs on ${config.providerName} (${config.modelId})`);
+        return createExecutionProvider({
+          ...config,
           onTurn: ({ turn, toolCalls }) => executionLogger.debug(`Turn ${turn}: ${toolCalls.length} tool calls`),
-        }),
+        });
+      },
     },
     TaskExecutionProcessor,
   ],

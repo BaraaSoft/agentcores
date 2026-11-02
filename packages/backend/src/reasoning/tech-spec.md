@@ -452,9 +452,9 @@ Three limits came out of live tests on Claude, Muse Wonder, and Muse Spark:
 | `MuseReasoningProvider` | api.meta.ai (Meta's Anthropic-compatible Messages API), `META_API_KEY` as a bearer token | no cap: Meta rejects `max_uses`, so only the prompt limits it | dropped: Meta has none |
 
 `ReasoningProviders` builds each provider on first use and shares it between levels, so a key is needed only
-for a provider some level uses; a missing one fails at boot with its env name. This is true for reasoning
-only: execution (computer use) always runs on Anthropic, so the app still needs `ANTHROPIC_API_KEY` when every
-reasoning level runs on Muse. The Muse SDK sets `apiKey: null`,
+for a provider some level uses; a missing one fails at boot with its env name. Execution (computer use) picks its
+own provider with `EXECUTION_PROVIDER` (see `packages/execution/tech-spec.md`), so with Muse everywhere the app
+needs only `META_API_KEY`. The Muse SDK sets `apiKey: null`,
 so the Anthropic key is never sent to Meta. Prompts and schemas are the same for both, with one exception: each
 provider declares `canFetch`, the client exposes it, and the Strategy prompt's `<RESEARCH>` opening depends on it.
 With fetch, the model reads every address; without it, the model searches for each address, and the prompt

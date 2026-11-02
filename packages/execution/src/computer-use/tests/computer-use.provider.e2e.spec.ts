@@ -3,22 +3,25 @@ import { config } from 'dotenv';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createComputerUseProvider } from '../../create-computer-use-provider';
+import { createExecutionProvider } from '../../create-execution-provider';
+import type { ExecutionProviderName } from '../../types/execution-provider-name';
 import type { ExecutionTurn } from '../types/execution-turn';
 import { FixtureServer } from './fixtures/fixture-server';
 
 /*
  * End-to-end tests on the real desktop: real screenshots, real mouse and keyboard, real model calls.
  * They take over the machine and cost API credits, so they only run through `pnpm test:e2e`
- * and are skipped without ANTHROPIC_API_KEY. Run `pnpm check:desktop` once first for the macOS permissions.
+ * and are skipped without the provider's key. Run `pnpm check:desktop` once first for the macOS permissions.
+ * `EXECUTION_PROVIDER=muse` runs the same tasks on Muse with META_API_KEY; Claude is the default.
  * The test never touches the desktop itself: every task starts wherever the last one left the screen,
  * and the model gets to each page on its own, as it would in production.
  */
 
 config({ path: join(__dirname, '../../../../../.env'), quiet: true });
 
-const API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
-const MODEL_ID = process.env.EXECUTION_MODEL_ID ?? 'claude-sonnet-5-5';
+const PROVIDER: ExecutionProviderName = process.env.EXECUTION_PROVIDER === 'muse' ? 'muse' : 'anthropic';
+const API_KEY = (PROVIDER === 'muse' ? process.env.META_API_KEY : process.env.ANTHROPIC_API_KEY) ?? '';
+const MODEL_ID = process.env.EXECUTION_MODEL_ID ?? (PROVIDER === 'muse' ? 'muse-wonder-1.0' : 'claude-sonnet-5-5');
 const BROWSER = process.env.AHE_E2E_BROWSER ?? 'Safari';
 const MAX_STEPS = 30;
 const LOG_DIRECTORY = join(tmpdir(), 'ahe-e2e');
@@ -27,7 +30,7 @@ const describeOnDesktop = API_KEY === '' ? describe.skip : describe;
 
 jest.setTimeout(5 * 60_000);
 
-describeOnDesktop('ComputerUseProvider on the real desktop', () => {
+describeOnDesktop(`Computer use on the real desktop (${PROVIDER})`, () => {
   let server: FixtureServer;
 
   beforeAll(async () => {
@@ -41,15 +44,12 @@ describeOnDesktop('ComputerUseProvider on the real desktop', () => {
   });
 
   /** Runs one task, writing every model turn and the result to `<LOG_DIRECTORY>/<name>.log`. */
-  const runTask = async (
-    name: string,
-    task: Pick<ExecutionTask, 'instruction'> & Partial<ExecutionTask>,
-  ): Promise<ExecutionResult> => {
+  const runTask = async (name: string, task: Pick<ExecutionTask, 'instruction'> & Partial<ExecutionTask>): Promise<ExecutionResult> => {
     const lines: string[] = [];
     const onTurn = ({ turn, text, toolCalls }: ExecutionTurn): void => {
       lines.push(`--- turn ${turn}`, text, ...toolCalls.map((call) => `> ${call}`));
     };
-    const provider = createComputerUseProvider({ apiKey: API_KEY, modelId: MODEL_ID, onTurn });
+    const provider = createExecutionProvider({ providerName: PROVIDER, apiKey: API_KEY, modelId: MODEL_ID, onTurn });
     try {
       const result = await provider.runTask({ taskId: name, context: '', maxSteps: MAX_STEPS, credentials: null, ...task });
       lines.push('--- result', JSON.stringify(result, null, 2));

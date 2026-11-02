@@ -1,14 +1,16 @@
 # @ahe/execution
 
 The execution layer of AHE. It takes one mechanical instruction ("upvote the top post in r/AICompanion"),
-drives a real macOS desktop with Claude's computer-use tools until the instruction is done, blocked, or
-impossible, and returns a short **text-only** `ExecutionResult`. Screenshots never leave this package.
+drives a real macOS desktop until the instruction is done, blocked, or impossible, and returns a short
+**text-only** `ExecutionResult`. Screenshots never leave this package. Two providers do the driving: Claude with
+Anthropic's built-in computer tool, or Meta's Muse through our own computer tools (see [Muse adapter](#muse-adapter)).
 
 It implements `ExecutionProvider` from `@ahe/agent-core`. The backend's `TaskExecutionProcessor` is its only caller.
 
 - [Where it sits](#where-it-sits)
 - [Usage](#usage)
 - [Architecture](#architecture)
+- [Muse adapter](#muse-adapter)
 - [Lifecycle of one task](#lifecycle-of-one-task)
 - [Lifecycle of one action](#lifecycle-of-one-action)
 - [How a task ends](#how-a-task-ends)
@@ -53,9 +55,10 @@ The contract types (`ExecutionTask`, `ExecutionResult`, `ExecutionBlocker`, `Too
 ## Usage
 
 ```ts
-import { createComputerUseProvider } from '@ahe/execution';
+import { createExecutionProvider } from '@ahe/execution';
 
-const provider = createComputerUseProvider({
+const provider = createExecutionProvider({
+  providerName: 'anthropic', // or 'muse', with META_API_KEY and 'muse-wonder-1.0'
   apiKey: process.env.ANTHROPIC_API_KEY!,
   modelId: 'claude-sonnet-5-5',
 });
@@ -76,8 +79,9 @@ const result = await provider.runTask(
 
 | Option                | Default                  | Meaning                                                       |
 | --------------------- | ------------------------ | ------------------------------------------------------------- |
-| `apiKey`              | —                        | Anthropic API key                                             |
-| `modelId`             | —                        | Execution model, e.g. `claude-sonnet-5-5` or `claude-haiku-5-5` |
+| `providerName`        | —                        | `anthropic` or `muse`; picks the builder in `createExecutionProvider` |
+| `apiKey`              | —                        | The provider's key: Anthropic API key, or Meta API key (sent as a bearer token) |
+| `modelId`             | —                        | Execution model, e.g. `claude-sonnet-5-5`, `claude-haiku-5-5`, or `muse-wonder-1.0` |
 | `maxTokens`           | `4096`                   | Max output tokens per model turn                              |
 | `maxScreenshotWidth`  | `1280`                   | Largest screenshot width the model sees                       |
 | `maxScreenshotHeight` | `800`                    | Largest screenshot height the model sees                      |
@@ -138,6 +142,32 @@ flowchart TD
 | `actions/`    | `ToolCall`, limits, pixel spaces | Anthropic, any OS library             |
 | `geometry/`   | Two sizes and arithmetic         | Everything else                       |
 | `driver/`     | Display pixels, keys, PNG bytes  | Models, screenshot sizes, `ToolCall`  |
+
+---
+
+## Muse adapter
+
+Meta's API (`https://api.meta.ai`) speaks the Anthropic Messages protocol, but it rejects every Anthropic computer
+tool type with HTTP 400 and ignores `strict`. So `muse/` is a separate provider with its own loop. It reuses the
+vendor-neutral middle (`ActionExecutor`, `DisplayGeometry`, `DesktopDriver`, `ActionGuard`, `TaskReportParser`, the
+prompts) and leaves `computer-use/` and `anthropic/` untouched.
+
+`createExecutionProvider` is the factory and provider pattern the backend uses: a `BUILDERS` record maps each
+`ExecutionProviderName` to its builder (`createComputerUseProvider` or `createMuseComputerUseProvider`).
+
+| Part                        | Job                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `MuseComputerTools`         | One plain tool per action (`left_click`, `scroll`, `zoom`, …), Zod input, maps to `ToolCall` |
+| `buildMuseSystemPrompt`     | Adds a `<SCREEN>` block: screenshot pixels (not a 0–1000 grid), zoom rules, a tool every turn |
+| `MuseConversation`          | The message list; keeps the 3 newest screenshots and replaces older ones with a short note |
+| `MUSE_TASK_REPORT_TOOL`     | `submit_task_report` without `strict`                                                      |
+| `normalizeMuseReport`       | Fixes Muse's habits before parsing: `blocker: "null"` → `null`, `"14"` → `14`               |
+| `MuseComputerUseProvider`   | The loop: `messages.create`, run tool calls in order, nudge (max 2) on a text-only turn     |
+
+Tool calls in one turn run in order. After the first failure the rest get "skipped"; a guard refusal gets
+"declined"; a report sent with other actions is ignored, and the model is told to report on its own. Thinking
+blocks go back to Meta unchanged. `muse-wonder-1.0` is the supported model: in probes it passed every simulated
+task, while `muse-spark-1.3` often ended turns in text only.
 
 ---
 
@@ -291,8 +321,15 @@ flowchart LR
 ```
 src/
 ├── index.ts                         ← public exports
-├── create-computer-use-provider.ts  ← factory the backend calls (real Mac + Anthropic client)
+├── create-execution-provider.ts     ← factory the backend calls: picks the builder by provider name
+├── execution-provider-options.ts, execution-provider-names.ts, types/execution-provider-name.ts
+├── create-computer-use-provider.ts  ← Claude builder (real Mac + Anthropic client)
 ├── computer-use-provider-options.ts
+├── muse/                            ← Muse provider: own tools, loop, prompt block, report clean-up
+│   ├── create-muse-computer-use-provider.ts  ← Muse builder (real Mac + Meta client)
+│   ├── muse-computer-use.provider.ts
+│   ├── muse-computer-tools.ts, muse-conversation.ts, muse-task-report-tool.ts
+│   └── muse-execution.prompts.ts, normalize-muse-report.ts
 ├── computer-use/                    ← the provider, its options, and the prompts
 │   ├── computer-use.provider.ts
 │   ├── computer-use-components.ts   ← injectable parts (client, desktop, guard, parser)
@@ -358,8 +395,10 @@ pnpm --filter @ahe/execution check:desktop   # once per machine
 pnpm --filter @ahe/execution test:e2e        # hands off the mouse and keyboard while it runs
 ```
 
-The suite reads `ANTHROPIC_API_KEY` and `EXECUTION_MODEL_ID` from the environment or the root `.env`,
-and is skipped without a key. `AHE_E2E_BROWSER` picks the browser (default Safari).
+The suite reads `EXECUTION_PROVIDER` (default `anthropic`), the provider's key (`ANTHROPIC_API_KEY` or
+`META_API_KEY`), and `EXECUTION_MODEL_ID` from the environment or the root `.env`, and is skipped without the key.
+`EXECUTION_PROVIDER=muse pnpm --filter @ahe/execution test:e2e` runs the same tests on Muse.
+`AHE_E2E_BROWSER` picks the browser (default Safari).
 
 A local `FixtureServer` (`computer-use/tests/fixtures/`) serves pages with random codes and records form
 posts, so each test checks what actually happened in the browser, not just what the model says.
@@ -384,8 +423,8 @@ Each test writes its step log (every turn's text and tool calls, via `onTurn`, p
 
 - **Another OS or input library** — implement the interfaces in `driver/` in a new sibling folder
   (e.g. `driver/linux/`) and build it in place of `MacosDesktopDriver`. Nothing above `driver/` changes.
-- **Another model provider or tool version** — replace `anthropic/` (toolset + mapper) and the runner call in
-  `ComputerUseProvider`. `ToolCall` and `ActionExecutor` stay as they are.
+- **Another model provider** — add a sibling of `muse/` with a builder, add its name to `EXECUTION_PROVIDER_NAMES`,
+  and register the builder in `create-execution-provider.ts`. `ToolCall` and `ActionExecutor` stay as they are.
 - **An approval policy** — implement `ActionGuard.allows(toolCall)` and pass it as `guard`.
 - **New report fields** — add them to `TASK_REPORT_SCHEMA` (every field must be required for strict mode),
   then map them in `TaskReportParser` and the `ExecutionResult` contract in `@ahe/agent-core`.
@@ -398,4 +437,5 @@ Each test writes its step log (every turn's text and tool calls, via `onTurn`, p
 - robotjs can't triple-click, so `triple_click` is hidden from the model (`maxClickCount` = 2).
 - Text with characters above U+FFFF (most emoji) is pasted via the clipboard, which is restored afterwards.
 - The default guard approves everything; policy is enforced by the prompt until a real guard is written.
-- The account password is sent to the Anthropic API inside the task prompt.
+- The account password is sent to the model API (Anthropic or Meta) inside the task prompt.
+- The Muse provider is checked on a simulated desktop and against the live Meta API, but not yet on the real Mac.
