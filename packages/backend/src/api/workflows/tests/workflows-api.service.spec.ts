@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import type { StrategyService } from '../../../governance/services/strategy.service';
+import type { TaskService } from '../../../governance/services/task.service';
 import type { OrchestratorService } from '../../../orchestrator/orchestrator.service';
 import type { WorkflowService } from '../../../workflow/workflow.service';
 import { WorkflowResponseDto } from '../dtos/workflow-response.dto';
@@ -26,6 +27,7 @@ const RESPONSE = {
   resources: RESOURCES,
   createdAt: CREATED_AT,
   updatedAt: UPDATED_AT,
+  activeTaskCount: 0,
 };
 
 function setup(found: unknown = WORKFLOW, strategy: unknown = WORKFLOW.strategy) {
@@ -39,12 +41,14 @@ function setup(found: unknown = WORKFLOW, strategy: unknown = WORKFLOW.strategy)
     startWorkflow: jest.fn().mockResolvedValue({ ...WORKFLOW, state: 'running' }),
     pauseWorkflow: jest.fn().mockResolvedValue(WORKFLOW),
   };
+  const tasks = { countRunningTasksByWorkflow: jest.fn().mockResolvedValue(new Map()) };
   const service = new WorkflowsApiService(
     workflows as unknown as WorkflowService,
     strategies as unknown as StrategyService,
     orchestrator as unknown as OrchestratorService,
+    tasks as unknown as TaskService,
   );
-  return { service, workflows, strategies, orchestrator };
+  return { service, workflows, strategies, orchestrator, tasks };
 }
 
 describe('WorkflowsApiService', () => {
@@ -75,6 +79,34 @@ describe('WorkflowsApiService', () => {
 
   it('lists the Workflows with only the public fields', async () => {
     expect(await setup().service.listWorkflows()).toEqual([RESPONSE]);
+  });
+
+  it('lists how many Tasks each Workflow is running, so the UI can tell when a paused run has freed the machine', async () => {
+    const t = setup();
+    t.tasks.countRunningTasksByWorkflow.mockResolvedValue(new Map([['wf-1', 1]]));
+
+    expect(await t.service.listWorkflows()).toEqual([{ ...RESPONSE, activeTaskCount: 1 }]);
+  });
+
+  it('runs a Strategy again as a fresh Workflow and starts it through the orchestrator', async () => {
+    const t = setup();
+    const body = { machineId: 'Macbook', resources: RESOURCES };
+
+    const run = await t.service.runStrategy('strategy-1', body);
+
+    expect(t.workflows.createWorkflow).toHaveBeenCalledWith({ strategyId: 'strategy-1', ...body });
+    expect(t.orchestrator.startWorkflow).toHaveBeenCalledWith('wf-1');
+    expect(run).toMatchObject({ id: 'wf-1', state: 'running' });
+  });
+
+  it('answers 404 and creates no run when the Strategy does not exist', async () => {
+    const t = setup(WORKFLOW, null);
+
+    await expect(t.service.runStrategy('strategy-x', { machineId: 'Macbook', resources: RESOURCES })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(t.workflows.createWorkflow).not.toHaveBeenCalled();
+    expect(t.orchestrator.startWorkflow).not.toHaveBeenCalled();
   });
 
   it('starts and pauses through the orchestrator', async () => {

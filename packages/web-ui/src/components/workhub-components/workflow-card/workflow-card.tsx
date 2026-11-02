@@ -2,19 +2,23 @@ import { useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Clock3, Gauge, Laptop, Pause, Play, Wallet, X } from 'lucide-react';
+import type { WorkflowState } from '../../../api/types/workflow-state';
 import { glassSurface } from '../../../theme/glass-surface';
 import { StatusBadge } from '../../monitoring-components/status-badge/status-badge';
 import { InlineNotice } from '../inline-notice/inline-notice';
 import { PillButton } from '../pill-button/pill-button';
 
-/** What one Workflow card shows. */
+/** What one Workflow card shows. A Workflow is one run of its Strategy. */
 export interface WorkflowCardData {
   readonly id: string;
-  readonly state: 'running' | 'paused';
+  readonly state: WorkflowState;
+  /** Paused, but a Task still ends its current step, so the machine is not free yet. */
+  readonly isFreeingMachine: boolean;
   readonly strategyName: string;
+  /** Such as "Run 2": which run of the Strategy this is. */
+  readonly runLine: string;
   readonly objective: string;
   readonly workTypeLine: string;
-  readonly isStrategyComplete: boolean;
   readonly machineId: string;
   readonly concurrencyLine: string;
   readonly budgetLine: string;
@@ -22,7 +26,7 @@ export interface WorkflowCardData {
   readonly timeLine: string;
 }
 
-/** One Workflow: its Strategy, where it runs, its limits, and the buttons to pause, resume, or open it. */
+/** One Workflow: its Strategy, where it runs, its limits, and the buttons to pause, resume, or open it. A done Workflow is final, so it has no resume. */
 export interface WorkflowCardProps {
   readonly workflow: WorkflowCardData;
   readonly action: 'pausing' | 'resuming' | null;
@@ -157,13 +161,37 @@ const ErrorNote = styled(motion.p)`
   font-size: ${({ theme }) => theme.font.size.xs};
 `;
 
+const FreeingNote = styled(motion.p)`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.space(2)};
+  margin: ${({ theme }) => theme.space(1)} 0 0;
+  color: ${({ theme }) => theme.color.warning};
+  font-size: ${({ theme }) => theme.font.size.xs};
+`;
+
+const Spinner = styled(motion.span)`
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+`;
+
 const ConfirmActions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: ${({ theme }) => theme.space(2)};
 `;
 
-/** A glass card with a status stripe on its left edge: green and glowing while running, grey while paused. */
+const BADGES: Record<WorkflowState, { label: string; tone: 'live' | 'waiting' | 'done' }> = {
+  running: { label: 'Running', tone: 'live' },
+  paused: { label: 'Paused', tone: 'waiting' },
+  done: { label: 'Done', tone: 'done' },
+};
+
+/** A glass card with a status stripe on its left edge: green and glowing while running, grey while paused or done. */
 export function WorkflowCard({
   workflow,
   action,
@@ -188,7 +216,7 @@ export function WorkflowCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={theme.motion.spring}
-      aria-label={`${workflow.strategyName}, ${workflow.state}`}
+      aria-label={`${workflow.strategyName}, ${workflow.runLine}, ${workflow.state}`}
     >
       <AnimatePresence>
         {isNew && (
@@ -197,9 +225,10 @@ export function WorkflowCard({
       </AnimatePresence>
       <Body>
         <TopLine>
-          <StatusBadge label={isRunning ? 'Running' : 'Paused'} tone={isRunning ? 'live' : 'waiting'} />
-          {workflow.isStrategyComplete && <StatusBadge label="Strategy done" tone="done" />}
-          <WorkType>{workflow.workTypeLine}</WorkType>
+          <StatusBadge label={BADGES[workflow.state].label} tone={BADGES[workflow.state].tone} />
+          <WorkType>
+            {workflow.runLine} · {workflow.workTypeLine}
+          </WorkType>
         </TopLine>
         <Title title={workflow.strategyName}>{workflow.strategyName}</Title>
         <Objective title={workflow.objective}>{workflow.objective}</Objective>
@@ -222,6 +251,18 @@ export function WorkflowCard({
           </MetaItem>
         </Meta>
         <AnimatePresence>
+          {workflow.isFreeingMachine && (
+            <FreeingNote
+              key="freeing"
+              role="status"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <Spinner animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }} aria-hidden />
+              Finishing its current step. The machine is free after it.
+            </FreeingNote>
+          )}
           {confirmation !== null && (
             <InlineNotice
               key="confirm"
@@ -257,17 +298,15 @@ export function WorkflowCard({
             onClick={onPause}
             isBusy={action === 'pausing'}
           />
-        ) : (
+        ) : workflow.state === 'paused' ? (
           <PillButton
             label={action === 'resuming' ? 'Resuming' : 'Resume'}
             icon={Play}
             tone="resume"
             onClick={onResume}
             isBusy={action === 'resuming'}
-            isDisabled={workflow.isStrategyComplete}
-            {...(workflow.isStrategyComplete ? { title: 'This strategy is complete, so there is no work left to resume.' } : {})}
           />
-        )}
+        ) : null}
         <PillButton label="Monitor" icon={ArrowUpRight} onClick={onOpen} />
       </Actions>
     </Card>

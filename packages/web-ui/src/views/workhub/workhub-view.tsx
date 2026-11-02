@@ -20,7 +20,7 @@ import { AHE_MACHINE } from '../create-strategy/model/strategy-draft';
 import { presentWorkflowCards } from './model/present-workflow-cards';
 import { filterWorkflowCards, type WorkflowFilter } from './model/workflow-filter';
 import { workflowToPause } from './model/workflow-to-pause';
-import { NewWorkflowView } from './new-workflow-view';
+import { RunStrategyView } from './run-strategy-view';
 
 /** How often the time lines on the cards move on. */
 const CLOCK_TICK_MS = 30_000;
@@ -88,7 +88,10 @@ const EmptyFrame = styled.div`
   box-shadow: inset 0 0 0 1px ${({ theme }) => theme.color.border};
 `;
 
-/** Every Workflow with its Strategy and status, the buttons to pause or resume each one, and a panel to run a Strategy again. */
+/**
+ * Every Workflow with its Strategy and status, the buttons to pause or resume each one, and a panel to run a
+ * Strategy again. A Strategy is a reusable goal; each Workflow is one run of it: running, paused, or done.
+ */
 export function WorkHubView() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -98,7 +101,7 @@ export function WorkHubView() {
   const strategies = useWorkHubStore((state) => state.strategies);
   const actions = useWorkHubStore((state) => state.actions);
   const actionErrors = useWorkHubStore((state) => state.actionErrors);
-  const creation = useWorkHubStore((state) => state.creation);
+  const newRunId = useWorkHubStore((state) => state.run?.workflowId ?? null);
   const startPolling = useWorkHubStore((state) => state.startPolling);
   const pauseWorkflow = useWorkHubStore((state) => state.pauseWorkflow);
   const resumeWorkflow = useWorkHubStore((state) => state.resumeWorkflow);
@@ -122,8 +125,8 @@ export function WorkHubView() {
   }, []);
 
   useEffect(() => {
-    if (creation.status === 'done') ring(creation.workflowId);
-  }, [creation, ring]);
+    if (newRunId !== null) ring(newRunId);
+  }, [newRunId, ring]);
   useEffect(() => {
     if (ringedId === null) return;
     const timer = setTimeout(() => setRingedId(null), RING_MS);
@@ -153,16 +156,16 @@ export function WorkHubView() {
   const confirmationFor = (workflowId: string): string | null => {
     if (confirmingId !== workflowId) return null;
     const running = toPauseFor(workflowId);
-    return running === null ? null : `"${running.strategyName}" is running now. Your co-worker works on one machine, so this pauses it.`;
+    return running === null
+      ? null
+      : `"${running.strategyName}" is running now. Your co-worker works on one machine, so this pauses it and all its work.`;
   };
 
   const cards = useMemo(() => presentWorkflowCards(workflows, strategies, now), [workflows, strategies, now]);
   const shown = filterWorkflowCards(cards, filter, query);
   const runningCount = workflows.filter((workflow) => workflow.state === 'running').length;
-  const pausedCount = workflows.length - runningCount;
-  const idleStrategies = strategies.filter(
-    (strategy) => strategy.status === 'active' && !workflows.some((workflow) => workflow.strategyId === strategy.id),
-  ).length;
+  const pausedCount = workflows.filter((workflow) => workflow.state === 'paused').length;
+  const doneCount = workflows.filter((workflow) => workflow.state === 'done').length;
   const isLoading = connection === 'connecting' && workflows.length === 0;
 
   const list = isLoading ? (
@@ -177,7 +180,7 @@ export function WorkHubView() {
         description={
           strategies.length === 0
             ? 'Create a strategy and your co-worker starts its first workflow. It shows up here, ready to pause or resume.'
-            : 'Pick one of your strategies in the panel on the right, and run it. Its workflow shows up here.'
+            : 'Pick one of your strategies in the panel on the right, and run it. Each run shows up here as a workflow.'
         }
         {...(strategies.length === 0
           ? {
@@ -222,8 +225,8 @@ export function WorkHubView() {
       main={
         <>
           <PageIntro eyebrow="WorkHub" title="Every workflow, in one place.">
-            See what each of your co-worker's workflows is doing and which strategy it serves. Pause one, resume it, or start a workflow for
-            a strategy that has none.
+            A strategy is a reusable goal. Each workflow is one run of it: running, paused, or done. Pause a run, resume it, or run a
+            strategy again from the start.
           </PageIntro>
           <Metrics>
             <HubMetric label="Running" value={runningCount} hint="Working right now" icon={Activity} tone="live" />
@@ -231,7 +234,7 @@ export function WorkHubView() {
             <HubMetric
               label="Strategies"
               value={strategies.length}
-              hint={idleStrategies === 0 ? 'Each one has a workflow' : `${idleStrategies} without a workflow`}
+              hint={`${workflows.length} run${workflows.length === 1 ? '' : 's'} · ${doneCount} done`}
               icon={Target}
             />
             <HubMetric label="Machine" value={1} hint={AHE_MACHINE} icon={Laptop} />
@@ -245,6 +248,7 @@ export function WorkHubView() {
                   { value: 'all', label: 'All', count: workflows.length },
                   { value: 'running', label: 'Running', count: runningCount },
                   { value: 'paused', label: 'Paused', count: pausedCount },
+                  { value: 'done', label: 'Done', count: doneCount },
                 ]}
                 value={filter}
                 onChange={setFilter}
@@ -262,7 +266,7 @@ export function WorkHubView() {
           {list}
         </>
       }
-      aside={<NewWorkflowView onReveal={ring} onOpenMonitor={openMonitor} />}
+      aside={<RunStrategyView onReveal={ring} onOpenMonitor={openMonitor} />}
     />
   );
 }

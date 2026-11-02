@@ -34,14 +34,14 @@ export class WorkflowsController {
   }
 
   @Post(':id/start')
-  @ApiOperation({ summary: 'Start a Workflow (its Strategy gets its first Unit of Work on the next pass)' })
+  @ApiOperation({ summary: 'Start or resume a Workflow (pauses the running one on the machine; a done Workflow is refused)' })
   @ApiOkResponse({ type: WorkflowResponseDto })
   async startWorkflow(@Param('id', ParseUUIDPipe) workflowId: string): Promise<WorkflowResponseDto> {
     return this.workflows.startWorkflow(workflowId);
   }
 
   @Post(':id/pause')
-  @ApiOperation({ summary: 'Pause a Workflow (running Tasks finish)' })
+  @ApiOperation({ summary: 'Pause a Workflow and all its work (a running Task stops after its current step)' })
   @ApiOkResponse({ type: WorkflowResponseDto })
   async pauseWorkflow(@Param('id', ParseUUIDPipe) workflowId: string): Promise<WorkflowResponseDto> {
     return this.workflows.pauseWorkflow(workflowId);

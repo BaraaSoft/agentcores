@@ -8,5 +8,6 @@ export function MonitorStatusView() {
   if (connection === 'offline') return <LiveIndicator state="offline" label="Offline" />;
   if (connection === 'connecting') return <LiveIndicator state="connecting" label="Connecting" />;
   if (workflowState === 'paused') return <LiveIndicator state="paused" label="Paused" />;
+  if (workflowState === 'done') return <LiveIndicator state="done" label="Done" detail="this run is finished" />;
   return <LiveIndicator state="live" label="Live" detail={workflowState === null ? 'no work yet' : 'every 2s'} />;
 }

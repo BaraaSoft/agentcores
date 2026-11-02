@@ -1,3 +1,4 @@
+import type { UnitOfWorkState } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
@@ -28,6 +29,7 @@ export class UnitOfWorkService {
         .getRepository(UnitOfWorkEntity)
         .save({
           strategyId: input.strategyId,
+          workflowId: input.workflowId,
           sequence: input.sequence,
           name: input.name,
           title: input.title,
@@ -48,20 +50,42 @@ export class UnitOfWorkService {
   }
 
   /**
-   * Every Unit of the Strategy, oldest first.
+   * Every Unit of the run, oldest first.
    */
-  async listUnitsOfWork(strategyId: string): Promise<UnitOfWorkEntity[]> {
-    return this.unitsOfWork.find({ where: { strategyId }, order: { sequence: 'ASC' } });
+  async listUnitsOfWork(workflowId: string): Promise<UnitOfWorkEntity[]> {
+    return this.unitsOfWork.find({ where: { workflowId }, order: { sequence: 'ASC' } });
   }
 
   /**
-   * The Strategy's `evaluating` Units whose `evaluateAfter` has passed, oldest first.
+   * The Units of the Strategy's other runs, oldest run first, then by sequence. A new run plans with them.
    */
-  async listUnitsOfWorkDueForEvaluation(strategyId: string, now = new Date()): Promise<UnitOfWorkEntity[]> {
+  async listEarlierRunUnitsOfWork(strategyId: string, workflowId: string): Promise<UnitOfWorkEntity[]> {
+    return this.unitsOfWork
+      .createQueryBuilder('unit')
+      .innerJoin('unit.workflow', 'workflow')
+      .where('unit.strategyId = :strategyId', { strategyId })
+      .andWhere('unit.workflowId != :workflowId', { workflowId })
+      .orderBy('workflow.createdAt', 'ASC')
+      .addOrderBy('unit.sequence', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * The run's `evaluating` Units whose `evaluateAfter` has passed, oldest first.
+   */
+  async listUnitsOfWorkDueForEvaluation(workflowId: string, now = new Date()): Promise<UnitOfWorkEntity[]> {
     return this.unitsOfWork.find({
-      where: { strategyId, status: 'evaluating', evaluateAfter: LessThanOrEqual(now) },
+      where: { workflowId, status: 'evaluating', evaluateAfter: LessThanOrEqual(now) },
       order: { sequence: 'ASC' },
     });
+  }
+
+  /**
+   * Pauses or resumes every Unit of the run. The queue processors check this state, so a paused run's
+   * queued Jobs and Tasks stop before they begin, and a running Task stops before its next step.
+   */
+  async setRunState(workflowId: string, state: UnitOfWorkState): Promise<void> {
+    await this.unitsOfWork.update({ workflowId }, { state });
   }
 
   /**

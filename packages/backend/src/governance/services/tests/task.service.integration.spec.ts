@@ -5,6 +5,7 @@ import { describeWithDatabase } from '../../../database/tests/test-database.conf
 import { TestDatabaseModule } from '../../../database/tests/test-database.module';
 import type { PlannedTask } from '../../../reasoning/job/types/planned-task';
 import { TaskEntity } from '../../entities/task.entity';
+import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 import { TaskService } from '../task.service';
 import { GOVERNANCE_ENTITIES, GovernanceSeeder } from './governance-seeder';
 
@@ -41,8 +42,7 @@ describeWithDatabase('TaskService (Postgres)', () => {
   }
 
   const reload = (taskId: string) => dataSource.getRepository(TaskEntity).findOneByOrFail({ id: taskId });
-  const statusesOf = async (jobId: string) =>
-    (await service.listTasks(jobId)).map((task) => [task.action, task.sequence, task.status]);
+  const statusesOf = async (jobId: string) => (await service.listTasks(jobId)).map((task) => [task.action, task.sequence, task.status]);
 
   const general = (...actions: string[]): PlannedTask[] => actions.map((action) => ({ action, skillType: 'general' }));
 
@@ -212,9 +212,7 @@ describeWithDatabase('TaskService (Postgres)', () => {
         metricReadings: { upvotes: 2 },
         completedAt: completedAt.toISOString(),
       });
-      expect(task).toEqual(
-        expect.objectContaining({ locationPath: 'reddit.com/r/AICompanion/comments/abc123', locationDetails: null }),
-      );
+      expect(task).toEqual(expect.objectContaining({ locationPath: 'reddit.com/r/AICompanion/comments/abc123', locationDetails: null }));
     });
 
     it('defers a running Task and clears its start time', async () => {
@@ -263,6 +261,22 @@ describeWithDatabase('TaskService (Postgres)', () => {
 
       expect(await transition(tasks[0].id)).toBe(false);
       expect((await reload(tasks[0].id)).status).toBe(status);
+    });
+  });
+  describe('pausing a run', () => {
+    it('tells a running Task that its run is paused, so it stops before its next step', async () => {
+      const { tasks, job } = await jobWithTasks(['running']);
+
+      expect(await service.isTaskPaused(tasks[0].id)).toBe(false);
+      await dataSource.getRepository(UnitOfWorkEntity).update({ id: job.unitOfWorkId }, { state: 'paused' });
+      expect(await service.isTaskPaused(tasks[0].id)).toBe(true);
+    });
+
+    it('counts the running Tasks of each Workflow, so the UI knows when a paused run has freed the machine', async () => {
+      const first = await jobWithTasks(['running', 'pending', 'complete']);
+      await jobWithTasks(['pending']);
+
+      expect(await service.countRunningTasksByWorkflow()).toEqual(new Map([[first.workflow.id, 1]]));
     });
   });
 });

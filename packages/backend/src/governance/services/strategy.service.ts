@@ -8,8 +8,8 @@ import type { CreateStrategyInput } from '../types/create-strategy-input';
 export const DEFAULT_MAX_ATTEMPTS = 3;
 
 /**
- * Persistence and lifecycle of Strategies. A Strategy is `active` until its work type's stop rule is
- * met, and then `complete`; the orchestrator decides when.
+ * Persistence of Strategies. A Strategy is a reusable goal with no lifecycle of its own: each run of
+ * it is a Workflow, and the Workflow is what ends `done`.
  */
 @Injectable()
 export class StrategyService {
@@ -19,7 +19,7 @@ export class StrategyService {
   ) {}
 
   /**
-   * Opens a new, active Strategy. A `multi_version` Strategy must say how many versions to make.
+   * Saves a new Strategy. A `multi_version` Strategy must say how many versions to make.
    */
   async createStrategy(input: CreateStrategyInput): Promise<StrategyEntity> {
     const isMultiVersion = input.workType === 'multi_version';
@@ -51,13 +51,5 @@ export class StrategyService {
    */
   async listStrategies(): Promise<StrategyEntity[]> {
     return this.strategies.find({ order: { createdAt: 'DESC' } });
-  }
-
-  /**
-   * Marks an active Strategy complete and records when. Returns false when it was already complete.
-   */
-  async completeStrategy(strategyId: string, now = new Date()): Promise<boolean> {
-    const update = await this.strategies.update({ id: strategyId, status: 'active' }, { status: 'complete', endDate: now });
-    return (update.affected ?? 0) > 0;
   }
 }

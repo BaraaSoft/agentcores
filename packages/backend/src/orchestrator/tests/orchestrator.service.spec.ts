@@ -4,7 +4,6 @@ import type { JobEvaluationService } from '../../governance/services/job-evaluat
 import { STALE_SCREENSHOT_AGE_MS } from '../../governance/services/job-screenshot.constants';
 import type { JobScreenshotService } from '../../governance/services/job-screenshot.service';
 import type { JobService } from '../../governance/services/job.service';
-import type { StrategyService } from '../../governance/services/strategy.service';
 import type { UnitOfWorkService } from '../../governance/services/unit-of-work.service';
 import type { JobEvaluationJobData } from '../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../queue/types/job-execution-job-data';
@@ -38,20 +37,24 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     workType,
     versionCount: workType === 'multi_version' ? 2 : null,
     maxAttempts: 3,
-    status: 'active',
     ...strategyChanges,
   };
   const workflow = {
     id: 'wf-1',
     strategyId: strategy.id,
+    machineId: 'Macbook',
+    state: 'running',
     strategy,
     resources: { maxConcurrentJobs: 2 },
   } as unknown as WorkflowEntity;
 
   const unitsOfWorkList: FakeUnitOfWork[] = [];
+  const earlierRunUnits: Array<FakeUnitOfWork & { workflowId: string; title: string; rationale: string }> = [];
   const unitsOfWork = {
     listUnitsOfWork: jest.fn(async () => unitsOfWorkList.map((unit) => ({ ...unit }))),
-    listUnitsOfWorkDueForEvaluation: jest.fn(async (_strategyId: string, now: Date) =>
+    listEarlierRunUnitsOfWork: jest.fn(async () => earlierRunUnits.map((unit) => ({ ...unit }))),
+    setRunState: jest.fn().mockResolvedValue(undefined),
+    listUnitsOfWorkDueForEvaluation: jest.fn(async (_workflowId: string, now: Date) =>
       unitsOfWorkList.filter((unit) => unit.status === 'evaluating' && unit.evaluateAfter !== null && unit.evaluateAfter <= now),
     ),
     markEvaluating: jest.fn(async (id: string, evaluateAfter: Date) => {
@@ -78,6 +81,9 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     unitsOfWorkList.push(unit);
     return unit;
   };
+  const addEarlierRunUnit = (workflowId: string, name: string, title = `Idea of ${name}`) => {
+    earlierRunUnits.push({ id: `${workflowId}-${name}`, workflowId, name, title, rationale: '', status: 'complete', evaluateAfter: null });
+  };
 
   const jobs = {
     skipStepsAfterFailure: jest.fn().mockResolvedValue(0),
@@ -92,7 +98,6 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     listScoredByJob: jest.fn().mockResolvedValue(new Map()),
     searchPastEvaluations: jest.fn().mockResolvedValue([]),
   };
-  const strategies = { completeStrategy: jest.fn().mockResolvedValue(true) };
   const strategyReasoning = { planUnitOfWork: jest.fn().mockResolvedValue(PLAN) };
   const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
@@ -107,7 +112,6 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
   const service = new OrchestratorService(
     workflows as unknown as WorkflowService,
     strategyReasoning as unknown as StrategyReasoningService,
-    strategies as unknown as StrategyService,
     unitsOfWork as unknown as UnitOfWorkService,
     jobs as unknown as JobService,
     evaluations as unknown as JobEvaluationService,
@@ -117,7 +121,22 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
   );
   const schedule = (now = NOW) => service.scheduleWorkflow(workflow, now);
 
-  return { service, workflows, screenshots, schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
+  return {
+    service,
+    workflow,
+    workflows,
+    screenshots,
+    schedule,
+    addUnitOfWork,
+    addEarlierRunUnit,
+    unitsOfWorkList,
+    unitsOfWork,
+    jobs,
+    evaluations,
+    strategyReasoning,
+    jobQueue,
+    evaluationQueue,
+  };
 }
 
 describe('OrchestratorService', () => {
@@ -145,6 +164,61 @@ describe('OrchestratorService', () => {
       await t.service.startWorkflow('wf-2');
 
       expect(t.workflows.updateWorkflowState.mock.calls.map(([input]) => input)).toEqual([{ workflowId: 'wf-2', state: 'running' }]);
+    });
+
+    it('pauses the Units of Work of the other run, and resumes the Units of Work of the one it starts', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockImplementation(async (id: string) => ({
+        id,
+        machineId: 'Macbook',
+        state: id === 'wf-1' ? 'running' : 'paused',
+      }));
+      t.workflows.listWorkflowsByState.mockResolvedValue([running('wf-1', 'Macbook')]);
+
+      await t.service.startWorkflow('wf-2');
+
+      expect(t.unitsOfWork.setRunState.mock.calls).toEqual([
+        ['wf-1', 'paused'],
+        ['wf-2', 'running'],
+      ]);
+    });
+
+    it('refuses to start a done run, and pauses nothing', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue({ id: 'wf-2', machineId: 'Macbook', state: 'done' });
+      t.workflows.listWorkflowsByState.mockResolvedValue([running('wf-1', 'Macbook')]);
+
+      await expect(t.service.startWorkflow('wf-2')).rejects.toThrow('This run is done. Run the strategy again to start a fresh one.');
+      expect(t.workflows.updateWorkflowState).not.toHaveBeenCalled();
+      expect(t.unitsOfWork.setRunState).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for a Workflow that does not exist', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue(null);
+
+      await expect(t.service.startWorkflow('wf-x')).rejects.toThrow('Workflow wf-x not found');
+    });
+  });
+
+  describe('pausing a Workflow', () => {
+    it('pauses the Workflow and every Unit of Work in it, so its queued Jobs and Tasks stop', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue({ id: 'wf-1', machineId: 'Macbook', state: 'running' });
+
+      await t.service.pauseWorkflow('wf-1');
+
+      expect(t.unitsOfWork.setRunState).toHaveBeenCalledWith('wf-1', 'paused');
+      expect(t.workflows.updateWorkflowState).toHaveBeenCalledWith({ workflowId: 'wf-1', state: 'paused' });
+    });
+
+    it('leaves a done run done', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue({ id: 'wf-1', machineId: 'Macbook', state: 'done' });
+
+      expect(await t.service.pauseWorkflow('wf-1')).toMatchObject({ state: 'done' });
+      expect(t.workflows.updateWorkflowState).not.toHaveBeenCalled();
+      expect(t.unitsOfWork.setRunState).not.toHaveBeenCalled();
     });
   });
 
@@ -183,6 +257,7 @@ describe('OrchestratorService', () => {
       );
       expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith({
         strategyId: 'strategy-1',
+        workflowId: 'wf-1',
         sequence: 1,
         name,
         title: 'One clean cut',
@@ -204,6 +279,55 @@ describe('OrchestratorService', () => {
       );
     });
 
+    it('starts a fresh run at the first Unit, and shows the planner what the earlier runs learned', async () => {
+      const t = setup('one_off');
+      t.addEarlierRunUnit('wf-old-1', 'Attempt 1', 'Long intro');
+      t.addEarlierRunUnit('wf-old-1', 'Attempt 2', 'Hook first');
+      t.addEarlierRunUnit('wf-old-2', 'Attempt 1', 'Captions');
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.listEarlierRunUnitsOfWork).toHaveBeenCalledWith('strategy-1', 'wf-1');
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(
+        expect.objectContaining({
+          unitOfWorkName: 'Attempt 1',
+          earlierUnitsOfWork: [],
+          earlierRuns: [
+            {
+              runNumber: 1,
+              unitsOfWork: [expect.objectContaining({ title: 'Long intro' }), expect.objectContaining({ title: 'Hook first' })],
+            },
+            { runNumber: 2, unitsOfWork: [expect.objectContaining({ title: 'Captions' })] },
+          ],
+        }),
+      );
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ workflowId: 'wf-1', sequence: 1 }));
+    });
+
+    it('shows the planner only the latest earlier runs', async () => {
+      const t = setup('continuous');
+      for (const run of ['a', 'b', 'c', 'd']) t.addEarlierRunUnit(`wf-${run}`, 'Round 1');
+
+      await t.schedule();
+
+      const [input] = t.strategyReasoning.planUnitOfWork.mock.calls[0];
+      expect(input.earlierRuns.map((run: { runNumber: number }) => run.runNumber)).toEqual([2, 3, 4]);
+    });
+
+    it('leaves the earlier runs out of the related evaluations', async () => {
+      const t = setup('one_off');
+      t.addEarlierRunUnit('wf-old', 'Attempt 1');
+      t.evaluations.searchPastEvaluations.mockResolvedValue([
+        { unitOfWorkId: 'wf-old-Attempt 1', jobId: 'own', score: 9, job: { name: 'Own', outcomeStatus: 'success' } },
+        { unitOfWorkId: 'other-unit', jobId: 'other', score: 7, job: { name: 'Other', outcomeStatus: 'success' } },
+      ]);
+
+      await t.schedule();
+
+      const [input] = t.strategyReasoning.planUnitOfWork.mock.calls[0];
+      expect(input.relatedEvaluations.map((evaluation: { jobId: string }) => evaluation.jobId)).toEqual(['other']);
+    });
+
     it('opens nothing while a Unit of Work is still open', async () => {
       const t = setup('continuous');
       t.addUnitOfWork('open');
@@ -222,30 +346,35 @@ describe('OrchestratorService', () => {
       expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ sequence: 2, name: 'Round 2' }));
     });
 
-    it.each(['one_off', 'multi_version'] as const)('makes %s work wait while the last Unit of Work is being evaluated', async (workType) => {
-      const t = setup(workType);
-      t.addUnitOfWork('evaluating', null);
+    it.each(['one_off', 'multi_version'] as const)(
+      'makes %s work wait while the last Unit of Work is being evaluated',
+      async (workType) => {
+        const t = setup(workType);
+        t.addUnitOfWork('evaluating', null);
 
-      await t.schedule();
+        await t.schedule();
 
-      expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
-      expect(t.strategies.completeStrategy).not.toHaveBeenCalled();
-    });
+        expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
+        expect(t.workflows.updateWorkflowState).not.toHaveBeenCalled();
+      },
+    );
 
-    it('lets the planner finish a one_off Strategy after its first attempt', async () => {
+    it('lets the planner finish a one_off run after its first attempt', async () => {
       const t = setup('one_off');
       t.addUnitOfWork('complete');
       t.strategyReasoning.planUnitOfWork.mockResolvedValue({ decision: 'done', rationale: 'Marked 9/10.' });
 
       const result = await t.schedule();
 
-      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ unitOfWorkName: 'Attempt 2', canFinish: true }));
-      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+      expect(t.strategyReasoning.planUnitOfWork).toHaveBeenCalledWith(
+        expect.objectContaining({ unitOfWorkName: 'Attempt 2', canFinish: true }),
+      );
+      expect(t.workflows.updateWorkflowState).toHaveBeenCalledWith({ workflowId: 'wf-1', state: 'done' });
       expect(t.unitsOfWork.createUnitOfWork).not.toHaveBeenCalled();
-      expect(result.skippedReason).toBe('Strategy complete');
+      expect(result.skippedReason).toBe('run done');
     });
 
-    it('completes a one_off Strategy once it has used its attempts', async () => {
+    it('marks a one_off run done once it has used its attempts', async () => {
       const t = setup('one_off', { maxAttempts: 2 });
       t.addUnitOfWork('complete');
       t.addUnitOfWork('complete');
@@ -253,10 +382,10 @@ describe('OrchestratorService', () => {
       await t.schedule();
 
       expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
-      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+      expect(t.workflows.updateWorkflowState).toHaveBeenCalledWith({ workflowId: 'wf-1', state: 'done' });
     });
 
-    it('completes a multi_version Strategy once every version is done, failed ones included', async () => {
+    it('marks a multi_version run done once every version is done, failed ones included', async () => {
       const t = setup('multi_version');
       t.addUnitOfWork('complete');
       t.addUnitOfWork('complete');
@@ -264,16 +393,27 @@ describe('OrchestratorService', () => {
       await t.schedule();
 
       expect(t.strategyReasoning.planUnitOfWork).not.toHaveBeenCalled();
-      expect(t.strategies.completeStrategy).toHaveBeenCalledWith('strategy-1');
+      expect(t.workflows.updateWorkflowState).toHaveBeenCalledWith({ workflowId: 'wf-1', state: 'done' });
     });
 
-    it('does nothing for a Strategy that is already complete', async () => {
-      const t = setup('one_off', { status: 'complete' });
+    it('never marks a continuous run done, however many rounds it has run', async () => {
+      const t = setup('continuous');
+      for (let round = 0; round < 5; round += 1) t.addUnitOfWork('complete');
+
+      await t.schedule();
+
+      expect(t.unitsOfWork.createUnitOfWork).toHaveBeenCalledWith(expect.objectContaining({ sequence: 6, name: 'Round 6' }));
+      expect(t.workflows.updateWorkflowState).not.toHaveBeenCalled();
+    });
+
+    it.each(['paused', 'done'] as const)('does nothing for a %s run', async (state) => {
+      const t = setup('one_off');
+      Object.assign(t.workflow, { state });
 
       const result = await t.schedule();
 
       expect(t.unitsOfWork.listUnitsOfWork).not.toHaveBeenCalled();
-      expect(result).toEqual({ workflowId: 'wf-1', queuedJobIds: [], skippedReason: 'Strategy complete' });
+      expect(result).toEqual({ workflowId: 'wf-1', queuedJobIds: [], skippedReason: `run ${state}` });
     });
   });
 

@@ -1,14 +1,13 @@
 import type { WorkflowResources, WorkflowState } from '@ahe/agent-core';
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { StrategyEntity } from '../../governance/entities/strategy.entity';
 
 /**
- * One machine's run of a Strategy. A Strategy can run on several machines at once, and each machine
- * has its own Workflow with its own resource envelope and lifecycle state. The work itself — Units,
- * Jobs, and Tasks — belongs to the Strategy, not to the Workflow.
+ * One run of a Strategy on one machine, with its resource envelope and lifecycle state. A Strategy is
+ * a reusable goal and can have many Workflows over time; each run owns its Units of Work, Jobs, and
+ * Tasks. A `done` Workflow is final: running the Strategy again creates a new Workflow.
  */
 @Entity('workflows')
-@Index(['strategyId', 'machineId'], { unique: true })
 export class WorkflowEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -20,7 +19,7 @@ export class WorkflowEntity {
   @JoinColumn({ name: 'strategyId' })
   strategy: StrategyEntity;
 
-  /** The machine this Workflow runs on, e.g. its hostname. One Workflow per machine per Strategy. */
+  /** The machine this Workflow runs on, e.g. its hostname. A machine runs one Workflow at a time. */
   @Column({ type: 'varchar', length: 100 })
   machineId: string;
 

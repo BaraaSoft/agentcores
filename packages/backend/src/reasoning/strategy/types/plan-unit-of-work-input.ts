@@ -1,5 +1,6 @@
 import type { StrategyWorkType } from '@ahe/agent-core';
 import type { JobEvaluation } from '../../evaluation/types/job-evaluation';
+import type { EarlierRun } from './earlier-run';
 import type { EarlierUnitOfWork } from './earlier-unit-of-work';
 
 /**
@@ -16,8 +17,10 @@ export interface PlanUnitOfWorkInput {
   readonly unitOfWorkLimit: number | null;
   /** True when the planner may answer `done` instead of Jobs: a `one_off` Strategy after its first attempt. */
   readonly canFinish: boolean;
-  /** The Strategy's most recent earlier Units, oldest first. Empty for its first Unit. */
+  /** This run's most recent earlier Units, oldest first. Empty for the run's first Unit. */
   readonly earlierUnitsOfWork: readonly EarlierUnitOfWork[];
+  /** The Strategy's earlier runs, oldest first, each with its latest Units. Empty on the first run. */
+  readonly earlierRuns: readonly EarlierRun[];
   /** Scored Jobs from the owner's other Strategies with a similar objective, closest first. */
   readonly relatedEvaluations: readonly JobEvaluation[];
 }

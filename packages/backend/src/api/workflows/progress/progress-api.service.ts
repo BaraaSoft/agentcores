@@ -12,7 +12,7 @@ import { UnitOfWorkProgressResponseDto } from './dtos/unit-of-work-progress-resp
 import { WorkflowProgressResponseDto } from './dtos/workflow-progress-response.dto';
 
 /**
- * Reads what a Workflow's Strategy has done so far: its Units of Work, their Jobs and Tasks, and the
+ * Reads what a Workflow (one run of its Strategy) has done so far: its Units of Work, their Jobs and Tasks, and the
  * evaluation of each Job. Read only, in five queries whatever the number of Units of Work.
  */
 @Injectable()
@@ -28,7 +28,7 @@ export class ProgressApiService {
   async getWorkflowProgress(workflowId: string): Promise<WorkflowProgressResponseDto> {
     const workflow = await this.workflows.findWorkflowById(workflowId);
     if (workflow === null) throw new NotFoundException(`Workflow ${workflowId} not found`);
-    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(workflow.strategyId);
+    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(workflow.id);
     const unitOfWorkIds = unitsOfWork.map((unitOfWork) => unitOfWork.id);
     const [jobs, evaluations] = await Promise.all([
       this.jobs.listJobsInUnits(unitOfWorkIds),

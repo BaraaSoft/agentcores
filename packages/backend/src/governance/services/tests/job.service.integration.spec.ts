@@ -130,8 +130,7 @@ describeWithDatabase('JobService (Postgres)', () => {
       return { workflow, unit, ids };
     }
 
-    const startableIds = async (workflowId: string) =>
-      (await service.listStartableJobs({ workflowId, limit: 10 })).map((job) => job.id);
+    const startableIds = async (workflowId: string) => (await service.listStartableJobs({ workflowId, limit: 10 })).map((job) => job.id);
 
     it('starts only the first ordered Job that has not succeeded', async () => {
       const { workflow, ids } = await steps('success', null, null);

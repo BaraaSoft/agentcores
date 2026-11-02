@@ -16,9 +16,7 @@ const STRATEGY = {
   workType: 'one_off',
   versionCount: null,
   maxAttempts: 3,
-  status: 'active',
   startDate: CREATED,
-  endDate: null,
   goldStandards: null,
 };
 
@@ -69,10 +67,12 @@ function setup(workflow: unknown = { id: 'wf-1', strategyId: STRATEGY.id, state:
     listJobsInUnits: jest.fn().mockResolvedValue([job('a', 'unit-1', 'success'), job('b', 'unit-1', 'failed'), job('c', 'unit-2', null)]),
   };
   const tasks = {
-    listTasksInJobs: jest.fn().mockResolvedValue([
-      task('t1', 'c', 1, 'complete', { summary: 'Drafted the post.', metricReadings: {}, completedAt: CREATED }),
-      task('t2', 'c', 2, 'running', null),
-    ]),
+    listTasksInJobs: jest
+      .fn()
+      .mockResolvedValue([
+        task('t1', 'c', 1, 'complete', { summary: 'Drafted the post.', metricReadings: {}, completedAt: CREATED }),
+        task('t2', 'c', 2, 'running', null),
+      ]),
   };
   const evaluations = {
     listEvaluationsByJob: jest.fn().mockResolvedValue(
@@ -138,7 +138,7 @@ describe('ProgressApiService', () => {
 
     await t.service.getWorkflowProgress('wf-1');
 
-    expect(t.unitsOfWork.listUnitsOfWork).toHaveBeenCalledWith('strategy-1');
+    expect(t.unitsOfWork.listUnitsOfWork).toHaveBeenCalledWith('wf-1');
     expect(t.jobs.listJobsInUnits).toHaveBeenCalledWith(['unit-1', 'unit-2']);
     expect(t.tasks.listTasksInJobs).toHaveBeenCalledWith(['a', 'b', 'c']);
     expect(t.evaluations.listEvaluationsByJob).toHaveBeenCalledWith(['unit-1', 'unit-2']);

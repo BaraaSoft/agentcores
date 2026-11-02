@@ -2,8 +2,8 @@ import type { WorkflowResources } from './workflow-resources';
 import type { WorkflowState } from './workflow-state';
 
 /**
- * One machine's run of a Strategy: the resources it may use there and its lifecycle state. A
- * Strategy can run on several machines at once, each through its own Workflow.
+ * One run of a Strategy on one machine: the resources it may use and its lifecycle state. A Strategy
+ * can have many Workflows over time, one per run. A machine runs one Workflow at a time.
  */
 export interface Workflow {
   readonly id: string;

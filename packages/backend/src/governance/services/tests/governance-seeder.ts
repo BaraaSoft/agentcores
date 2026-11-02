@@ -21,8 +21,8 @@ export const GOVERNANCE_ENTITIES = [
 ];
 
 /**
- * Seeds and clears governance rows for integration specs: a Strategy and the running Workflow that
- * runs it are created first, then Units, Jobs, and Tasks under the Strategy.
+ * Seeds and clears governance rows for integration specs: a Strategy and a running Workflow (one run
+ * of it) are created first, then Units, Jobs, and Tasks under that run.
  */
 @Injectable()
 export class GovernanceSeeder {
@@ -44,10 +44,7 @@ export class GovernanceSeeder {
     workType: StrategyWorkType = 'continuous',
   ): Promise<{ workflow: WorkflowEntity; strategy: StrategyEntity }> {
     const strategy = await this.strategy(owner, workType);
-    const workflow = await this.dataSource
-      .getRepository(WorkflowEntity)
-      .save({ strategyId: strategy.id, machineId: 'machine-1', resources: {} as WorkflowResources, state: 'running' });
-    return { workflow, strategy };
+    return { workflow: await this.workflow(strategy.id), strategy };
   }
 
   async strategy(owner = 'owner-1', workType: StrategyWorkType = 'continuous'): Promise<StrategyEntity> {
@@ -62,12 +59,28 @@ export class GovernanceSeeder {
   }
 
   /**
-   * Adds the Strategy's next Unit, numbered after the ones it already has.
+   * Adds the run's next Unit, numbered after the ones it already has. The run is `changes.workflowId`,
+   * or else the Strategy's first Workflow, made running on a machine when it has none.
    */
   async unit(strategyId: string, name: string, changes: Partial<UnitOfWorkEntity> = {}): Promise<UnitOfWorkEntity> {
     const units = this.dataSource.getRepository(UnitOfWorkEntity);
-    const sequence = (await units.countBy({ strategyId })) + 1;
-    return units.save({ strategyId, name, sequence, ...changes });
+    const workflowId = changes.workflowId ?? (await this.firstWorkflow(strategyId)).id;
+    const sequence = (await units.countBy({ workflowId })) + 1;
+    return units.save({ strategyId, workflowId, name, sequence, ...changes });
+  }
+
+  /**
+   * A new running Workflow — one more run — of the Strategy.
+   */
+  async workflow(strategyId: string, state: WorkflowEntity['state'] = 'running'): Promise<WorkflowEntity> {
+    return this.dataSource
+      .getRepository(WorkflowEntity)
+      .save({ strategyId, machineId: 'machine-1', resources: {} as WorkflowResources, state });
+  }
+
+  private async firstWorkflow(strategyId: string): Promise<WorkflowEntity> {
+    const existing = await this.dataSource.getRepository(WorkflowEntity).findOne({ where: { strategyId }, order: { createdAt: 'ASC' } });
+    return existing ?? this.workflow(strategyId);
   }
 
   /**
@@ -95,12 +108,7 @@ export class GovernanceSeeder {
    * Adds Tasks to a Job with the given statuses, in sequence order. Complete and failed Tasks are
    * already reviewed unless `isAwaitingReview`, which leaves the last of them unreviewed.
    */
-  async tasks(
-    workflowId: string,
-    jobId: string,
-    statuses: readonly TaskStatus[],
-    isAwaitingReview = false,
-  ): Promise<TaskEntity[]> {
+  async tasks(workflowId: string, jobId: string, statuses: readonly TaskStatus[], isAwaitingReview = false): Promise<TaskEntity[]> {
     const reviewable = statuses.map((status) => status === 'complete' || status === 'failed');
     const awaitingReview = isAwaitingReview ? reviewable.lastIndexOf(true) : -1;
     return this.dataSource.getRepository(TaskEntity).save(

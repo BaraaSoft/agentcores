@@ -101,6 +101,7 @@ function setup() {
     markTaskDeferred: jest.fn(),
     markTaskComplete: jest.fn(),
     markTaskFailed: jest.fn(),
+    isTaskPaused: jest.fn().mockResolvedValue(false),
     listTasks: jest.fn().mockResolvedValue([EARLIER_TASK, task, { ...EARLIER_TASK, id: 'task-3', sequence: 3, status: 'pending' }]),
   };
   const screenshots = { saveTaskScreenshot: jest.fn() };
@@ -236,6 +237,23 @@ describe('TaskExecutionProcessor', () => {
     expect(t.metrics.recordReadings).toHaveBeenCalledWith({ unitOfWorkId: 'unit-1', taskId: TASK_ID, readings: { upvotes: 2 } });
     expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
     expect(t.taskQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('stops before the next step once the owner pauses the run, and fails the Task with what it already did', async () => {
+    const t = setup();
+    t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ instruction: 'Publish the post' }));
+    t.execution.runTask.mockResolvedValueOnce(result({ summary: 'Draft written in Canva.' }));
+    t.tasks.isTaskPaused.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    const outcome = await t.run();
+
+    expect(t.execution.runTask).toHaveBeenCalledTimes(1);
+    expect(outcome?.status).toBe('failed');
+    expect(t.tasks.markTaskFailed).toHaveBeenCalledWith({
+      taskId: TASK_ID,
+      reason: 'Paused by the owner after 1 step. The last step: Draft written in Canva.',
+    });
+    expect(t.jobQueue.add).toHaveBeenCalledWith('job-1', { workflowId: WORKFLOW_ID, jobId: 'job-1' }, { jobId: 'job-1' });
   });
 
   it('keeps the location of the latest finished step that reported one, not a later check elsewhere', async () => {
