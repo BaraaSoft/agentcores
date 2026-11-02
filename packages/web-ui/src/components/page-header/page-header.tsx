@@ -27,11 +27,12 @@ const Title = styled.h1`
   font-size: ${({ theme }) => theme.font.size.xl};
   font-weight: ${({ theme }) => theme.font.weight.semibold};
   line-height: 1.2;
-  letter-spacing: -0.022em;
-  background: linear-gradient(180deg, ${({ theme }) => theme.color.text} 30%, rgba(247, 248, 248, 0.72));
+  letter-spacing: 0.06em;
+  background: linear-gradient(180deg, rgba(247, 248, 248, 0.5) 30%, rgba(247, 248, 248, 0.3));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 `;
 
 /** The frosted glass bar at the top of each page. Page content scrolls under it. */
