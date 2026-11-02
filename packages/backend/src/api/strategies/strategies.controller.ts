@@ -19,6 +19,13 @@ export class StrategiesController {
     return this.strategies.createStrategy(body);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'List every Strategy, newest first' })
+  @ApiOkResponse({ type: [StrategyResponseDto] })
+  async listStrategies(): Promise<StrategyResponseDto[]> {
+    return this.strategies.listStrategies();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a Strategy' })
   @ApiOkResponse({ type: StrategyResponseDto })

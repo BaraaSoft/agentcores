@@ -78,7 +78,9 @@ until the Strategy completes:
    Workflows, so with none it does nothing.
 2. **`POST /workflows`** saves the Workflow as `paused`. The pass skips it, so nothing runs yet.
 3. **`POST /workflows/:id/start`** calls `startWorkflow`. It sets the Workflow to `running` and starts a
-   pass at once, without waiting for it, because the planning model call can take a while.
+   pass at once, without waiting for it, because the planning model call can take a while. First it pauses
+   any other running Workflow on the same machine: the agent controls the screen, so one machine runs one
+   Workflow at a time.
 4. **The first pass** plans the first Unit of Work and queues its ready Jobs on `job-execution`.
 5. **Every minute after that**, the timer runs a pass for as long as the Workflow is `running`.
    `POST /workflows/:id/pause` sets it to `paused`, and the pass skips it again.

@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Repeat, Rocket, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { PageIntro } from '../../components/page-intro/page-intro';
+import { SidePanelLayout } from '../../components/side-panel-layout/side-panel-layout';
 import { ActionButton } from '../../components/strategy-components/action-button/action-button';
 import { Disclosure } from '../../components/strategy-components/disclosure/disclosure';
 import { FormSection } from '../../components/strategy-components/form-section/form-section';
@@ -12,9 +14,12 @@ import { NumberStepper } from '../../components/strategy-components/number-stepp
 import { TextAreaField } from '../../components/strategy-components/text-area-field/text-area-field';
 import { TextField } from '../../components/strategy-components/text-field/text-field';
 import { WorkTypePicker } from '../../components/strategy-components/work-type-picker/work-type-picker';
+import { InlineNotice } from '../../components/workhub-components/inline-notice/inline-notice';
 import { ROUTE_PATHS } from '../../routes/route-paths';
 import { useMonitorStore } from '../../state/monitor-store';
 import { useStrategyLaunchStore } from '../../state/strategy-launch-store';
+import { useWorkHubStore } from '../../state/workhub-store';
+import { workflowToPause } from '../workhub/model/workflow-to-pause';
 import { launchProgress, presentLaunchSteps } from './model/present-launch-steps';
 import { DRAFT_LIMITS, EMPTY_STRATEGY_DRAFT, type StrategyDraft } from './model/strategy-draft';
 import { toLaunchInput } from './model/to-launch-input';
@@ -30,60 +35,10 @@ const OBJECTIVE_PLACEHOLDER = [
   '- Email me the link to the live post.',
 ].join('\n');
 
-const Page = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) ${({ theme }) => theme.layout.sidePanelWidth};
-  align-items: start;
-  gap: ${({ theme }) => theme.space(12)};
-  width: 100%;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: ${({ theme }) => `${theme.space(10)} ${theme.space(12)} ${theme.space(16)}`};
-  @media (max-width: 1100px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: ${({ theme }) => theme.space(8)};
-    padding: ${({ theme }) => `${theme.space(8)} ${theme.space(6)} ${theme.space(12)}`};
-  }
-`;
-
-const Intro = styled.header`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.space(3)};
-  max-width: 640px;
-  padding-bottom: ${({ theme }) => theme.space(8)};
-`;
-
-const Eyebrow = styled.span`
-  color: ${({ theme }) => theme.color.accentText};
-  font-family: ${({ theme }) => theme.font.mono};
-  font-size: 11px;
-  font-weight: ${({ theme }) => theme.font.weight.semibold};
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-`;
-
-const Headline = styled.h2`
-  margin: 0;
-  font-size: ${({ theme }) => theme.font.size.display};
-  font-weight: ${({ theme }) => theme.font.weight.semibold};
-  line-height: 1.15;
-  letter-spacing: -0.028em;
-  text-wrap: balance;
-`;
-
-const Lede = styled.p`
-  margin: 0;
-  color: ${({ theme }) => theme.color.textMuted};
-  font-size: ${({ theme }) => theme.font.size.base};
-  line-height: 1.6;
-  text-wrap: pretty;
-`;
-
 const Form = styled.fieldset`
   min-width: 0;
   margin: 0;
-  padding: 0;
+  padding: ${({ theme }) => theme.space(8)} 0 0;
   border: none;
 `;
 
@@ -136,6 +91,10 @@ export function CreateStrategyView() {
   const isDone = steps.start.status === 'done';
   const hasFailed = Object.values(steps).some((step) => step.status === 'failed');
   const isLocked = isRunning || strategyId !== null;
+  const startPolling = useWorkHubStore((state) => state.startPolling);
+  const workflows = useWorkHubStore((state) => state.workflows);
+  const strategies = useWorkHubStore((state) => state.strategies);
+  const toPause = isLocked ? null : workflowToPause(workflows, strategies, draft.machineId, null);
   const update = <K extends keyof StrategyDraft>(key: K, value: StrategyDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
 
   const submit = useCallback(() => {
@@ -158,6 +117,8 @@ export function CreateStrategyView() {
     reset();
     setShowErrors(false);
   };
+
+  useEffect(() => startPolling(), [startPolling]);
 
   useEffect(() => {
     if (!isDone) return;
@@ -192,7 +153,7 @@ export function CreateStrategyView() {
     </>
   ) : (
     <ActionButton icon={Rocket} onClick={submit} isBusy={isRunning}>
-      {isRunning ? 'Launching…' : hasFailed ? 'Try again' : 'Create and start'}
+      {isRunning ? 'Launching…' : hasFailed ? 'Try again' : toPause !== null ? 'Pause it and start' : 'Create and start'}
     </ActionButton>
   );
   const footnote = isDone
@@ -202,136 +163,169 @@ export function CreateStrategyView() {
       : '⌘ Enter also launches. Your co-worker takes control of this Mac once the work starts.';
 
   return (
-    <Page>
-      <div>
-        <Intro>
-          <Eyebrow>New strategy</Eyebrow>
-          <Headline>What should your co-worker achieve?</Headline>
-          <Lede>
-            Describe the outcome in your own words. Your co-worker researches it, plans the work, carries it out on your machine, and
-            marks its own results.
-          </Lede>
-        </Intro>
-        <Form disabled={isLocked}>
-          <FormSection index="01" title="The goal" description="A short name to find it by, and the outcome you want, as you would brief a colleague.">
-            <TextField
-              id="strategy-name"
-              label="Name"
-              value={draft.name}
-              onChange={(value) => update('name', value)}
-              placeholder="Book launch post"
-              maxLength={DRAFT_LIMITS.nameLength}
-              isProminent
-              {...(shownErrors.name === undefined ? {} : { error: shownErrors.name })}
-            />
-            <TextAreaField
-              id="strategy-objective"
-              label="Objective"
-              value={draft.objective}
-              onChange={(value) => update('objective', value)}
-              maxLength={DRAFT_LIMITS.objectiveLength}
-              rows={10}
-              placeholder={OBJECTIVE_PLACEHOLDER}
-              hint="Write it as you would message a colleague, one step per line. Your co-worker cannot see anything you leave out."
-              {...(shownErrors.objective === undefined ? {} : { error: shownErrors.objective })}
-            />
-          </FormSection>
-          <FormSection index="02" title="How the work repeats" description="Choose how your co-worker paces the work. Hover the info icon for the full meaning.">
-            <WorkTypePicker label="Work type" options={WORK_TYPE_OPTIONS} value={draft.workType} onChange={(value) => update('workType', value)} isDisabled={isLocked} />
-            <AnimatePresence mode="wait" initial={false}>
-              <Swap key={draft.workType} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={theme.motion.fast}>
-                {draft.workType === 'one_off' && (
-                  <NumberStepper
-                    id="strategy-attempts"
-                    label="Attempts"
-                    unit="attempts"
-                    value={draft.maxAttempts}
-                    min={DRAFT_LIMITS.attempts.min}
-                    max={DRAFT_LIMITS.attempts.max}
-                    onChange={(value) => update('maxAttempts', value)}
-                    hint="Each attempt is marked out of 10. Your co-worker stops early once the work is good."
-                  />
-                )}
-                {draft.workType === 'multi_version' && (
-                  <NumberStepper
-                    id="strategy-versions"
-                    label="Versions"
-                    unit="versions"
-                    value={draft.versionCount}
-                    min={DRAFT_LIMITS.versions.min}
-                    max={DRAFT_LIMITS.versions.max}
-                    onChange={(value) => update('versionCount', value)}
-                    hint="Each version is complete on its own and takes a different direction."
-                  />
-                )}
-                {draft.workType === 'continuous' && (
-                  <Note>
-                    <Repeat size={16} strokeWidth={2} aria-hidden />
-                    Runs in rounds until you pause it from Monitor. Each round is marked, so later rounds lean on what worked.
-                  </Note>
-                )}
-              </Swap>
-            </AnimatePresence>
-          </FormSection>
-          <FormSection index="03" title="Where it runs" description="Who your co-worker acts for, and the machine it controls while it works.">
-            <Pair>
+    <SidePanelLayout
+      main={
+        <>
+          <PageIntro eyebrow="New strategy" title="What should your co-worker achieve?">
+            Describe the outcome in your own words. Your co-worker researches it, plans the work, carries it out on your machine, and marks
+            its own results.
+          </PageIntro>
+          <Form disabled={isLocked}>
+            <FormSection
+              index="01"
+              title="The goal"
+              description="A short name to find it by, and the outcome you want, as you would brief a colleague."
+            >
               <TextField
-                id="strategy-owner"
-                label="Owner"
-                value={draft.owner}
-                onChange={(value) => update('owner', value)}
-                maxLength={DRAFT_LIMITS.ownerLength}
-                {...(shownErrors.owner === undefined ? {} : { error: shownErrors.owner })}
+                id="strategy-name"
+                label="Name"
+                value={draft.name}
+                onChange={(value) => update('name', value)}
+                placeholder="Book launch post"
+                maxLength={DRAFT_LIMITS.nameLength}
+                isProminent
+                {...(shownErrors.name === undefined ? {} : { error: shownErrors.name })}
               />
-              <TextField
-                id="strategy-machineId"
-                label="Machine"
-                value={draft.machineId}
-                onChange={(value) => update('machineId', value)}
-                maxLength={DRAFT_LIMITS.machineIdLength}
-                {...(shownErrors.machineId === undefined ? {} : { error: shownErrors.machineId })}
+              <TextAreaField
+                id="strategy-objective"
+                label="Objective"
+                value={draft.objective}
+                onChange={(value) => update('objective', value)}
+                maxLength={DRAFT_LIMITS.objectiveLength}
+                rows={10}
+                placeholder={OBJECTIVE_PLACEHOLDER}
+                hint="Write it as you would message a colleague, one step per line. Your co-worker cannot see anything you leave out."
+                {...(shownErrors.objective === undefined ? {} : { error: shownErrors.objective })}
               />
-            </Pair>
-            <Disclosure title="Advanced" summary={advancedSummary} badge="Coming soon">
+            </FormSection>
+            <FormSection
+              index="02"
+              title="How the work repeats"
+              description="Choose how your co-worker paces the work. Hover the info icon for the full meaning."
+            >
+              <WorkTypePicker
+                label="Work type"
+                options={WORK_TYPE_OPTIONS}
+                value={draft.workType}
+                onChange={(value) => update('workType', value)}
+                isDisabled={isLocked}
+              />
+              <AnimatePresence mode="wait" initial={false}>
+                <Swap
+                  key={draft.workType}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={theme.motion.fast}
+                >
+                  {draft.workType === 'one_off' && (
+                    <NumberStepper
+                      id="strategy-attempts"
+                      label="Attempts"
+                      unit="attempts"
+                      value={draft.maxAttempts}
+                      min={DRAFT_LIMITS.attempts.min}
+                      max={DRAFT_LIMITS.attempts.max}
+                      onChange={(value) => update('maxAttempts', value)}
+                      hint="Each attempt is marked out of 10. Your co-worker stops early once the work is good."
+                    />
+                  )}
+                  {draft.workType === 'multi_version' && (
+                    <NumberStepper
+                      id="strategy-versions"
+                      label="Versions"
+                      unit="versions"
+                      value={draft.versionCount}
+                      min={DRAFT_LIMITS.versions.min}
+                      max={DRAFT_LIMITS.versions.max}
+                      onChange={(value) => update('versionCount', value)}
+                      hint="Each version is complete on its own and takes a different direction."
+                    />
+                  )}
+                  {draft.workType === 'continuous' && (
+                    <Note>
+                      <Repeat size={16} strokeWidth={2} aria-hidden />
+                      Runs in rounds until you pause it from Monitor. Each round is marked, so later rounds lean on what worked.
+                    </Note>
+                  )}
+                </Swap>
+              </AnimatePresence>
+            </FormSection>
+            <FormSection
+              index="03"
+              title="Where it runs"
+              description="Who your co-worker acts for, and the machine it controls while it works."
+            >
               <Pair>
-                <NumberStepper
-                  id="strategy-concurrency"
-                  label="Jobs at a time"
-                  unit={draft.maxConcurrentJobs === 1 ? 'Job' : 'Jobs'}
-                  value={draft.maxConcurrentJobs}
-                  min={DRAFT_LIMITS.concurrentJobs.min}
-                  max={DRAFT_LIMITS.concurrentJobs.max}
-                  onChange={(value) => update('maxConcurrentJobs', value)}
-                  hint="Keep 1 for screen work. Tasks share one screen."
+                <TextField
+                  id="strategy-owner"
+                  label="Owner"
+                  value={draft.owner}
+                  onChange={(value) => update('owner', value)}
+                  maxLength={DRAFT_LIMITS.ownerLength}
+                  {...(shownErrors.owner === undefined ? {} : { error: shownErrors.owner })}
                 />
                 <TextField
-                  id="strategy-budgetLimit"
-                  label="Monthly budget"
-                  value={draft.budgetLimit}
-                  onChange={(value) => update('budgetLimit', value.replace(/[^\d.]/g, ''))}
-                  inputMode="decimal"
-                  prefix="$"
-                  hint="A ceiling in US dollars for paid channels and model use."
-                  {...(shownErrors.budgetLimit === undefined ? {} : { error: shownErrors.budgetLimit })}
+                  id="strategy-machineId"
+                  label="Machine"
+                  value={draft.machineId}
+                  onChange={(value) => update('machineId', value)}
+                  hint="Your co-worker works on one machine for now."
+                  isDisabled
                 />
               </Pair>
-            </Disclosure>
-          </FormSection>
-        </Form>
-      </div>
-      <LaunchPanel
-        title="Summary"
-        summary={[
-          { label: 'Name', value: draft.name.trim() || 'Untitled strategy' },
-          { label: 'Work type', value: workTypeLabel },
-          { label: 'Runs', value: workTypeCount(draft) },
-          { label: 'Machine', value: draft.machineId.trim() || '—' },
-        ]}
-        steps={presentLaunchSteps(steps)}
-        progress={launchProgress(steps)}
-        actions={actions}
-        footnote={footnote}
-      />
-    </Page>
+              <Disclosure title="Advanced" summary={advancedSummary} badge="Coming soon">
+                <Pair>
+                  <NumberStepper
+                    id="strategy-concurrency"
+                    label="Jobs at a time"
+                    unit={draft.maxConcurrentJobs === 1 ? 'Job' : 'Jobs'}
+                    value={draft.maxConcurrentJobs}
+                    min={DRAFT_LIMITS.concurrentJobs.min}
+                    max={DRAFT_LIMITS.concurrentJobs.max}
+                    onChange={(value) => update('maxConcurrentJobs', value)}
+                    hint="Keep 1 for screen work. Tasks share one screen."
+                  />
+                  <TextField
+                    id="strategy-budgetLimit"
+                    label="Monthly budget"
+                    value={draft.budgetLimit}
+                    onChange={(value) => update('budgetLimit', value.replace(/[^\d.]/g, ''))}
+                    inputMode="decimal"
+                    prefix="$"
+                    hint="A ceiling in US dollars for paid channels and model use."
+                    {...(shownErrors.budgetLimit === undefined ? {} : { error: shownErrors.budgetLimit })}
+                  />
+                </Pair>
+              </Disclosure>
+            </FormSection>
+          </Form>
+        </>
+      }
+      aside={
+        <LaunchPanel
+          title="Summary"
+          summary={[
+            { label: 'Name', value: draft.name.trim() || 'Untitled strategy' },
+            { label: 'Work type', value: workTypeLabel },
+            { label: 'Runs', value: workTypeCount(draft) },
+            { label: 'Machine', value: draft.machineId.trim() || '—' },
+          ]}
+          steps={presentLaunchSteps(steps)}
+          progress={launchProgress(steps)}
+          actions={actions}
+          notice={
+            <AnimatePresence initial={false}>
+              {toPause !== null && (
+                <InlineNotice key="to-pause" tone="warning">
+                  "{toPause.strategyName}" is running now. Your co-worker works on one machine, so starting this strategy pauses it.
+                </InlineNotice>
+              )}
+            </AnimatePresence>
+          }
+          footnote={footnote}
+        />
+      }
+    />
   );
 }

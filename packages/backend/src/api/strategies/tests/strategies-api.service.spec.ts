@@ -23,6 +23,7 @@ function setup(found: unknown = STRATEGY) {
   const strategies = {
     createStrategy: jest.fn().mockResolvedValue(STRATEGY),
     findStrategyById: jest.fn().mockResolvedValue(found),
+    listStrategies: jest.fn().mockResolvedValue([STRATEGY]),
   };
   const service = new StrategiesApiService(strategies as unknown as StrategyService);
   return { service, strategies };
@@ -48,6 +49,15 @@ describe('StrategiesApiService', () => {
       startDate: START,
       endDate: null,
     });
+  });
+
+  it('lists the Strategies with only the public fields', async () => {
+    const listed = await setup().service.listStrategies();
+
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toBeInstanceOf(StrategyResponseDto);
+    expect(listed[0]).not.toHaveProperty('owner');
+    expect(listed[0]).toMatchObject({ id: 'strategy-1', name: 'Launch video' });
   });
 
   it('gets a Strategy, and answers 404 when it does not exist', async () => {

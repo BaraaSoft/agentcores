@@ -9,4 +9,5 @@ export const workflowsApi = {
   getWorkflowProgress: (workflowId: string): Promise<WorkflowProgress> => getJson(`/workflows/${workflowId}/progress`),
   createWorkflow: (request: CreateWorkflowRequest): Promise<WorkflowSummary> => postJson('/workflows', request),
   startWorkflow: (workflowId: string): Promise<WorkflowSummary> => postJson(`/workflows/${workflowId}/start`),
+  pauseWorkflow: (workflowId: string): Promise<WorkflowSummary> => postJson(`/workflows/${workflowId}/pause`),
 };

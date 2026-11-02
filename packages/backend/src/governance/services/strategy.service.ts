@@ -47,6 +47,13 @@ export class StrategyService {
   }
 
   /**
+   * Returns every Strategy, newest first.
+   */
+  async listStrategies(): Promise<StrategyEntity[]> {
+    return this.strategies.find({ order: { createdAt: 'DESC' } });
+  }
+
+  /**
    * Marks an active Strategy complete and records when. Returns false when it was already complete.
    */
   async completeStrategy(strategyId: string, now = new Date()): Promise<boolean> {
