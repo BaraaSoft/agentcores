@@ -22,3 +22,4 @@ coverage/
 .pnpm-store/
 docs/
 .cursor/
+.probe/
