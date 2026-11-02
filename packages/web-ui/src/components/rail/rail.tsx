@@ -28,7 +28,7 @@ const Brand = styled.div`
   position: relative;
   display: grid;
   place-items: center;
-  height: 40px;
+  height: 48px;
   margin-bottom: ${({ theme }) => theme.space(6)};
 `;
 
@@ -36,10 +36,19 @@ const Group = styled.ul`
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.space(2)};
+  gap: ${({ theme }) => theme.space(5)};
   margin: 0;
   padding: 0;
   list-style: none;
+  & > li + li::before {
+    content: '';
+    position: absolute;
+    top: calc(${({ theme }) => theme.space(5)} / -2);
+    left: 8px;
+    right: 8px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, ${({ theme }) => theme.glass.highlight}, transparent);
+  }
 `;
 
 const Spacer = styled.div`

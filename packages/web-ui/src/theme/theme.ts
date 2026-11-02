@@ -29,7 +29,7 @@ export const theme = {
   font: {
     family: `'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`,
     mono: `'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace`,
-    size: { xs: '12px', sm: '13px', md: '14px', lg: '17px', xl: '22px' },
+    size: { xs: '12px', sm: '13px', md: '14px', base: '15px', lg: '17px', xl: '22px', display: '30px' },
     weight: { regular: 400, medium: 500, semibold: 600 },
   },
   glass: {
@@ -43,7 +43,7 @@ export const theme = {
   },
   radius: { sm: '4px', md: '6px', lg: '8px' },
   space: (steps: number): string => `${steps * 4}px`,
-  layout: { railWidth: '76px', headerHeight: '68px', pageInset: '8px' },
+  layout: { railWidth: '76px', headerHeight: '68px', pageInset: '8px', sidePanelWidth: '372px', formHeadWidth: '220px' },
   motion: {
     spring: { type: 'spring', stiffness: 520, damping: 38, mass: 0.8 },
     fast: { duration: 0.14, ease: [0.25, 0.1, 0.25, 1] },
