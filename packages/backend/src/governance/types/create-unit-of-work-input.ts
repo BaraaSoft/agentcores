@@ -6,6 +6,8 @@ import type { PlannedJob } from '../../reasoning/strategy/types/planned-job';
  */
 export interface CreateUnitOfWorkInput {
   readonly strategyId: string;
+  /** The Workflow (the run) the Unit belongs to. */
+  readonly workflowId: string;
   readonly sequence: number;
   readonly name: string;
   /** The idea the Unit of Work tests, written by the planner. */

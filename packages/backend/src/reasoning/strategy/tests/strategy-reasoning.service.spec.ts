@@ -36,6 +36,7 @@ const INPUT: PlanUnitOfWorkInput = {
       ],
     },
   ],
+  earlierRuns: [],
   relatedEvaluations: [],
 };
 
@@ -124,7 +125,19 @@ describe('StrategyReasoningService', () => {
 
       await expect(t.service.planUnitOfWork({ ...INPUT, canFinish: false, earlierUnitsOfWork: [] })).rejects.toThrow('"done"');
       expect(t.call().userPrompt).toContain('"done" is not allowed');
-      expect(t.call().userPrompt).toContain('None — this is the first Unit of the Strategy.');
+      expect(t.call().userPrompt).toContain('None — this is the first Unit of this run.');
+      expect(t.call().userPrompt).toContain('None — this is the first run of the Strategy.');
+    });
+
+    it('shows the earlier runs of the Strategy, numbered, so a fresh run can beat them', async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue({ decision: 'done', rationale: 'Met.' });
+
+      await t.service.planUnitOfWork({ ...INPUT, earlierRuns: [{ runNumber: 1, unitsOfWork: INPUT.earlierUnitsOfWork }] });
+
+      expect(t.call().userPrompt).toContain('<EARLIER_RUNS>\nRun 1:\nAttempt 1: Long intro, hook at 8 seconds (complete)');
+      expect(t.call().userPrompt).toContain('Mark: 4/10');
+      expect(t.call().systemPrompt).toContain('The limit on Units counts this run only.');
     });
 
     it(`keeps at most ${MAX_JOBS_PER_UNIT_OF_WORK} Jobs and names a nameless Job by its objective`, async () => {

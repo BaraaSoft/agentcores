@@ -1,6 +1,6 @@
 import type { StrategyWorkType } from '@ahe/agent-core';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import type { StrategyEntity } from '../governance/entities/strategy.entity';
 import type { UnitOfWorkEntity } from '../governance/entities/unit-of-work.entity';
@@ -8,19 +8,21 @@ import { JobEvaluationService } from '../governance/services/job-evaluation.serv
 import { STALE_SCREENSHOT_AGE_MS } from '../governance/services/job-screenshot.constants';
 import { JobScreenshotService } from '../governance/services/job-screenshot.service';
 import { JobService } from '../governance/services/job.service';
-import { StrategyService } from '../governance/services/strategy.service';
 import { UnitOfWorkService } from '../governance/services/unit-of-work.service';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE } from '../queue/queue.constants';
 import type { JobEvaluationJobData } from '../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../queue/types/job-execution-job-data';
 import type { JobEvaluation } from '../reasoning/evaluation/types/job-evaluation';
 import { StrategyReasoningService } from '../reasoning/strategy/strategy-reasoning.service';
+import type { EarlierRun } from '../reasoning/strategy/types/earlier-run';
 import type { EarlierUnitOfWork } from '../reasoning/strategy/types/earlier-unit-of-work';
 import type { PlanUnitOfWorkInput } from '../reasoning/strategy/types/plan-unit-of-work-input';
 import type { WorkflowEntity } from '../workflow/entities/workflow.entity';
 import { WorkflowService } from '../workflow/workflow.service';
 import {
   CONTINUOUS_EVALUATION_DELAY_MS,
+  EARLIER_RUN_UNITS_OF_WORK_LIMIT,
+  EARLIER_RUNS_LIMIT,
   EARLIER_UNITS_OF_WORK_LIMIT,
   RELATED_EVALUATIONS_LIMIT,
   SCHEDULING_INTERVAL_MS,
@@ -28,16 +30,17 @@ import {
 } from './orchestrator.constants';
 import type { SchedulingResult } from './types/scheduling-result';
 
-/** Why the pass opened no new Unit of Work: one is still open, the stop rule says wait, or the Strategy just completed. */
-type NextUnitOfWork = 'opened' | 'open' | 'waiting' | 'complete';
+/** Why the pass opened no new Unit of Work: one is still open, the stop rule says wait, or the run just finished. */
+type NextUnitOfWork = 'opened' | 'open' | 'waiting' | 'done';
 
 /**
- * The AHE runtime's control plane. Every minute it moves each running Workflow's Strategy forward one
- * step — settles the open Unit of Work, evaluates the Units of Work that are due, opens the next one when
- * the work type's stop rule allows — and starts the Jobs that are ready, within the Workflow's Job limit.
- * It is the only place that creates Units of Work and the only place that starts an evaluation. It
- * never queues Tasks: a queued Job queues its own Tasks, one at a time. `tech-spec.md` beside this
- * file explains the rules.
+ * The AHE runtime's control plane. A Strategy is a reusable goal and each Workflow is one run of it.
+ * Every minute it moves each running Workflow forward one step — settles the open Unit of Work,
+ * evaluates the Units of Work that are due, opens the next one when the work type's stop rule allows,
+ * or marks the run `done` — and starts the Jobs that are ready, within the Workflow's Job limit. It is
+ * the only place that creates Units of Work and the only place that starts an evaluation. It never
+ * queues Tasks: a queued Job queues its own Tasks, one at a time. `tech-spec.md` beside this file
+ * explains the rules.
  */
 @Injectable()
 export class OrchestratorService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -48,7 +51,6 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
   constructor(
     private readonly workflows: WorkflowService,
     private readonly strategyReasoning: StrategyReasoningService,
-    private readonly strategies: StrategyService,
     private readonly unitsOfWork: UnitOfWorkService,
     private readonly jobs: JobService,
     private readonly evaluations: JobEvaluationService,
@@ -71,21 +73,30 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
   }
 
   /**
-   * Sets a Workflow `running` and starts a pass straight away, without waiting for it: planning the
-   * first Unit of Work can take a while. Any other running Workflow on the same machine is paused first.
+   * Sets a Workflow `running`, with its Units of Work, and starts a pass straight away, without waiting
+   * for it: planning the first Unit of Work can take a while. Any other running Workflow on the same
+   * machine is paused first. A `done` Workflow is final and cannot start: run the Strategy again instead.
    */
   async startWorkflow(workflowId: string): Promise<WorkflowEntity> {
-    await this.pauseOthersOnMachine(workflowId);
+    const target = await this.findWorkflow(workflowId);
+    if (target.state === 'done') throw new ConflictException('This run is done. Run the strategy again to start a fresh one.');
+    await this.pauseOthersOnMachine(target);
+    await this.unitsOfWork.setRunState(workflowId, 'running');
     const workflow = await this.workflows.updateWorkflowState({ workflowId, state: 'running' });
     void this.runScheduledPass();
     return workflow;
   }
 
   /**
-   * Pauses a Workflow: the pass skips it from now on. A Task already running finishes; queued work is
-   * skipped by the processors and moves again once the Workflow is running and the pass queues it.
+   * Pauses a Workflow and every Unit of Work in it. The pass skips it from now on; queued Jobs and
+   * Tasks are skipped by the processors, and a running Task stops before its next step, so the machine
+   * is free once that step ends. Everything moves again once the Workflow is started. A `done` Workflow
+   * stays `done`.
    */
   async pauseWorkflow(workflowId: string): Promise<WorkflowEntity> {
+    const target = await this.findWorkflow(workflowId);
+    if (target.state === 'done') return target;
+    await this.unitsOfWork.setRunState(workflowId, 'paused');
     return this.workflows.updateWorkflowState({ workflowId, state: 'paused' });
   }
 
@@ -106,12 +117,11 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
    * that are due, open the next one if the stop rule allows, then start the ready Jobs.
    */
   async scheduleWorkflow(workflow: WorkflowEntity, now = new Date()): Promise<SchedulingResult> {
-    const { strategy } = workflow;
-    if (strategy.status === 'complete') return this.result(workflow, [], 'Strategy complete');
+    if (workflow.state !== 'running') return this.result(workflow, [], `run ${workflow.state}`);
 
-    await this.settleOpenUnitOfWork(strategy, now);
-    await this.evaluateDueUnitsOfWork(workflow.id, strategy, now);
-    if ((await this.openNextUnitOfWork(strategy)) === 'complete') return this.result(workflow, [], 'Strategy complete');
+    await this.settleOpenUnitOfWork(workflow, now);
+    await this.evaluateDueUnitsOfWork(workflow, now);
+    if ((await this.openNextUnitOfWork(workflow)) === 'done') return this.result(workflow, [], 'run done');
 
     const capacity = workflow.resources.maxConcurrentJobs - (await this.jobs.countActiveJobs(workflow.id));
     if (capacity <= 0) return this.result(workflow, [], 'at Job limit');
@@ -130,14 +140,18 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
    * A machine runs one Workflow at a time. The agent controls its screen, so a second Workflow would act
    * in the middle of the first one's work.
    */
-  private async pauseOthersOnMachine(workflowId: string): Promise<void> {
-    const target = await this.workflows.findWorkflowById(workflowId);
-    if (target === null) return;
+  private async pauseOthersOnMachine(target: WorkflowEntity): Promise<void> {
     for (const other of await this.workflows.listWorkflowsByState('running')) {
-      if (other.id === workflowId || other.machineId !== target.machineId) continue;
-      await this.workflows.updateWorkflowState({ workflowId: other.id, state: 'paused' });
-      this.logger.log(`Paused Workflow ${other.id}: Workflow ${workflowId} starts on ${target.machineId}`);
+      if (other.id === target.id || other.machineId !== target.machineId) continue;
+      await this.pauseWorkflow(other.id);
+      this.logger.log(`Paused Workflow ${other.id}: Workflow ${target.id} starts on ${target.machineId}`);
     }
+  }
+
+  private async findWorkflow(workflowId: string): Promise<WorkflowEntity> {
+    const workflow = await this.workflows.findWorkflowById(workflowId);
+    if (workflow === null) throw new NotFoundException(`Workflow ${workflowId} not found`);
+    return workflow;
   }
 
   private async runScheduledPass(): Promise<void> {
@@ -179,14 +193,14 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
    * Step 2. Skips the ordered Jobs stuck behind one that did not succeed, then moves the open Unit of
    * Work to `evaluating` once every Job in it is closed.
    */
-  private async settleOpenUnitOfWork(strategy: StrategyEntity, now: Date): Promise<void> {
-    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(strategy.id);
+  private async settleOpenUnitOfWork(workflow: WorkflowEntity, now: Date): Promise<void> {
+    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(workflow.id);
     const openUnitOfWork = unitsOfWork.find((unitOfWork) => unitOfWork.status === 'open');
     if (openUnitOfWork === undefined) return;
     await this.jobs.skipStepsAfterFailure(openUnitOfWork.id);
     const count = await this.jobs.countUnitJobs(openUnitOfWork.id);
     if (count.total === 0 || count.open > 0) return;
-    const evaluateAfter = new Date(now.getTime() + this.evaluationDelay(strategy.workType));
+    const evaluateAfter = new Date(now.getTime() + this.evaluationDelay(workflow.strategy.workType));
     await this.unitsOfWork.markEvaluating(openUnitOfWork.id, evaluateAfter);
   }
 
@@ -195,12 +209,13 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
    * the Unit of Work once every evaluation has settled. Repeating this is harmless: a Job has one
    * evaluation, and the queue job ID is the evaluation ID.
    */
-  private async evaluateDueUnitsOfWork(workflowId: string, strategy: StrategyEntity, now: Date): Promise<void> {
-    for (const unitOfWork of await this.unitsOfWork.listUnitsOfWorkDueForEvaluation(strategy.id, now)) {
+  private async evaluateDueUnitsOfWork(workflow: WorkflowEntity, now: Date): Promise<void> {
+    const workflowId = workflow.id;
+    for (const unitOfWork of await this.unitsOfWork.listUnitsOfWorkDueForEvaluation(workflowId, now)) {
       let isSettled = true;
       for (const job of await this.jobs.listJobsToEvaluate(unitOfWork.id)) {
         const evaluation = await this.evaluations.createEvaluation({
-          owner: strategy.owner,
+          owner: workflow.strategy.owner,
           jobId: job.id,
           unitOfWorkId: unitOfWork.id,
         });
@@ -214,24 +229,26 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
   }
 
   /**
-   * Step 4. Opens the next Unit of Work, or completes the Strategy when no more work is needed.
+   * Step 4. Opens the run's next Unit of Work, or marks the run `done` when no more work is needed.
    *
    * 1. A Unit of Work is still `open`: its Jobs still run, so do nothing (`'open'`).
-   * 2. The stop rule of the work type:
+   * 2. The stop rule of the work type, counted inside this run only:
    *    - `one_off` and `multi_version` wait while the last Unit of Work is `evaluating`, so the planner
-   *      sees its scores (`'waiting'`). They complete the Strategy once the count of Units of Work
-   *      reaches the limit: `maxAttempts` attempts for `one_off`, `versionCount` versions for `multi_version`.
-   *    - `continuous` never waits and has no limit. The next Unit of Work opens as soon as the Jobs of
-   *      the last one close; the evaluation of the last one runs 24 hours later, beside the new one.
-   * 3. The Strategy planner (`planUnitOfWork`, a model call) gets the objective, the last Units of Work with
-   *    the outcome and score of each Job, and scored Jobs from the owner's other Strategies. It either
-   *    answers `done` (only `one_off`, after the first attempt), which completes the Strategy, or returns
-   *    the Jobs of the next Unit of Work.
+   *      sees its scores (`'waiting'`). The run is `done` once its count of Units of Work reaches the
+   *      limit: `maxAttempts` attempts for `one_off`, `versionCount` versions for `multi_version`.
+   *    - `continuous` never waits and has no limit, so its run is never `done`. The next Unit of Work
+   *      opens as soon as the Jobs of the last one close; the evaluation of the last one runs 24 hours
+   *      later, beside the new one.
+   * 3. The Strategy planner (`planUnitOfWork`, a model call) gets the objective, this run's last Units of
+   *    Work with the outcome and score of each Job, the Strategy's earlier runs, and scored Jobs from the
+   *    owner's other Strategies. It either answers `done` (only `one_off`, after the first attempt), which
+   *    marks the run `done`, or returns the Jobs of the next Unit of Work.
    * 4. Saves the new Unit of Work as `open` with its Jobs, and the planner's `title` (the idea it tests)
    *    and `rationale` (why) (`'opened'`). Step 5 queues the ready Jobs.
    */
-  private async openNextUnitOfWork(strategy: StrategyEntity): Promise<NextUnitOfWork> {
-    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(strategy.id);
+  private async openNextUnitOfWork(workflow: WorkflowEntity): Promise<NextUnitOfWork> {
+    const { strategy } = workflow;
+    const unitsOfWork = await this.unitsOfWork.listUnitsOfWork(workflow.id);
     if (unitsOfWork.some((unitOfWork) => unitOfWork.status === 'open')) return 'open';
     const isEvaluating = unitsOfWork.some((unitOfWork) => unitOfWork.status === 'evaluating');
     const namePrefix = UNIT_OF_WORK_NAME_PREFIXES[strategy.workType];
@@ -239,31 +256,34 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     if (strategy.workType !== 'continuous') {
       if (isEvaluating) return 'waiting';
       const limit = strategy.workType === 'one_off' ? strategy.maxAttempts : (strategy.versionCount ?? 0);
-      if (unitsOfWork.length >= limit) return this.complete(strategy, `all ${limit} ${namePrefix.toLowerCase()}s are done`);
+      if (unitsOfWork.length >= limit) return this.finishRun(workflow, `all ${limit} ${namePrefix.toLowerCase()}s are done`);
     }
 
     const sequence = unitsOfWork.length + 1;
     const name = `${namePrefix} ${sequence}`;
-    const plan = await this.strategyReasoning.planUnitOfWork(await this.planInput(strategy, unitsOfWork, name));
-    if (plan.decision === 'done') return this.complete(strategy, plan.rationale);
+    const plan = await this.strategyReasoning.planUnitOfWork(await this.planInput(workflow, unitsOfWork, name));
+    if (plan.decision === 'done') return this.finishRun(workflow, plan.rationale);
 
     await this.unitsOfWork.createUnitOfWork({
       strategyId: strategy.id,
+      workflowId: workflow.id,
       sequence,
       name,
       title: plan.title,
       rationale: plan.rationale,
       jobs: plan.jobs,
     });
-    this.logger.log(`Strategy ${strategy.id}: opened ${name} "${plan.title}" with ${plan.jobs.length} Jobs.`);
+    this.logger.log(`Workflow ${workflow.id}: opened ${name} "${plan.title}" with ${plan.jobs.length} Jobs.`);
     return 'opened';
   }
 
   private async planInput(
-    strategy: StrategyEntity,
+    workflow: WorkflowEntity,
     unitsOfWork: readonly UnitOfWorkEntity[],
     unitOfWorkName: string,
   ): Promise<PlanUnitOfWorkInput> {
+    const { strategy } = workflow;
+    const earlierRunUnits = await this.unitsOfWork.listEarlierRunUnitsOfWork(strategy.id, workflow.id);
     return {
       strategyName: strategy.name,
       objective: strategy.objective,
@@ -272,8 +292,25 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
       unitOfWorkLimit: strategy.workType === 'one_off' ? strategy.maxAttempts : strategy.versionCount,
       canFinish: strategy.workType === 'one_off' && unitsOfWork.length > 0,
       earlierUnitsOfWork: await this.earlierUnitsOfWork(unitsOfWork.slice(-EARLIER_UNITS_OF_WORK_LIMIT)),
-      relatedEvaluations: await this.relatedEvaluations(strategy, unitsOfWork),
+      earlierRuns: await this.earlierRuns(earlierRunUnits),
+      relatedEvaluations: await this.relatedEvaluations(strategy, [...unitsOfWork, ...earlierRunUnits]),
     };
+  }
+
+  /**
+   * The Strategy's latest earlier runs, oldest first, each with its latest Units of Work. Runs are
+   * numbered in the order they started.
+   */
+  private async earlierRuns(earlierRunUnits: readonly UnitOfWorkEntity[]): Promise<EarlierRun[]> {
+    const byRun = new Map<string, UnitOfWorkEntity[]>();
+    for (const unitOfWork of earlierRunUnits) byRun.set(unitOfWork.workflowId, [...(byRun.get(unitOfWork.workflowId) ?? []), unitOfWork]);
+    const runs = [...byRun.values()].map((units, index) => ({ runNumber: index + 1, units }));
+    return Promise.all(
+      runs.slice(-EARLIER_RUNS_LIMIT).map(async ({ runNumber, units }) => ({
+        runNumber,
+        unitsOfWork: await this.earlierUnitsOfWork(units.slice(-EARLIER_RUN_UNITS_OF_WORK_LIMIT)),
+      })),
+    );
   }
 
   /** The earlier Units of Work with the idea each tested, and each Job's outcome and evaluation, oldest first. */
@@ -307,7 +344,7 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     }));
   }
 
-  /** Scored Jobs from the owner's other Strategies whose objective is close to this one's. */
+  /** Scored Jobs from the owner's other Strategies whose objective is close to this one's. This Strategy's own runs are left out: the planner already sees them. */
   private async relatedEvaluations(strategy: StrategyEntity, unitsOfWork: readonly UnitOfWorkEntity[]): Promise<JobEvaluation[]> {
     const ownUnitOfWorkIds = new Set(unitsOfWork.map((unitOfWork) => unitOfWork.id));
     const found = await this.evaluations.searchPastEvaluations({
@@ -329,9 +366,11 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
       }));
   }
 
-  private async complete(strategy: StrategyEntity, reason: string): Promise<NextUnitOfWork> {
-    if (await this.strategies.completeStrategy(strategy.id)) this.logger.log(`Strategy ${strategy.id} complete: ${reason}`);
-    return 'complete';
+  /** Marks the run `done`, which frees the machine. The Strategy stays as it is, ready to run again. */
+  private async finishRun(workflow: WorkflowEntity, reason: string): Promise<NextUnitOfWork> {
+    await this.workflows.updateWorkflowState({ workflowId: workflow.id, state: 'done' });
+    this.logger.log(`Workflow ${workflow.id} done: ${reason}`);
+    return 'done';
   }
 
   private evaluationDelay(workType: StrategyWorkType): number {

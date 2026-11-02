@@ -2,7 +2,6 @@ import type { TaskStatus } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
-import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { JobEvaluationEntity } from '../entities/job-evaluation.entity';
 import { JobEntity } from '../entities/job.entity';
 import { TaskEntity } from '../entities/task.entity';
@@ -83,7 +82,7 @@ export class JobService {
   }
 
   /**
-   * Open Jobs of the Strategy that the Workflow runs that can move now: no Tasks yet (to plan), a
+   * Open Jobs of the Workflow's run that can move now: no Tasks yet (to plan), a
    * finished Task awaiting review, or a `pending` current Task. Only Jobs of a `running` Unit that is
    * `open` or `evaluating` qualify — an evaluating Unit can still hold evidence Jobs — and an ordered Job only
    * once every ordered Job before it in its Unit has succeeded. Oldest Units first, then oldest Jobs.
@@ -193,7 +192,7 @@ export class JobService {
   }
 
   /**
-   * How many open Jobs of the Strategy that the Workflow runs are active right now: their current Task is running,
+   * How many open Jobs of the Workflow's run are active right now: their current Task is running,
    * deferred, or escalated.
    */
   async countActiveJobs(workflowId: string): Promise<number> {
@@ -207,8 +206,7 @@ export class JobService {
     return this.jobs
       .createQueryBuilder('job')
       .innerJoinAndSelect('job.unitOfWork', 'unit')
-      .innerJoin(WorkflowEntity, 'workflow', 'workflow.strategyId = unit.strategyId')
-      .where('workflow.id = :workflowId', { workflowId })
+      .where('unit.workflowId = :workflowId', { workflowId })
       .andWhere('job.outcomeStatus IS NULL');
   }
 

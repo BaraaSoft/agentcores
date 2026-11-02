@@ -3,14 +3,16 @@ import type { UnitOfWorkState } from './unit-of-work-state';
 import type { UnitOfWorkStatus } from './unit-of-work-status';
 
 /**
- * One round, attempt, or version of a Strategy's work: a group of Jobs and nothing more. The
+ * One round, attempt, or version of a run's work: a group of Jobs and nothing more. The
  * orchestrator creates it, the planner fills it with Jobs, and it is evaluated as a whole once all its
  * Jobs are closed, so the next Unit can learn from it.
  */
 export interface UnitOfWork {
   readonly id: string;
   readonly strategyId: string;
-  /** 1 for the first Unit of the Strategy, then 2, 3, … */
+  /** The Workflow (the run) it belongs to. */
+  readonly workflowId: string;
+  /** 1 for the first Unit of the run, then 2, 3, … */
   readonly sequence: number;
   /** e.g. "Round 3", "Attempt 2", "Version 1". */
   readonly name: string;

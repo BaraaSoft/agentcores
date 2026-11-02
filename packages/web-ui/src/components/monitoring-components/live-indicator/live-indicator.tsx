@@ -2,9 +2,9 @@ import { useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 
-/** Whether the board shows live work, paused work, or cannot reach the agent. */
+/** Whether the board shows live work, paused work, a finished run, or cannot reach the agent. */
 export interface LiveIndicatorProps {
-  readonly state: 'live' | 'paused' | 'offline' | 'connecting';
+  readonly state: 'live' | 'paused' | 'done' | 'offline' | 'connecting';
   readonly label: string;
   readonly detail?: string;
 }
@@ -58,13 +58,23 @@ const Detail = styled.span`
 /** A glossy pill with a status dot that ripples while the agent works. */
 export function LiveIndicator({ state, label, detail }: LiveIndicatorProps) {
   const theme = useTheme();
-  const colors = { live: theme.color.live, paused: theme.color.warning, offline: theme.color.danger, connecting: theme.color.textMuted };
+  const colors = {
+    live: theme.color.live,
+    paused: theme.color.warning,
+    done: theme.color.accent,
+    offline: theme.color.danger,
+    connecting: theme.color.textMuted,
+  };
   const dotColor = colors[state];
   return (
     <Pill role="status">
       <DotWrap>
         {state === 'live' && (
-          <Ripple dotColor={dotColor} animate={{ scale: [1, 2.6], opacity: [0.7, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }} />
+          <Ripple
+            dotColor={dotColor}
+            animate={{ scale: [1, 2.6], opacity: [0.7, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+          />
         )}
         <Dot dotColor={dotColor} />
       </DotWrap>

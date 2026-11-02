@@ -4,7 +4,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import type { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
 
 /**
- * Public shape of a Workflow, returned by the create, get, start, and pause routes.
+ * Public shape of a Workflow — one run of a Strategy — returned by the create, list, get, start,
+ * pause, and run routes.
  */
 export class WorkflowResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -28,10 +29,13 @@ export class WorkflowResponseDto {
   @ApiProperty({ description: 'When the Workflow last changed, such as a start or a pause' })
   updatedAt: Date;
 
+  @ApiProperty({ description: 'Tasks running on the machine now. A paused Workflow with none has freed the machine.' })
+  activeTaskCount: number;
+
   /**
    * Maps a persisted Workflow to its API representation.
    */
-  static fromEntity(entity: WorkflowEntity): WorkflowResponseDto {
+  static fromEntity(entity: WorkflowEntity, activeTaskCount = 0): WorkflowResponseDto {
     return Object.assign(new WorkflowResponseDto(), {
       id: entity.id,
       strategyId: entity.strategyId,
@@ -40,6 +44,7 @@ export class WorkflowResponseDto {
       resources: entity.resources,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+      activeTaskCount,
     });
   }
 }

@@ -46,6 +46,13 @@ type StepsEnd = Omit<TaskRunOutcome, 'taskId' | 'iterations'> & {
 const MS_PER_MINUTE = 60_000;
 const MS_PER_SECOND = 1_000;
 
+/** Why a Task stopped when its run was paused, with the last thing it did. */
+function pausedSummary(history: readonly StepRecord[]): string {
+  const last = history.at(-1)?.result.summary;
+  const done = `Paused by the owner after ${history.length} step${history.length === 1 ? '' : 's'}.`;
+  return last === undefined || last === '' ? done : `${done} The last step: ${last}`;
+}
+
 /**
  * Runs one Task: Task reasoning (Opus) plans a step, the execution layer (Sonnet/Haiku) carries it
  * out on screen, and the result goes back to reasoning, until the Task is done, escalated, deferred,
@@ -123,7 +130,9 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
 
   /**
    * The plan → execute loop. Ends on the first of: reasoning says done, a step needs the owner,
-   * a blocker decision stops the Task, a sealed instruction, or `MAX_TASK_ITERATIONS` steps.
+   * a blocker decision stops the Task, a sealed instruction, `MAX_TASK_ITERATIONS` steps, or the owner
+   * pausing the run. A paused Task ends `failed` with what it already did, so Job review on resume
+   * plans from there and never repeats a half-done step blindly; the machine is free after the current step.
    */
   private async runSteps(run: TaskRun): Promise<StepsEnd> {
     const history: StepRecord[] = [];
@@ -156,6 +165,7 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
       if (history.length >= MAX_TASK_ITERATIONS) {
         return end('failed', `Stopped after ${MAX_TASK_ITERATIONS} steps without finishing.`);
       }
+      if (await this.tasks.isTaskPaused(run.task.id)) return end('failed', pausedSummary(history));
 
       const result = await this.executeStep(run, step);
       history.push({ instruction: step.instruction, platform: step.platform, result });

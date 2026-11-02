@@ -1,19 +1,22 @@
 import type { UnitOfWorkState, UnitOfWorkStatus } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { JobEntity } from './job.entity';
 import { StrategyEntity } from './strategy.entity';
 
 /**
- * One round, attempt, or version of a Strategy's work: a group of Jobs and nothing more. Only the
- * orchestrator creates one, when its Strategy has no open Unit, and only the orchestrator moves its
- * `status` on.
+ * One round, attempt, or version of a run's work: a group of Jobs and nothing more. It belongs to one
+ * Workflow (the run) and, through it, to the Strategy. Only the orchestrator creates one, when its
+ * Workflow has no open Unit, and only the orchestrator moves its `status` on.
  */
 @Entity('units_of_work')
-@Index(['strategyId', 'sequence'], { unique: true })
+@Index(['workflowId', 'sequence'], { unique: true })
+@Index(['strategyId'])
 export class UnitOfWorkEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  /** Kept beside `workflowId` so a new run can read what the Strategy's earlier runs learned. */
   @Column({ type: 'uuid' })
   strategyId: string;
 
@@ -21,7 +24,14 @@ export class UnitOfWorkEntity {
   @JoinColumn({ name: 'strategyId' })
   strategy: StrategyEntity;
 
-  /** 1 for the Strategy's first Unit, then 2, 3, … Unique per Strategy, so two passes cannot both open the same Unit. */
+  @Column({ type: 'uuid' })
+  workflowId: string;
+
+  @ManyToOne(() => WorkflowEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'workflowId' })
+  workflow: WorkflowEntity;
+
+  /** 1 for the run's first Unit, then 2, 3, … Unique per Workflow, so two passes cannot both open the same Unit. */
   @Column({ type: 'int' })
   sequence: number;
 

@@ -28,15 +28,13 @@ describeWithDatabase('StrategyService (Postgres)', () => {
 
   const base = { owner: 'owner-1', name: 'Launch video', objective: 'A 60-second launch video for AHE' };
 
-  it('opens an active Strategy with the default attempts and no end date', async () => {
+  it('saves a Strategy with the default attempts', async () => {
     const strategy = await service.createStrategy({ ...base, workType: 'one_off' });
 
     expect(strategy).toMatchObject({
       workType: 'one_off',
-      status: 'active',
       maxAttempts: DEFAULT_MAX_ATTEMPTS,
       versionCount: null,
-      endDate: null,
     });
   });
 
@@ -44,14 +42,5 @@ describeWithDatabase('StrategyService (Postgres)', () => {
     expect((await service.createStrategy({ ...base, workType: 'multi_version', versionCount: 3 })).versionCount).toBe(3);
     expect((await service.createStrategy({ ...base, workType: 'continuous', versionCount: 3 })).versionCount).toBeNull();
     await expect(service.createStrategy({ ...base, workType: 'multi_version' })).rejects.toThrow('versionCount');
-  });
-
-  it('completes a Strategy once and records when', async () => {
-    const strategy = await service.createStrategy({ ...base, workType: 'one_off' });
-    const now = new Date('2026-11-02T09:00:00Z');
-
-    expect(await service.completeStrategy(strategy.id, now)).toBe(true);
-    expect(await service.completeStrategy(strategy.id)).toBe(false);
-    expect(await service.findStrategyById(strategy.id)).toMatchObject({ status: 'complete', endDate: now });
   });
 });

@@ -33,10 +33,11 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
 
   describe('createUnitOfWork', () => {
     it('opens the Unit with its Jobs, numbering only the ordered ones', async () => {
-      const strategy = await seeder.strategy('owner-1', 'one_off');
+      const { strategy, workflow } = await seeder.strategyWithWorkflow('owner-1', 'one_off');
 
       const unit = await service.createUnitOfWork({
         strategyId: strategy.id,
+        workflowId: workflow.id,
         sequence: 1,
         name: 'Attempt 1',
         title: 'One clean cut',
@@ -65,13 +66,14 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
       ]);
     });
 
-    it('refuses a second Unit with the same number and saves none of its Jobs', async () => {
-      const strategy = await seeder.strategy();
+    it('refuses a second Unit with the same number in one run and saves none of its Jobs', async () => {
+      const { strategy, workflow } = await seeder.strategyWithWorkflow();
       await seeder.unit(strategy.id, 'Round 1');
 
       await expect(
         service.createUnitOfWork({
           strategyId: strategy.id,
+          workflowId: workflow.id,
           sequence: 1,
           name: 'Round 1 again',
           title: '',
@@ -80,6 +82,66 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
         }),
       ).rejects.toThrow();
       expect(await dataSource.getRepository(JobEntity).count()).toBe(0);
+    });
+
+    it('starts a fresh run of the same Strategy at sequence 1 again', async () => {
+      const { strategy } = await seeder.strategyWithWorkflow();
+      await seeder.unit(strategy.id, 'Round 1');
+      const freshRun = await seeder.workflow(strategy.id);
+
+      const unit = await service.createUnitOfWork({
+        strategyId: strategy.id,
+        workflowId: freshRun.id,
+        sequence: 1,
+        name: 'Round 1',
+        title: '',
+        rationale: '',
+        jobs: [{ name: 'Post', objective: 'Post', orderType: 'unordered' }],
+      });
+
+      expect(unit).toMatchObject({ workflowId: freshRun.id, sequence: 1 });
+    });
+  });
+
+  describe('the runs of a Strategy', () => {
+    it('lists only the Units of one run', async () => {
+      const { strategy, workflow } = await seeder.strategyWithWorkflow();
+      const first = await seeder.unit(strategy.id, 'Round 1');
+      const freshRun = await seeder.workflow(strategy.id);
+      await seeder.unit(strategy.id, 'Round 1', { workflowId: freshRun.id });
+
+      expect((await service.listUnitsOfWork(workflow.id)).map((unit) => unit.id)).toEqual([first.id]);
+    });
+
+    it('lists the Units of the earlier runs, oldest run first, without the current run', async () => {
+      const strategy = await seeder.strategy();
+      const firstRun = await seeder.workflow(strategy.id, 'done');
+      const a1 = await seeder.unit(strategy.id, 'Attempt 1', { workflowId: firstRun.id });
+      const a2 = await seeder.unit(strategy.id, 'Attempt 2', { workflowId: firstRun.id });
+      const secondRun = await seeder.workflow(strategy.id, 'paused');
+      const b1 = await seeder.unit(strategy.id, 'Attempt 1', { workflowId: secondRun.id });
+      const currentRun = await seeder.workflow(strategy.id);
+      await seeder.unit(strategy.id, 'Attempt 1', { workflowId: currentRun.id });
+
+      const earlier = await service.listEarlierRunUnitsOfWork(strategy.id, currentRun.id);
+
+      expect(earlier.map((unit) => unit.id)).toEqual([a1.id, a2.id, b1.id]);
+    });
+
+    it('pauses and resumes every Unit of one run, and leaves the other runs alone', async () => {
+      const { strategy, workflow } = await seeder.strategyWithWorkflow();
+      await seeder.unit(strategy.id, 'Round 1');
+      await seeder.unit(strategy.id, 'Round 2');
+      const otherRun = await seeder.workflow(strategy.id);
+      const other = await seeder.unit(strategy.id, 'Round 1', { workflowId: otherRun.id });
+      const states = async () => (await service.listUnitsOfWork(workflow.id)).map((unit) => unit.state);
+
+      await service.setRunState(workflow.id, 'paused');
+      expect(await states()).toEqual(['paused', 'paused']);
+      expect(await dataSource.getRepository(UnitOfWorkEntity).findOneByOrFail({ id: other.id })).toMatchObject({ state: 'running' });
+
+      await service.setRunState(workflow.id, 'running');
+      expect(await states()).toEqual(['running', 'running']);
     });
   });
 
@@ -101,14 +163,14 @@ describeWithDatabase('UnitOfWorkService (Postgres)', () => {
     });
 
     it('lists the evaluating Units whose wait is over, oldest first', async () => {
-      const strategy = await seeder.strategy();
+      const { strategy, workflow } = await seeder.strategyWithWorkflow();
       const now = new Date('2026-10-30T10:00:00Z');
       const due = await seeder.unit(strategy.id, 'Round 1', { status: 'evaluating', evaluateAfter: new Date('2026-10-29T10:00:00Z') });
       await seeder.unit(strategy.id, 'Round 2', { status: 'evaluating', evaluateAfter: new Date('2026-10-31T10:00:00Z') });
       const dueNow = await seeder.unit(strategy.id, 'Round 3', { status: 'evaluating', evaluateAfter: now });
       await seeder.unit(strategy.id, 'Round 4');
 
-      const found = await service.listUnitsOfWorkDueForEvaluation(strategy.id, now);
+      const found = await service.listUnitsOfWorkDueForEvaluation(workflow.id, now);
 
       expect(found.map((unit) => unit.id)).toEqual([due.id, dueNow.id]);
     });

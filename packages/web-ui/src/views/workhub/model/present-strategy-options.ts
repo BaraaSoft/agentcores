@@ -3,25 +3,24 @@ import type { WorkflowSummary } from '../../../api/types/workflow-summary';
 import type { StrategyOption } from '../../../components/workhub-components/strategy-option-list/strategy-option-list';
 import { workTypeLine } from '../../monitor/model/work-type-line';
 
-function usageLine(own: readonly WorkflowSummary[]): string {
-  if (own.length === 0) return 'No workflow yet';
-  const running = own.filter((workflow) => workflow.state === 'running');
-  if (running.length > 0) return `Running on ${running.map((workflow) => workflow.machineId).join(', ')}`;
-  return `${own.length} paused`;
+function usageLine(runs: readonly WorkflowSummary[]): string {
+  if (runs.length === 0) return 'No run yet';
+  const count = `${runs.length} run${runs.length === 1 ? '' : 's'}`;
+  if (runs.some((workflow) => workflow.state === 'running')) return `${count} · running now`;
+  const latest = runs.reduce((a, b) => (Date.parse(b.createdAt) > Date.parse(a.createdAt) ? b : a));
+  return `${count} · last one ${latest.state}`;
 }
 
-/** The Strategies a new Workflow can run, with where each one runs already. Complete Strategies are left out. */
+/** Every Strategy, with how many times it ran and how its latest run stands. Any Strategy can run again. */
 export function presentStrategyOptions(strategies: readonly Strategy[], workflows: readonly WorkflowSummary[]): StrategyOption[] {
-  return strategies
-    .filter((strategy) => strategy.status === 'active')
-    .map((strategy) => {
-      const own = workflows.filter((workflow) => workflow.strategyId === strategy.id);
-      return {
-        id: strategy.id,
-        name: strategy.name,
-        workTypeLine: workTypeLine(strategy),
-        usageLine: usageLine(own),
-        isRunning: own.some((workflow) => workflow.state === 'running'),
-      };
-    });
+  return strategies.map((strategy) => {
+    const runs = workflows.filter((workflow) => workflow.strategyId === strategy.id);
+    return {
+      id: strategy.id,
+      name: strategy.name,
+      workTypeLine: workTypeLine(strategy),
+      usageLine: usageLine(runs),
+      isRunning: runs.some((workflow) => workflow.state === 'running'),
+    };
+  });
 }

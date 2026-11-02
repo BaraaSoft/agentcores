@@ -1,12 +1,13 @@
-import type { GoldStandards, StrategyEvaluation, StrategyStatus, StrategyWorkType } from '@ahe/agent-core';
+import type { GoldStandards, StrategyEvaluation, StrategyWorkType } from '@ahe/agent-core';
 import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { UnitOfWorkEntity } from './unit-of-work.entity';
 
 /**
- * What one owner wants done, and how the work repeats — the root of governance: Strategy → Unit of
- * Work → Job → Task. The orchestrator opens its Units one after another according to `workType`, and
- * it can run on several machines at once, each through its own Workflow.
+ * What one owner wants done, and how the work repeats — a reusable goal, and the root of governance:
+ * Strategy → Workflow (one run) → Unit of Work → Job → Task. A Strategy never finishes itself: each
+ * run is a Workflow that ends `done`, and running the Strategy again starts a new Workflow that plans
+ * with what the earlier runs learned.
  */
 @Entity('strategies')
 @Index(['owner', 'startDate'])
@@ -36,15 +37,8 @@ export class StrategyEntity {
   @Column({ type: 'int', default: 3 })
   maxAttempts: number;
 
-  @Column({ type: 'varchar', length: 20, default: 'active' })
-  status: StrategyStatus;
-
   @Column({ type: 'timestamptz' })
   startDate: Date;
-
-  /** When the Strategy completed; null while it is active. */
-  @Column({ type: 'timestamptz', nullable: true })
-  endDate: Date | null;
 
   /** For the Strategy review, which is not built yet. */
   @Column({ type: 'jsonb', nullable: true })
@@ -57,7 +51,7 @@ export class StrategyEntity {
   @OneToMany(() => UnitOfWorkEntity, (unit) => unit.strategy)
   unitsOfWork: UnitOfWorkEntity[];
 
-  /** The machines running this Strategy, one Workflow each. */
+  /** Every run of this Strategy, one Workflow each. */
   @OneToMany(() => WorkflowEntity, (workflow) => workflow.strategy)
   workflows: WorkflowEntity[];
 

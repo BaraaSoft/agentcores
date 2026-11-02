@@ -88,6 +88,34 @@ export class TaskService {
   }
 
   /**
+   * True when the owner paused the run since the Task started: its Unit of Work is no longer `running`.
+   */
+  async isTaskPaused(taskId: string): Promise<boolean> {
+    const row = await this.tasks
+      .createQueryBuilder('task')
+      .innerJoin('task.job', 'job')
+      .innerJoin('job.unitOfWork', 'unit')
+      .select('unit.state', 'state')
+      .where('task.id = :taskId', { taskId })
+      .getRawOne<{ state: string }>();
+    return row !== undefined && row.state !== 'running';
+  }
+
+  /**
+   * How many Tasks are `running` now, by Workflow. A paused Workflow with none has freed the machine.
+   */
+  async countRunningTasksByWorkflow(): Promise<Map<string, number>> {
+    const rows = await this.tasks
+      .createQueryBuilder('task')
+      .select('task.workflowId', 'workflowId')
+      .addSelect('COUNT(*)::int', 'count')
+      .where('task.status = :running', { running: 'running' })
+      .groupBy('task.workflowId')
+      .getRawMany<{ workflowId: string; count: number }>();
+    return new Map(rows.map((row) => [row.workflowId, row.count]));
+  }
+
+  /**
    * Loads a Task with its Job, Unit of Work, and Strategy — everything the Task processor needs: the
    * Unit's state gates the run, and the Strategy names the owner.
    */

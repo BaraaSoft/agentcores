@@ -12,9 +12,7 @@ const STRATEGY = {
   workType: 'one_off',
   versionCount: null,
   maxAttempts: 3,
-  status: 'active',
   startDate: START,
-  endDate: null,
   goldStandards: null,
   evaluation: null,
 };
@@ -45,9 +43,7 @@ describe('StrategiesApiService', () => {
       workType: 'one_off',
       versionCount: null,
       maxAttempts: 3,
-      status: 'active',
       startDate: START,
-      endDate: null,
     });
   });
 

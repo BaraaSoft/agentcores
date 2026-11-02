@@ -6,6 +6,7 @@ import {
   PLAN_UNIT_OF_WORK_MAX_FETCHES,
   PLAN_UNIT_OF_WORK_MAX_SEARCHES,
 } from './strategy-reasoning.constants';
+import type { EarlierRun } from './types/earlier-run';
 import type { EarlierJob, EarlierUnitOfWork } from './types/earlier-unit-of-work';
 import type { PlanUnitOfWorkInput } from './types/plan-unit-of-work-input';
 
@@ -37,8 +38,15 @@ function renderUnitOfWork(unitOfWork: EarlierUnitOfWork): string {
 }
 
 function renderUnitsOfWork(unitsOfWork: readonly EarlierUnitOfWork[]): string {
-  if (unitsOfWork.length === 0) return 'None — this is the first Unit of the Strategy.';
+  if (unitsOfWork.length === 0) return 'None — this is the first Unit of this run.';
   return unitsOfWork.map(renderUnitOfWork).join('\n\n');
+}
+
+function renderEarlierRuns(runs: readonly EarlierRun[]): string {
+  if (runs.length === 0) return 'None — this is the first run of the Strategy.';
+  return runs
+    .map((run) => `Run ${run.runNumber}:\n${run.unitsOfWork.length === 0 ? 'No Units.' : run.unitsOfWork.map(renderUnitOfWork).join('\n\n')}`)
+    .join('\n\n');
 }
 
 function renderRelated(evaluations: readonly JobEvaluation[]): string {
@@ -90,6 +98,13 @@ export const STRATEGY_REASONING_PROMPTS = {
 * multi_version: several versions of one deliverable. Each version is complete on its own and takes a deliberately
   different direction from the versions before it, informed by how they were marked.
 </WORK_TYPES>
+
+<EARLIER_RUNS>
+* A Strategy can run more than once. Each run starts fresh at its first Unit, and the owner starts a new run to get a
+  better result than the runs before.
+* When earlier runs are shown, plan this run to beat them: keep what earned high marks, change what was marked low,
+  and do not research again what they already learnt. The limit on Units counts this run only.
+</EARLIER_RUNS>
 
 <RESEARCH>
 ${researchTools(canFetch)}
@@ -162,6 +177,10 @@ Work type: ${WORK_TYPE_LINES[input.workType](input.unitOfWorkLimit)}
 Planning: ${input.unitOfWorkName}
 ${input.canFinish ? 'You may answer "done" if the outcome is met.' : 'You must plan Jobs; "done" is not allowed for this Unit.'}
 </THIS_UNIT_OF_WORK>
+
+<EARLIER_RUNS>
+${renderEarlierRuns(input.earlierRuns)}
+</EARLIER_RUNS>
 
 <EARLIER_UNITS_OF_WORK>
 ${renderUnitsOfWork(input.earlierUnitsOfWork)}

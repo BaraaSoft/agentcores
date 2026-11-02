@@ -1,12 +1,13 @@
 import type { GoldStandards } from './gold-standards';
 import type { StrategyEvaluation } from './strategy-evaluation';
-import type { StrategyStatus } from './strategy-status';
 import type { StrategyWorkType } from './strategy-work-type';
 import type { UnitOfWork } from './unit-of-work';
 
 /**
- * What one owner wants done, and how the work repeats. It is the root of governance — Strategy →
- * Unit of Work → Job → Task — and can run on several machines, each through its own Workflow.
+ * What one owner wants done, and how the work repeats: a reusable goal. It never finishes itself.
+ * Each run of it is a Workflow, which is `running`, `paused`, or `done`; running it again starts a
+ * new Workflow, and the new run plans with what the earlier runs learned. Governance reads
+ * Strategy → Workflow (one run) → Unit of Work → Job → Task.
  */
 export interface Strategy {
   readonly id: string;
@@ -20,10 +21,7 @@ export interface Strategy {
   readonly versionCount: number | null;
   /** Most attempts a `one_off` Strategy makes before it stops. */
   readonly maxAttempts: number;
-  readonly status: StrategyStatus;
   readonly startDate: Date;
-  /** When the Strategy completed; null while it is active. */
-  readonly endDate: Date | null;
   /** For the Strategy review, which is not built yet. */
   readonly goldStandards: GoldStandards | null;
   readonly unitsOfWork: readonly UnitOfWork[];

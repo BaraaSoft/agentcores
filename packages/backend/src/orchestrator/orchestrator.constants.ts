@@ -6,8 +6,14 @@ export const SCHEDULING_INTERVAL_MS = 60_000;
 /** How long a `continuous` Unit waits after its last Job closes before it is evaluated, so engagement can arrive. */
 export const CONTINUOUS_EVALUATION_DELAY_MS = 24 * 60 * 60 * 1000;
 
-/** Earlier Units of Work of the Strategy the planner reads, most recent ones. */
+/** Earlier Units of Work of this run the planner reads, most recent ones. */
 export const EARLIER_UNITS_OF_WORK_LIMIT = 5;
+
+/** Earlier runs of the Strategy the planner reads, most recent ones. */
+export const EARLIER_RUNS_LIMIT = 3;
+
+/** Units of Work of each earlier run the planner reads, its last ones. */
+export const EARLIER_RUN_UNITS_OF_WORK_LIMIT = 3;
 
 /** Evaluations of similar Jobs from the owner's other Strategies the planner reads. */
 export const RELATED_EVALUATIONS_LIMIT = 5;

@@ -10,8 +10,6 @@ export type { StrategyOutcome } from './governance/strategy-outcome';
 export type { StrategyEvaluation } from './governance/strategy-evaluation';
 export { STRATEGY_WORK_TYPES } from './governance/strategy-work-type';
 export type { StrategyWorkType } from './governance/strategy-work-type';
-export { STRATEGY_STATUSES } from './governance/strategy-status';
-export type { StrategyStatus } from './governance/strategy-status';
 export type { Strategy } from './governance/strategy';
 export type { UnitOfWork } from './governance/unit-of-work';
 export { UNIT_OF_WORK_STATES } from './governance/unit-of-work-state';

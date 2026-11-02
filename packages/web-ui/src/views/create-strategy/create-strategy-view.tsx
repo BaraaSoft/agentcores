@@ -318,7 +318,8 @@ export function CreateStrategyView() {
             <AnimatePresence initial={false}>
               {toPause !== null && (
                 <InlineNotice key="to-pause" tone="warning">
-                  "{toPause.strategyName}" is running now. Your co-worker works on one machine, so starting this strategy pauses it.
+                  "{toPause.strategyName}" is running now. Your co-worker works on one machine, so starting this strategy pauses it and all
+                  its work.
                 </InlineNotice>
               )}
             </AnimatePresence>

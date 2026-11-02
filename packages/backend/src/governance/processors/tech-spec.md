@@ -431,11 +431,14 @@ state, so there is no review.
 takes. If the owner approves, Task 2 goes back to `pending` and the Job is queued again, which queues
 Task 2. If they reject, Task 2 is `failed` and the Job is queued for review, so Job reasoning plans around it.
 
-**Pause and resume.** Pausing is per Unit of Work: its `state` is `running` or `paused`, and the Job
-and Task processors read it from the Job's own Unit, so pausing one theme of work leaves the others
-running. On pause, queued Tasks are skipped and stay pending; a deferred Task whose delay ends during the
-pause goes back to pending; a Job queued for review does nothing and keeps its unreviewed Task. A Task
-already running finishes. On resume, the Unit's startable Jobs are queued again, and each is reviewed or
+**Pause and resume.** The gate is the Unit of Work's `state`: `running` or `paused`. The Job and Task
+processors read it from the Job's own Unit. A Workflow pause sets every Unit of that run to `paused`
+(`UnitOfWorkService.setRunState`), so the whole run stops. On pause, queued Tasks are skipped and stay
+pending; a deferred Task whose delay ends during the pause goes back to pending; a Job queued for review
+does nothing and keeps its unreviewed Task. A Task already running stops before its next step: the step
+loop calls `TaskService.isTaskPaused` first, and ends the Task `failed` with "Paused by the owner after N
+steps. The last step: …". The Job goes to review as for any failed Task, so on resume Job reasoning plans
+from where the work stopped. On resume, the Unit's startable Jobs are queued again, and each is reviewed or
 picks up at its current Task.
 
 Evaluation has no pause gate. Evaluating only reads finished work, and an evaluation skipped while paused
