@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { ActionButton } from '../../components/strategy-components/action-button/action-button';
 import { FieldFrame } from '../../components/strategy-components/field-frame/field-frame';
 import { TextField } from '../../components/strategy-components/text-field/text-field';
+import { InfoTip } from '../../components/strategy-components/work-type-picker/info-tip';
 import { ComposerPanel } from '../../components/workhub-components/composer-panel/composer-panel';
 import { InlineNotice } from '../../components/workhub-components/inline-notice/inline-notice';
 import { PillButton } from '../../components/workhub-components/pill-button/pill-button';
@@ -23,6 +24,9 @@ export interface RunStrategyViewProps {
   readonly onReveal: (workflowId: string) => void;
   readonly onOpenMonitor: (workflowId: string) => void;
 }
+
+const FRESH_RUN_EXPLAINER =
+  'A fresh run is a new workflow for this strategy. It starts at iteration 1 and learns from the earlier runs, which stay in the list.';
 
 const RESOURCES = { maxConcurrentJobs: EMPTY_STRATEGY_DRAFT.maxConcurrentJobs, budgetLimit: Number(EMPTY_STRATEGY_DRAFT.budgetLimit) };
 
@@ -89,7 +93,11 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
     <ComposerPanel
       eyebrow="Run again"
       title="Run a strategy again"
-      description="Pick a strategy to run again on your machine. The fresh run starts at iteration 1."
+      description={
+        <>
+          Pick a strategy to run again on your machine. <InfoTip label="What is a fresh run?" text={FRESH_RUN_EXPLAINER} />
+        </>
+      }
       actions={
         <ActionButton icon={RotateCcw} onClick={submit} isBusy={isBusy} isDisabled={strategyId === null || isBusy}>
           {buttonLabel}
