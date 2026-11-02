@@ -97,7 +97,11 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
   const jobQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const evaluationQueue = { add: jest.fn().mockResolvedValue(undefined) };
 
-  const workflows = { listWorkflowsByState: jest.fn().mockResolvedValue([]) };
+  const workflows = {
+    listWorkflowsByState: jest.fn().mockResolvedValue([]),
+    findWorkflowById: jest.fn(),
+    updateWorkflowState: jest.fn(async ({ workflowId, state }: { workflowId: string; state: string }) => ({ id: workflowId, state })),
+  };
   const screenshots = { deleteScreenshotsOlderThan: jest.fn().mockResolvedValue(0) };
 
   const service = new OrchestratorService(
@@ -113,10 +117,37 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
   );
   const schedule = (now = NOW) => service.scheduleWorkflow(workflow, now);
 
-  return { service, screenshots, schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
+  return { service, workflows, screenshots, schedule, addUnitOfWork, unitsOfWorkList, unitsOfWork, jobs, evaluations, strategies, strategyReasoning, jobQueue, evaluationQueue };
 }
 
 describe('OrchestratorService', () => {
+  describe('starting a Workflow', () => {
+    const running = (id: string, machineId: string) => ({ id, machineId, state: 'running' });
+
+    it('pauses the other running Workflow on the same machine before it starts', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue({ id: 'wf-2', machineId: 'Macbook' });
+      t.workflows.listWorkflowsByState.mockResolvedValue([running('wf-1', 'Macbook')]);
+
+      await t.service.startWorkflow('wf-2');
+
+      expect(t.workflows.updateWorkflowState.mock.calls.map(([input]) => input)).toEqual([
+        { workflowId: 'wf-1', state: 'paused' },
+        { workflowId: 'wf-2', state: 'running' },
+      ]);
+    });
+
+    it('leaves running Workflows on other machines alone, and never pauses the one it starts', async () => {
+      const t = setup('one_off');
+      t.workflows.findWorkflowById.mockResolvedValue({ id: 'wf-2', machineId: 'Macbook' });
+      t.workflows.listWorkflowsByState.mockResolvedValue([running('wf-1', 'Mac mini'), running('wf-2', 'Macbook')]);
+
+      await t.service.startWorkflow('wf-2');
+
+      expect(t.workflows.updateWorkflowState.mock.calls.map(([input]) => input)).toEqual([{ workflowId: 'wf-2', state: 'running' }]);
+    });
+  });
+
   describe('the screenshot sweep', () => {
     it('deletes the screenshots of Jobs untouched for two days on every pass', async () => {
       const t = setup('one_off');

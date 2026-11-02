@@ -23,6 +23,8 @@ export interface LaunchPanelProps {
   /** How far the launch is, from 0 to 1. */
   readonly progress: number;
   readonly actions: ReactNode;
+  /** A message above the actions, such as a warning about what the launch changes. */
+  readonly notice?: ReactNode;
   readonly footnote?: string;
 }
 
@@ -113,7 +115,7 @@ const Footnote = styled.p`
 `;
 
 /** A sticky glass card with a thin progress line on top that fills from blue to green as the steps finish. */
-export function LaunchPanel({ title, summary, steps, progress, actions, footnote }: LaunchPanelProps) {
+export function LaunchPanel({ title, summary, steps, progress, actions, notice, footnote }: LaunchPanelProps) {
   const theme = useTheme();
   return (
     <Panel aria-label={title}>
@@ -148,7 +150,10 @@ export function LaunchPanel({ title, summary, steps, progress, actions, footnote
         </Steps>
       </Block>
       <Block>
-        <Actions>{actions}</Actions>
+        <Actions>
+          {notice}
+          {actions}
+        </Actions>
         {footnote !== undefined && <Footnote>{footnote}</Footnote>}
       </Block>
     </Panel>

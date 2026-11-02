@@ -15,6 +15,7 @@ export interface TextFieldProps {
   readonly isProminent?: boolean;
   readonly inputMode?: 'text' | 'numeric' | 'decimal';
   readonly prefix?: string;
+  readonly isDisabled?: boolean;
 }
 
 const Wrap = styled.div`
@@ -46,7 +47,20 @@ const Input = styled.input<{ hasError: boolean; isProminent: boolean; hasPrefix:
 `;
 
 /** A labelled text input that reports each change. */
-export function TextField({ id, label, value, onChange, placeholder, hint, error, maxLength, isProminent = false, inputMode, prefix }: TextFieldProps) {
+export function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+  error,
+  maxLength,
+  isProminent = false,
+  inputMode,
+  prefix,
+  isDisabled = false,
+}: TextFieldProps) {
   return (
     <FieldFrame label={label} htmlFor={id} {...(hint === undefined ? {} : { hint })} {...(error === undefined ? {} : { error })}>
       <Wrap>
@@ -58,6 +72,7 @@ export function TextField({ id, label, value, onChange, placeholder, hint, error
           placeholder={placeholder}
           maxLength={maxLength}
           inputMode={inputMode}
+          disabled={isDisabled}
           autoComplete="off"
           spellCheck={false}
           hasError={error !== undefined}

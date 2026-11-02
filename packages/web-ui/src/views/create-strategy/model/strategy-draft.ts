@@ -24,6 +24,9 @@ export const DRAFT_LIMITS = {
   concurrentJobs: { min: 1, max: 10 },
 } as const;
 
+/** The one machine the co-worker works on. Every Strategy and Workflow runs here for now. */
+export const AHE_MACHINE = 'Macbook';
+
 /** A new form: one-off work with three attempts, one Job at a time, and a $50 ceiling. */
 export const EMPTY_STRATEGY_DRAFT: StrategyDraft = {
   name: '',
@@ -32,7 +35,7 @@ export const EMPTY_STRATEGY_DRAFT: StrategyDraft = {
   maxAttempts: 3,
   versionCount: 3,
   owner: 'Admin',
-  machineId: 'Macbook',
+  machineId: AHE_MACHINE,
   maxConcurrentJobs: 1,
   budgetLimit: '50',
 };

@@ -6,6 +6,8 @@ import { WorkflowResponseDto } from '../dtos/workflow-response.dto';
 import { WorkflowsApiService } from '../workflows-api.service';
 
 const RESOURCES = { maxConcurrentJobs: 2, budgetLimit: 500 } as const;
+const CREATED_AT = new Date('2026-11-01T09:00:00Z');
+const UPDATED_AT = new Date('2026-11-01T10:00:00Z');
 const WORKFLOW = {
   id: 'wf-1',
   strategyId: 'strategy-1',
@@ -13,9 +15,18 @@ const WORKFLOW = {
   state: 'paused',
   resources: RESOURCES,
   strategy: { id: 'strategy-1', owner: 'owner-1' },
-  createdAt: new Date(),
+  createdAt: CREATED_AT,
+  updatedAt: UPDATED_AT,
 };
-const RESPONSE = { id: 'wf-1', strategyId: 'strategy-1', machineId: 'baraa-macbook', state: 'paused', resources: RESOURCES };
+const RESPONSE = {
+  id: 'wf-1',
+  strategyId: 'strategy-1',
+  machineId: 'baraa-macbook',
+  state: 'paused',
+  resources: RESOURCES,
+  createdAt: CREATED_AT,
+  updatedAt: UPDATED_AT,
+};
 
 function setup(found: unknown = WORKFLOW, strategy: unknown = WORKFLOW.strategy) {
   const workflows = {

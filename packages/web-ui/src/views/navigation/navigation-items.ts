@@ -1,4 +1,4 @@
-import { Activity, Settings, type LucideIcon } from 'lucide-react';
+import { Activity, LayoutGrid, Settings, type LucideIcon } from 'lucide-react';
 import { NewStrategyIcon } from '../../components/icons/new-strategy-icon';
 import { ROUTE_PATHS } from '../../routes/route-paths';
 
@@ -16,6 +16,7 @@ export const NAVIGATION_ITEMS: {
 } = {
   main: [
     { path: ROUTE_PATHS.monitor, label: 'Monitor work', icon: Activity },
+    { path: ROUTE_PATHS.workHub, label: 'WorkHub', icon: LayoutGrid },
     { path: ROUTE_PATHS.createStrategy, label: 'Create strategy', icon: NewStrategyIcon },
   ],
   footer: [{ path: ROUTE_PATHS.settings, label: 'Settings', icon: Settings }],

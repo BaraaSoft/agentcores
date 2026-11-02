@@ -22,6 +22,12 @@ export class WorkflowResponseDto {
   @ApiProperty()
   resources: WorkflowResources;
 
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty({ description: 'When the Workflow last changed, such as a start or a pause' })
+  updatedAt: Date;
+
   /**
    * Maps a persisted Workflow to its API representation.
    */
@@ -32,6 +38,8 @@ export class WorkflowResponseDto {
       machineId: entity.machineId,
       state: entity.state,
       resources: entity.resources,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     });
   }
 }

@@ -8,5 +8,9 @@ export interface Strategy {
   readonly workType: StrategyWorkType;
   readonly versionCount: number | null;
   readonly maxAttempts: number;
-  readonly status: string;
+  readonly status: 'active' | 'complete';
+  /** ISO time the Strategy started. */
+  readonly startDate: string;
+  /** ISO time the Strategy completed, or null while it is active. */
+  readonly endDate: string | null;
 }

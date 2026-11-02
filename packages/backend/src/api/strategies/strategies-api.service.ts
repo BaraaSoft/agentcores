@@ -14,6 +14,10 @@ export class StrategiesApiService {
     return StrategyResponseDto.fromEntity(await this.strategies.createStrategy(body));
   }
 
+  async listStrategies(): Promise<StrategyResponseDto[]> {
+    return (await this.strategies.listStrategies()).map((strategy) => StrategyResponseDto.fromEntity(strategy));
+  }
+
   async getStrategy(strategyId: string): Promise<StrategyResponseDto> {
     const strategy = await this.strategies.findStrategyById(strategyId);
     if (strategy === null) throw new NotFoundException(`Strategy ${strategyId} not found`);

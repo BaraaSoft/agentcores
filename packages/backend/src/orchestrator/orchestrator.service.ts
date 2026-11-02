@@ -72,9 +72,10 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
 
   /**
    * Sets a Workflow `running` and starts a pass straight away, without waiting for it: planning the
-   * first Unit of Work can take a while.
+   * first Unit of Work can take a while. Any other running Workflow on the same machine is paused first.
    */
   async startWorkflow(workflowId: string): Promise<WorkflowEntity> {
+    await this.pauseOthersOnMachine(workflowId);
     const workflow = await this.workflows.updateWorkflowState({ workflowId, state: 'running' });
     void this.runScheduledPass();
     return workflow;
@@ -123,6 +124,20 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
       ready.map((job) => job.id),
       ready.length === 0 ? 'no Job ready' : null,
     );
+  }
+
+  /**
+   * A machine runs one Workflow at a time. The agent controls its screen, so a second Workflow would act
+   * in the middle of the first one's work.
+   */
+  private async pauseOthersOnMachine(workflowId: string): Promise<void> {
+    const target = await this.workflows.findWorkflowById(workflowId);
+    if (target === null) return;
+    for (const other of await this.workflows.listWorkflowsByState('running')) {
+      if (other.id === workflowId || other.machineId !== target.machineId) continue;
+      await this.workflows.updateWorkflowState({ workflowId: other.id, state: 'paused' });
+      this.logger.log(`Paused Workflow ${other.id}: Workflow ${workflowId} starts on ${target.machineId}`);
+    }
   }
 
   private async runScheduledPass(): Promise<void> {
