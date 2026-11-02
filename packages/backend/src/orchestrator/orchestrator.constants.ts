@@ -25,5 +25,11 @@ export const UNIT_OF_WORK_NAME_PREFIXES: Record<StrategyWorkType, string> = {
   multi_version: 'Version',
 };
 
+/** A Task running longer than this is logged as stray: the worker may have stopped without closing it. */
+export const STUCK_TASK_MS = 30 * 60_000;
+
+/** After a pause, a running Task may take this long to end its current step before it is logged as an error. */
+export const PAUSE_STEP_GRACE_MS = 10 * 60_000;
+
 /** Daily report time (cron, Mac Mini local time). Not registered yet. */
 export const DAILY_REPORT_CRON = '0 21 * * *';
