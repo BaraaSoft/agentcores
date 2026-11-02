@@ -1,16 +1,18 @@
 import type { StrategyWorkType, UnitOfWorkStatus } from '@ahe/agent-core';
+import { Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { JobEvaluationService } from '../../governance/services/job-evaluation.service';
 import { STALE_SCREENSHOT_AGE_MS } from '../../governance/services/job-screenshot.constants';
 import type { JobScreenshotService } from '../../governance/services/job-screenshot.service';
 import type { JobService } from '../../governance/services/job.service';
+import type { TaskService } from '../../governance/services/task.service';
 import type { UnitOfWorkService } from '../../governance/services/unit-of-work.service';
 import type { JobEvaluationJobData } from '../../queue/types/job-evaluation-job-data';
 import type { JobExecutionJobData } from '../../queue/types/job-execution-job-data';
 import type { StrategyReasoningService } from '../../reasoning/strategy/strategy-reasoning.service';
 import type { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import type { WorkflowService } from '../../workflow/workflow.service';
-import { CONTINUOUS_EVALUATION_DELAY_MS } from '../orchestrator.constants';
+import { CONTINUOUS_EVALUATION_DELAY_MS, STUCK_TASK_MS } from '../orchestrator.constants';
 import { OrchestratorService } from '../orchestrator.service';
 
 const NOW = new Date('2026-10-30T10:00:00Z');
@@ -108,6 +110,7 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     updateWorkflowState: jest.fn(async ({ workflowId, state }: { workflowId: string; state: string }) => ({ id: workflowId, state })),
   };
   const screenshots = { deleteScreenshotsOlderThan: jest.fn().mockResolvedValue(0) };
+  const tasks = { listStrayRunningTasks: jest.fn().mockResolvedValue([]) };
 
   const service = new OrchestratorService(
     workflows as unknown as WorkflowService,
@@ -118,6 +121,7 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     jobQueue as unknown as Queue<JobExecutionJobData>,
     evaluationQueue as unknown as Queue<JobEvaluationJobData>,
     screenshots as unknown as JobScreenshotService,
+    tasks as unknown as TaskService,
   );
   const schedule = (now = NOW) => service.scheduleWorkflow(workflow, now);
 
@@ -126,6 +130,7 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     workflow,
     workflows,
     screenshots,
+    tasks,
     schedule,
     addUnitOfWork,
     addEarlierRunUnit,
@@ -237,6 +242,55 @@ describe('OrchestratorService', () => {
     it('never fails the pass when the sweep fails', async () => {
       const t = setup('one_off');
       t.screenshots.deleteScreenshotsOlderThan.mockRejectedValue(new Error('EACCES'));
+
+      await expect(t.service.scheduleAllWorkflows()).resolves.toEqual([]);
+    });
+  });
+
+  describe('the stray Task check', () => {
+    const stray = {
+      taskId: 'task-1',
+      action: 'Post the draft',
+      startedAt: new Date(),
+      taskWorkflowId: 'wf-1',
+      jobId: 'job-1',
+      jobName: 'Post',
+      jobOutcome: 'success',
+      unitOfWorkId: 'unit-1',
+      unitOfWorkName: 'Attempt 1',
+      unitOfWorkState: 'running',
+      workflowId: 'wf-1',
+      workflowState: 'running',
+      workflowUpdatedAt: new Date(),
+    };
+
+    it('logs each running Task that does not belong to running work, on every pass', async () => {
+      const t = setup('one_off');
+      t.tasks.listStrayRunningTasks.mockResolvedValue([stray]);
+      const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+      await t.service.scheduleAllWorkflows();
+
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining('[stray-task] Task task-1 "Post the draft" is running, but its Job is closed (success).'),
+      );
+      error.mockRestore();
+    });
+
+    it('asks only for Tasks started before the stuck limit to count as stuck', async () => {
+      const t = setup('one_off');
+      const before = Date.now();
+
+      await t.service.scheduleAllWorkflows();
+
+      const stuckBefore = t.tasks.listStrayRunningTasks.mock.calls[0][0] as Date;
+      expect(before - stuckBefore.getTime()).toBeGreaterThanOrEqual(STUCK_TASK_MS - 1000);
+      expect(before - stuckBefore.getTime()).toBeLessThanOrEqual(STUCK_TASK_MS + 1000);
+    });
+
+    it('never fails the pass when the check fails', async () => {
+      const t = setup('one_off');
+      t.tasks.listStrayRunningTasks.mockRejectedValue(new Error('connection lost'));
 
       await expect(t.service.scheduleAllWorkflows()).resolves.toEqual([]);
     });

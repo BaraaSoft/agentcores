@@ -83,6 +83,26 @@ So the machine is free once the current step ends. `GET /workflows` returns `act
 Workflow, and the UI waits until the paused Workflow has none. A resume calls `setRunState(workflowId,
 'running')`, and the work goes on from where it stopped.
 
+### Finding stray Tasks
+
+At the end of every pass, `reportStrayRunningTasks` logs each `running` Task that does not belong to
+running work. `TaskService.listStrayRunningTasks` finds them, and `describeStrayTask` writes one line per
+Task with the reasons and every id. Search the backend log for `[stray-task]`:
+
+```text
+[stray-task] Task 5f1… "Post the draft" is running, but its Job is closed (success). Job 9a2… "Post", Unit of Work 3c7… "Attempt 1", Workflow 71d….
+```
+
+| The Task is running, but | Level |
+| --- | --- |
+| its run was paused less than `PAUSE_STEP_GRACE_MS` (10 min) ago, so it ends its current step | `warn` |
+| its run was paused longer ago than that | `error` |
+| its Job is closed, or its Workflow is `done` | `error` |
+| its row names another Workflow than its Unit of Work | `error` |
+| it has no start time, or it started more than `STUCK_TASK_MS` (30 min) ago | `error` |
+
+The check only logs. It changes no data, and a failed check never stops the pass.
+
 ---
 
 ## Work types
@@ -346,10 +366,12 @@ These parts are deliberately left out of the hackathon build. They are listed in
 
 ```text
 orchestrator/
-├── orchestrator.constants.ts     pass interval, evaluation delay, per-Unit limits, Unit names
+├── describe-stray-task.ts        the log line for a running Task that does not belong to running work
+├── orchestrator.constants.ts     pass interval, evaluation delay, per-Unit limits, Unit names, stray-Task limits
 ├── orchestrator.module.ts        exports OrchestratorService; the start and pause routes are in api/workflows
 ├── orchestrator.service.ts       the scheduling pass
 ├── tests/
+│   ├── describe-stray-task.spec.ts
 │   └── orchestrator.service.spec.ts
 └── types/
     └── scheduling-result.ts

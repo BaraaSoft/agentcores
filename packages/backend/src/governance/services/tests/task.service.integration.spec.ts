@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';
 import { TestDatabaseModule } from '../../../database/tests/test-database.module';
 import type { PlannedTask } from '../../../reasoning/job/types/planned-task';
+import { JobEntity } from '../../entities/job.entity';
 import { TaskEntity } from '../../entities/task.entity';
 import { UnitOfWorkEntity } from '../../entities/unit-of-work.entity';
 import { TaskService } from '../task.service';
@@ -277,6 +278,30 @@ describeWithDatabase('TaskService (Postgres)', () => {
       await jobWithTasks(['pending']);
 
       expect(await service.countRunningTasksByWorkflow()).toEqual(new Map([[first.workflow.id, 1]]));
+    });
+
+    it('finds the running Tasks whose work is not running, and leaves the healthy ones out', async () => {
+      const longAgo = new Date('2026-11-01T00:00:00Z');
+      const stuckBefore = new Date('2026-11-02T00:00:00Z');
+      const recent = new Date('2026-11-02T09:00:00Z');
+      const start = (taskId: string, startedAt: Date) => dataSource.getRepository(TaskEntity).update({ id: taskId }, { startedAt });
+
+      const healthy = await jobWithTasks(['running']);
+      await start(healthy.tasks[0].id, recent);
+      const paused = await jobWithTasks(['running']);
+      await start(paused.tasks[0].id, recent);
+      await dataSource.getRepository(UnitOfWorkEntity).update({ id: paused.job.unitOfWorkId }, { state: 'paused' });
+      const closed = await jobWithTasks(['running']);
+      await start(closed.tasks[0].id, new Date(recent.getTime() + 60_000));
+      await dataSource.getRepository(JobEntity).update({ id: closed.job.id }, { outcomeStatus: 'success' });
+      const stuck = await jobWithTasks(['running']);
+      await start(stuck.tasks[0].id, longAgo);
+
+      const strays = await service.listStrayRunningTasks(stuckBefore);
+
+      expect(strays.map((task) => task.taskId)).toEqual([stuck.tasks[0].id, paused.tasks[0].id, closed.tasks[0].id]);
+      expect(strays[1]).toMatchObject({ unitOfWorkState: 'paused', workflowState: 'running', jobOutcome: null, jobId: paused.job.id });
+      expect(strays[2]).toMatchObject({ jobOutcome: 'success', workflowId: closed.workflow.id, taskWorkflowId: closed.workflow.id });
     });
   });
 });

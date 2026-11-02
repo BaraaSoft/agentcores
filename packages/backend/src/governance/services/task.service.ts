@@ -1,12 +1,13 @@
 import type { TaskStatus } from '@ahe/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { Brackets, In, IsNull, Repository } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { TaskEntity } from '../entities/task.entity';
 import type { CompleteTaskInput } from '../types/complete-task-input';
 import type { ReplaceRemainingTasksInput } from '../types/replace-remaining-tasks-input';
 import type { StopTaskInput } from '../types/stop-task-input';
+import type { StrayRunningTask } from '../types/stray-running-task';
 
 /** Statuses a Task never leaves. A `complete` or `failed` Task is reviewed by Job reasoning before the Job moves on. */
 export const FINISHED_TASK_STATUSES: readonly TaskStatus[] = ['complete', 'failed', 'cancelled'];
@@ -113,6 +114,45 @@ export class TaskService {
       .groupBy('task.workflowId')
       .getRawMany<{ workflowId: string; count: number }>();
     return new Map(rows.map((row) => [row.workflowId, row.count]));
+  }
+
+  /**
+   * The `running` Tasks whose work is not running: the Job is closed, the Unit of Work or its Workflow
+   * is not `running`, the Task names another Workflow than its Unit, or it started before `stuckBefore`.
+   * Oldest first.
+   */
+  async listStrayRunningTasks(stuckBefore: Date): Promise<StrayRunningTask[]> {
+    return this.tasks
+      .createQueryBuilder('task')
+      .innerJoin('task.job', 'job')
+      .innerJoin('job.unitOfWork', 'unit')
+      .innerJoin('unit.workflow', 'workflow')
+      .select('task.id', 'taskId')
+      .addSelect('task.action', 'action')
+      .addSelect('task.startedAt', 'startedAt')
+      .addSelect('task.workflowId', 'taskWorkflowId')
+      .addSelect('job.id', 'jobId')
+      .addSelect('job.name', 'jobName')
+      .addSelect('job.outcomeStatus', 'jobOutcome')
+      .addSelect('unit.id', 'unitOfWorkId')
+      .addSelect('unit.name', 'unitOfWorkName')
+      .addSelect('unit.state', 'unitOfWorkState')
+      .addSelect('workflow.id', 'workflowId')
+      .addSelect('workflow.state', 'workflowState')
+      .addSelect('workflow.updatedAt', 'workflowUpdatedAt')
+      .where('task.status = :running', { running: 'running' })
+      .andWhere(
+        new Brackets((stray) =>
+          stray
+            .where('job.outcomeStatus IS NOT NULL')
+            .orWhere('unit.state != :running')
+            .orWhere('workflow.state != :running')
+            .orWhere('task.workflowId != unit.workflowId')
+            .orWhere('task.startedAt < :stuckBefore', { stuckBefore }),
+        ),
+      )
+      .orderBy('task.startedAt', 'ASC', 'NULLS FIRST')
+      .getRawMany<StrayRunningTask>();
   }
 
   /**

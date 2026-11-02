@@ -8,6 +8,7 @@ import { JobEvaluationService } from '../governance/services/job-evaluation.serv
 import { STALE_SCREENSHOT_AGE_MS } from '../governance/services/job-screenshot.constants';
 import { JobScreenshotService } from '../governance/services/job-screenshot.service';
 import { JobService } from '../governance/services/job.service';
+import { TaskService } from '../governance/services/task.service';
 import { UnitOfWorkService } from '../governance/services/unit-of-work.service';
 import { JOB_EVALUATION_QUEUE, JOB_EXECUTION_QUEUE } from '../queue/queue.constants';
 import type { JobEvaluationJobData } from '../queue/types/job-evaluation-job-data';
@@ -26,8 +27,10 @@ import {
   EARLIER_UNITS_OF_WORK_LIMIT,
   RELATED_EVALUATIONS_LIMIT,
   SCHEDULING_INTERVAL_MS,
+  STUCK_TASK_MS,
   UNIT_OF_WORK_NAME_PREFIXES,
 } from './orchestrator.constants';
+import { describeStrayTask } from './describe-stray-task';
 import type { SchedulingResult } from './types/scheduling-result';
 
 /** Why the pass opened no new Unit of Work: one is still open, the stop rule says wait, or the run just finished. */
@@ -59,6 +62,7 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     @InjectQueue(JOB_EVALUATION_QUEUE)
     private readonly evaluationQueue: Queue<JobEvaluationJobData>,
     private readonly screenshots: JobScreenshotService,
+    private readonly tasks: TaskService,
   ) {}
 
   /**
@@ -173,7 +177,26 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
       }
     }
     await this.sweepStaleScreenshots();
+    await this.reportStrayRunningTasks();
     return results;
+  }
+
+  /**
+   * Logs every `running` Task that does not belong to running work, so a stray one is easy to find: its
+   * Job is closed, its run is paused or done, or it has run for too long. A failed check is logged and
+   * never stops the pass.
+   */
+  private async reportStrayRunningTasks(): Promise<void> {
+    try {
+      const now = new Date();
+      for (const task of await this.tasks.listStrayRunningTasks(new Date(now.getTime() - STUCK_TASK_MS))) {
+        const { level, line } = describeStrayTask(task, now);
+        if (level === 'warn') this.logger.warn(line);
+        else this.logger.error(line);
+      }
+    } catch (error) {
+      this.logger.warn(`Stray Task check failed: ${this.describe(error)}`);
+    }
   }
 
   /**
