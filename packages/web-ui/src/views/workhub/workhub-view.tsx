@@ -225,8 +225,8 @@ export function WorkHubView() {
       main={
         <>
           <PageIntro eyebrow="WorkHub" title="Every workflow, in one place.">
-            A strategy is a reusable goal. Each workflow is one run of it: running, paused, or done. Pause a run, resume it, or run a
-            strategy again from the start.
+            A strategy is your goal. A workflow is one run of that goal on your machine, and it is running, paused, or done. Pause a run and
+            resume it later, or run the strategy again: the new run starts over and learns from the earlier ones.
           </PageIntro>
           <Metrics>
             <HubMetric label="Running" value={runningCount} hint="Working right now" icon={Activity} tone="live" />
