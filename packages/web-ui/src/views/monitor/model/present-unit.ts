@@ -11,15 +11,30 @@ function meanScore(unit: UnitOfWorkProgress): string | undefined {
   return `Score ${Number.isInteger(mean) ? mean : mean.toFixed(1)}`;
 }
 
-/** Maps a Unit of Work to its card. `hasLiveWork` is true when one of its Jobs runs now. */
+type UnitStatus = { tone: StatusTone; badge: string };
+
+/**
+ * The badge of a Unit while its run is paused. Open work stops after the step that runs now; judging
+ * that already began goes on, but no new judging starts.
+ */
+function pausedUnitStatus(unit: UnitOfWorkProgress, hasLiveWork: boolean): UnitStatus {
+  if (unit.status === 'open') return hasLiveWork ? { tone: 'live', badge: 'Pausing' } : { tone: 'waiting', badge: 'Paused' };
+  const isJudging = unit.jobs.some((job) => job.evaluation?.state === 'evaluating');
+  return isJudging ? { tone: 'judging', badge: 'Judging' } : { tone: 'waiting', badge: 'Paused' };
+}
+
+/**
+ * Maps a Unit of Work to its card. `hasLiveWork` is true when one of its Jobs runs now; in a paused
+ * Unit, that is a Task that ends its current step before the pause takes hold.
+ */
 export function presentUnit(unit: UnitOfWorkProgress, hasLiveWork: boolean): NodePresentation {
   const closed = unit.jobs.filter((job) => job.outcomeStatus !== null).length;
-  const statuses: Record<UnitOfWorkProgress['status'], { tone: StatusTone; badge: string }> = {
+  const statuses: Record<UnitOfWorkProgress['status'], UnitStatus> = {
     open: hasLiveWork ? { tone: 'live', badge: 'Active' } : { tone: 'waiting', badge: 'Open' },
     evaluating: { tone: 'judging', badge: 'Judging' },
     complete: { tone: 'done', badge: 'Done' },
   };
-  const status = statuses[unit.status];
+  const status = unit.state === 'paused' && unit.status !== 'complete' ? pausedUnitStatus(unit, hasLiveWork) : statuses[unit.status];
   const score = meanScore(unit);
   return {
     icon: Layers,
