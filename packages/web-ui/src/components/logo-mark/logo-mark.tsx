@@ -5,7 +5,7 @@ export interface LogoMarkProps {
   readonly size?: number;
 }
 
-const DEFAULT_SIZE = 28;
+const DEFAULT_SIZE = 38;
 const INK = '#FFFFFF';
 
 /** The AHE mark: three stacked layers, for Strategy, Jobs, and Tasks, on a Meta blue tile. */

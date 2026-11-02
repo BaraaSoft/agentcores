@@ -1,17 +1,12 @@
-import { SquarePlus } from 'lucide-react';
-import { EmptyState } from '../../components/empty-state/empty-state';
 import { PageHeader } from '../../components/page-header/page-header';
+import { CreateStrategyView } from '../../views/create-strategy/create-strategy-view';
 
-/** The page where the owner describes a new strategy. Empty until the form is built. */
+/** The page where the owner describes a new strategy and launches it. */
 export function CreateStrategyPage() {
   return (
     <>
       <PageHeader title="Create strategy" />
-      <EmptyState
-        icon={SquarePlus}
-        title="Start a new strategy"
-        description="Describe the goal and the agent plans the work, then carries it out on its own."
-      />
+      <CreateStrategyView />
     </>
   );
 }
