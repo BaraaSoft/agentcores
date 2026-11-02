@@ -201,7 +201,7 @@ export function CreateStrategyView() {
             <FormSection
               index="02"
               title="How the work repeats"
-              description="Choose how your co-worker paces the work. Hover the info icon for the full meaning."
+              description="Choose how your co-worker paces the work."
             >
               <WorkTypePicker
                 label="Work type"
