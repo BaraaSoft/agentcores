@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wipes the local dev run state so the next run starts fresh: every BullMQ queue, and every table
 # except the Strategies (and the migrations record), and the temporary screenshots in .data/temp.
-# Each Strategy is set back to `active`.
+# Each Strategy loses its evaluation, so it reads as a goal that never ran.
 # Works only through the docker-compose-dev containers, so it can never touch a remote database.
 set -euo pipefail
 
@@ -34,11 +34,11 @@ BEGIN
   END IF;
 END
 \$\$;
-UPDATE strategies SET status = 'active', "endDate" = NULL, evaluation = NULL;
+UPDATE strategies SET evaluation = NULL;
 SQL
 
 echo "Deleting the temporary files (.data/temp)..."
 rm -rf .data/temp
 
 STRATEGIES=$("${COMPOSE[@]}" exec -T postgres psql -U ahe -d ahe -Atc 'SELECT count(*) FROM strategies')
-echo "Done. Kept ${STRATEGIES} Strategies, all set to active. Create a Workflow for one, then start it."
+echo "Done. Kept ${STRATEGIES} Strategies, with no runs. Run one from the WorkHub to start a fresh Workflow."
