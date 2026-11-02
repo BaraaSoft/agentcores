@@ -6,7 +6,7 @@ import { glassSurface } from '../../../theme/glass-surface';
 export interface ComposerPanelProps {
   readonly eyebrow: string;
   readonly title: string;
-  readonly description: string;
+  readonly description: ReactNode;
   readonly children: ReactNode;
   readonly actions: ReactNode;
   readonly footnote?: string;
