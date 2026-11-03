@@ -18,16 +18,29 @@ const toolUse = (name: string, input: unknown): Partial<BetaContentBlock> => ({ 
 const reportCall = (report: TaskReport, ...others: Partial<BetaContentBlock>[]): BetaMessage =>
   message('tool_use', [text('Reporting.'), ...others, toolUse('submit_task_report', report)]);
 
-/** A client whose tool runner yields `messages` and records the request it was given. */
-const fakeClient = (messages: BetaMessage[], requests: unknown[]): Anthropic =>
+/**
+ * A client whose tool runner yields `messages` and records the request it was given. Its tool responses answer
+ * every call with "Done.", and the messages pushed into the runner go to `pushed`.
+ */
+const fakeClient = (messages: BetaMessage[], requests: unknown[], pushed: unknown[] = []): Anthropic =>
   ({
     beta: {
       messages: {
         toolRunner: (params: unknown) => {
           requests.push(params);
-          return (async function* () {
-            yield* messages;
-          })();
+          let current: BetaMessage | undefined;
+          return {
+            async *[Symbol.asyncIterator]() {
+              for (current of messages) yield current;
+            },
+            generateToolResponse: async () => ({
+              role: 'user',
+              content: (current?.content ?? []).flatMap((block) =>
+                block.type === 'tool_use' ? [{ type: 'tool_result', tool_use_id: block.id, content: 'Done.' }] : [],
+              ),
+            }),
+            pushMessages: (...added: unknown[]) => pushed.push(...added),
+          };
         },
       },
     },
@@ -57,9 +70,9 @@ describe('ComputerUseProvider', () => {
     metricReadings: [{ name: 'upvotes', value: 42 }],
   };
 
-  const createProvider = (desktop: FakeDesktopDriver, messages: BetaMessage[], requests: unknown[] = []) =>
+  const createProvider = (desktop: FakeDesktopDriver, messages: BetaMessage[], requests: unknown[] = [], pushed: unknown[] = []) =>
     new ComputerUseProvider(
-      { client: fakeClient(messages, requests), desktop, guard: new PermissiveActionGuard(), reportParser: new TaskReportParser() },
+      { client: fakeClient(messages, requests, pushed), desktop, guard: new PermissiveActionGuard(), reportParser: new TaskReportParser() },
       options,
     );
 
@@ -184,6 +197,35 @@ describe('ComputerUseProvider', () => {
   it('reports failure when the step limit ends the loop', async () => {
     const provider = createProvider(new FakeDesktopDriver(), [message('tool_use', [text('Still scrolling.'), toolUse('computer', {})])]);
     expect(await provider.runTask(task)).toMatchObject({ status: 'failed', stepsTaken: 1 });
+  });
+
+  it('asks for a report before the last turn, with the tool results first', async () => {
+    const pushed: unknown[] = [];
+    const scrolling = () => message('tool_use', [text('Still scrolling.'), toolUse('computer', {})]);
+    await createProvider(new FakeDesktopDriver(), [scrolling(), scrolling(), scrolling()], [], pushed).runTask({ ...task, maxSteps: 3 });
+
+    expect(pushed).toEqual([
+      { role: 'assistant', content: scrolling().content },
+      {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'computer', content: 'Done.' },
+          { type: 'text', text: expect.stringContaining('This is your last turn.') },
+        ],
+      },
+    ]);
+  });
+
+  it('accepts a report sent with actions on the last turn', async () => {
+    const provider = createProvider(new FakeDesktopDriver(), [
+      message('tool_use', [toolUse('computer', {})]),
+      reportCall({ ...done, status: 'failed', summary: 'Found the file, but did not open it.' }, toolUse('computer', {})),
+    ]);
+    expect(await provider.runTask({ ...task, maxSteps: 2 })).toMatchObject({
+      status: 'failed',
+      summary: 'Found the file, but did not open it.',
+      stepsTaken: 2,
+    });
   });
 
   it('reports failure when the model ends its turn without a report', async () => {

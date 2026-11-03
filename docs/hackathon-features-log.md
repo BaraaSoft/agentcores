@@ -23,12 +23,12 @@ why it matters, and where it lives in the code.
 
 ### A step that runs out of time still says what it did
 
-Before its last turn, the screen agent now gets a note: report now, with what you finished, what is left, and
+Before its last turn, the screen agent now gets a note, with Meta Muse and with Claude: report now, with what you finished, what is left, and
 where the work is. For example, a search that runs long reports "Found the PNG on the Desktop" instead of only
 "Stopped at the step limit", so the next step builds on it and does not search again.
 
 - **Why it matters:** the agent stops repeating work it already did, which wasted many minutes in a live run.
-- **Where:** the Muse screen loop in `packages/execution/src/muse/`.
+- **Where:** both screen loops, in `packages/execution/src/muse/` and `packages/execution/src/computer-use/`.
 
 ---
 
