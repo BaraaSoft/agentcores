@@ -45,7 +45,8 @@ types, scrolls, and zooms to read small text.
 - **Research first.** Before it plans, it reads the links in your brief and searches the web for every name
 in it. It also studies how the best current work of that kind looks.
 - **Self-review.** It reviews each Job against the real screenshot, not a summary. When it does not  
-know what good looks like, it searches the web for strong examples first.
+know what good looks like, it searches the web for strong examples first. In [our benchmark](eval/), it
+never ranked weak work above strong work, and it judged every visual check from the screen itself.
 - **Real evidence.** A post reviewed one minute after it went live has no likes yet. So AHE sends a real Job
 back to the computer to open the post and read the numbers. Then it reviews.
 - **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run  
@@ -61,7 +62,7 @@ reject once, and the work continues.
 
 The dashboard is where you brief your co-worker and watch it work. It is dark, glassy, and live.
 
-The screenshots below use sample data. The Figma screen inside the Job panel comes from a real AHE run.
+The screenshots below use sample data. The Canva graphic inside the Job panel is real: AHE designed it in an earlier run.
 
 ### Watch the work, live
 
@@ -294,6 +295,9 @@ order changes nothing.
 - **Reasoning is stateless.** Each reasoner reads its inputs from the database, decides, and returns JSON.
 - **Tests at every level.** 479 automated tests: 277 backend unit tests, 69 database integration tests, and
 133 execution tests. An end-to-end suite also runs the real desktop with a real model.
+- **A benchmark for the self-review.** [`eval/`](eval/) runs the real evaluator on pairs of strong and weak
+work, on screenshots of real visual work, and on Jobs that need live evidence. It reports ranking accuracy, evidence requests, valid output,
+and latency.
 
 Read the design documents for the details:
 
