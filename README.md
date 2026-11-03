@@ -168,8 +168,7 @@ Each level picks its own model, so a fast model can plan every step and a strong
    It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
    layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
    permissions and launches AHE.
-3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy. Start small, for
-   example: *"Open Figma, create a file named AHE test, and draw a calm blue circle."*
+3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy.
 
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
 both, restart the terminal, and run `pnpm quickstart` again. Each run skips the work that is already done.
