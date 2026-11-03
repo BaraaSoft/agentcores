@@ -19,6 +19,7 @@ const JOB = {
   objective: 'Join the conversation on r/AICompanion',
   unitOfWorkName: 'Community engagement',
   openSiblingJobs: [{ name: 'Report the replies', objective: 'Write up the replies the intro earned' }],
+  finishedSiblingJobs: [],
   safeContext: 'Voice: warm, short.',
 };
 const OPEN_SIBLING_JOBS_BLOCK = '<OTHER_JOBS_IN_UNIT>\n1. Report the replies: Write up the replies the intro earned\n</OTHER_JOBS_IN_UNIT>';
@@ -208,6 +209,27 @@ describe('JobReasoningService', () => {
       await t.service.planTasks({ ...JOB, openSiblingJobs: [], reason: 'First plan.', history: [], remainingTasks: [], tasksStarted: 0, latestScreenshot: null });
 
       expect(t.loop().userPrompt).toContain('<OTHER_JOBS_IN_UNIT>\nNone.\n</OTHER_JOBS_IN_UNIT>');
+      expect(t.loop().userPrompt).toContain('<FINISHED_JOBS_IN_UNIT>\nNone.\n</FINISHED_JOBS_IN_UNIT>');
+    });
+
+    it("shows the Unit's finished Jobs with where their work is, and tells the planner to build on it", async () => {
+      const t = setup();
+
+      await t.service.planTasks({
+        ...JOB,
+        finishedSiblingJobs: [{ name: 'Open the community', outcomes: [OPENED] }],
+        reason: 'First plan.',
+        history: [],
+        remainingTasks: [],
+        tasksStarted: 0,
+        latestScreenshot: null,
+      });
+
+      expect(t.loop().userPrompt).toContain(
+        '<FINISHED_JOBS_IN_UNIT>\nOpen the community:\n1. [complete] Open r/AICompanion\n   Result: Subreddit open; 12 new posts.',
+      );
+      expect(t.loop().userPrompt).toContain('   Location: reddit.com/r/AICompanion\n</FINISHED_JOBS_IN_UNIT>');
+      expect(t.loop().systemPrompt).toContain('in this Job or in a finished Job of the Unit, copy that place');
     });
 
     it('shows the planner the screenshot the review judged, and tells it the screenshot is there', async () => {

@@ -9,6 +9,7 @@ import type { JobExecutionJobData } from '../../../queue/types/job-execution-job
 import type { TaskExecutionJobData } from '../../../queue/types/task-execution-job-data';
 import { MAX_TASKS_PER_JOB } from '../../../reasoning/job/job-reasoning.constants';
 import { JobReasoningService } from '../../../reasoning/job/job-reasoning.service';
+import type { FinishedSiblingJob } from '../../../reasoning/job/types/finished-sibling-job';
 import type { OpenSiblingJob } from '../../../reasoning/job/types/open-sibling-job';
 import type { TaskOutcome } from '../../../reasoning/job/types/task-outcome';
 import type { JobEntity } from '../../entities/job.entity';
@@ -32,6 +33,7 @@ type JobRun = {
   readonly job: JobEntity;
   readonly safeContext: string;
   readonly openSiblingJobs: readonly OpenSiblingJob[];
+  readonly finishedSiblingJobs: readonly FinishedSiblingJob[];
 };
 
 /**
@@ -125,18 +127,26 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
   }
 
   /**
-   * Gathers what one review or plan needs beyond the Job itself: the owner context, and the Job's open
-   * siblings in its Unit, so Job reasoning leaves their work to them instead of doing it early.
+   * Gathers what one review or plan needs beyond the Job itself: the owner context, the Job's open
+   * siblings in its Unit, so Job reasoning leaves their work to them instead of doing it early, and its
+   * finished siblings with their complete Tasks, so it builds on what they made instead of searching for it.
    */
   private async startRun(workflowId: string, job: JobEntity): Promise<JobRun> {
     const [context, unitJobs] = await Promise.all([
       this.memory.retrieveSafeContext({ owner: job.unitOfWork.strategy.owner, query: job.objective, limit: JOB_CONTEXT_RECORD_LIMIT }),
       this.jobs.listJobsInUnits([job.unitOfWorkId]),
     ]);
-    const openSiblingJobs = unitJobs
-      .filter((unitJob) => unitJob.id !== job.id && unitJob.outcomeStatus === null)
+    const siblingJobs = unitJobs.filter((unitJob) => unitJob.id !== job.id);
+    const openSiblingJobs = siblingJobs
+      .filter((siblingJob) => siblingJob.outcomeStatus === null)
       .map((siblingJob) => ({ name: siblingJob.name, objective: siblingJob.objective }));
-    return { workflowId, job, safeContext: context.promptBlock, openSiblingJobs };
+    const finishedJobs = siblingJobs.filter((siblingJob) => siblingJob.outcomeStatus !== null);
+    const finishedTasks = await this.tasks.listTasksInJobs(finishedJobs.map((finishedJob) => finishedJob.id));
+    const finishedSiblingJobs = finishedJobs.map((finishedJob) => ({
+      name: finishedJob.name,
+      outcomes: finishedTasks.filter((task) => task.jobId === finishedJob.id && task.status === 'complete').map(toTaskOutcome),
+    }));
+    return { workflowId, job, safeContext: context.promptBlock, openSiblingJobs, finishedSiblingJobs };
   }
 
   /**
@@ -227,6 +237,7 @@ export class JobExecutionProcessor extends LoggedWorkerHost {
       objective: run.job.objective,
       unitOfWorkName: run.job.unitOfWork.name,
       openSiblingJobs: run.openSiblingJobs,
+      finishedSiblingJobs: run.finishedSiblingJobs,
       safeContext: run.safeContext,
     };
   }

@@ -115,14 +115,14 @@ sequenceDiagram
     O->>DB: createUnitOfWork — the Unit and its Jobs in one write
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
-        JW->>J: reviewJob(job, openSiblingJobs, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
+        JW->>J: reviewJob(job, openSiblingJobs, finishedSiblingJobs, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
         J-->>JW: JobReview { decision, rationale, revisionNotes, summary }
         opt met, abandoned, or a guardrail hit
             JW->>DB: JobService.closeJob (success · abandoned · failed)
         end
     end
     opt no Tasks yet, or the review says revise
-        JW->>J: planTasks(job, openSiblingJobs, reason, history, remainingTasks, tasksStarted)
+        JW->>J: planTasks(job, openSiblingJobs, finishedSiblingJobs, reason, history, remainingTasks, tasksStarted)
         J->>J: tool loop: view / add / update / remove / move over a draft → finish_plan
         J-->>JW: the edited plan (action + skill per Task)
         JW->>DB: TaskService.replaceRemainingTasks(draft), or closeJob failed if empty
