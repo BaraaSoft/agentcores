@@ -11,7 +11,7 @@ import { DisplayGeometry } from '../geometry/display-geometry';
 import { redactSecrets } from '../utils/redact-secrets';
 import { MuseComputerTools } from './muse-computer-tools';
 import { MuseConversation } from './muse-conversation';
-import { buildMuseSystemPrompt, MUSE_NUDGE } from './muse-execution.prompts';
+import { buildMuseSystemPrompt, MUSE_LAST_TURN_NOTE, MUSE_NUDGE } from './muse-execution.prompts';
 import { MUSE_TASK_REPORT_TOOL } from './muse-task-report-tool';
 import { normalizeMuseReport } from './normalize-muse-report';
 
@@ -85,8 +85,12 @@ export class MuseComputerUseProvider implements ExecutionProvider {
           conversation.addUserText(MUSE_NUDGE);
           continue;
         }
-        report = this.reportOf(calls);
-        if (report === null) conversation.addToolResults(await this.perform(calls, tools, executor, signal));
+        const isLastTurn = stepsTaken === task.maxSteps;
+        report = this.reportOf(calls, isLastTurn);
+        if (report === null) {
+          const results = await this.perform(calls, tools, executor, signal);
+          conversation.addToolResults(results, stepsTaken === task.maxSteps - 1 ? MUSE_LAST_TURN_NOTE : undefined);
+        }
       }
     } catch (error) {
       if (signal?.aborted) return this.cancelled(stepsTaken);
@@ -163,10 +167,14 @@ export class MuseComputerUseProvider implements ExecutionProvider {
     return { type: 'tool_result', tool_use_id: call.id, content: message, is_error: true };
   }
 
-  /** The report input when the turn's only tool call is `submit_task_report`; otherwise null. */
-  private reportOf(calls: readonly ToolUseBlock[]): unknown {
-    const [only] = calls;
-    return calls.length === 1 && only.name === MUSE_TASK_REPORT_TOOL.name ? only.input : null;
+  /**
+   * The report input when the turn's only tool call is `submit_task_report`; otherwise null. On the last turn a
+   * report sent with actions counts too, and the actions are skipped, since no later turn could report them.
+   */
+  private reportOf(calls: readonly ToolUseBlock[], isLastTurn: boolean): unknown {
+    const reports = calls.filter((call) => call.name === MUSE_TASK_REPORT_TOOL.name);
+    if (reports.length === 0) return null;
+    return calls.length === 1 || isLastTurn ? reports[0].input : null;
   }
 
   private cancelled(stepsTaken: number): ExecutionResult {

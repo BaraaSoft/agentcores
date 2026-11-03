@@ -31,9 +31,9 @@ export class MuseConversation {
     this.history.push({ role: 'assistant', content: content as Anthropic.Messages.ContentBlockParam[] });
   }
 
-  /** Answers every tool call of the last turn, then drops screenshots past the newest few. */
-  addToolResults(results: readonly ToolResultBlockParam[]): void {
-    this.history.push({ role: 'user', content: [...results] });
+  /** Answers every tool call of the last turn, with an optional note after them, then drops screenshots past the newest few. */
+  addToolResults(results: readonly ToolResultBlockParam[], note?: string): void {
+    this.history.push({ role: 'user', content: note === undefined ? [...results] : [...results, { type: 'text', text: note }] });
     this.dropOldScreenshots();
   }
 

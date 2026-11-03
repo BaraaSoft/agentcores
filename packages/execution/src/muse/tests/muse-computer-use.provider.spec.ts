@@ -180,6 +180,30 @@ describe('MuseComputerUseProvider', () => {
     });
   });
 
+  it('asks for a report before the last turn, and only then', async () => {
+    const requests: Request[] = [];
+    const turns = Array.from({ length: 3 }, () => turn('tool_use', call('screenshot')));
+    await createProvider(new FakeDesktopDriver(), turns, requests).runTask({ ...task, maxSteps: 3 });
+
+    const notesIn = (request: Request) => JSON.stringify(request.messages.at(-1)).includes('This is your last turn.');
+    expect(requests.map(notesIn)).toEqual([false, false, true]);
+  });
+
+  it('accepts a report sent with actions on the last turn, and skips the actions', async () => {
+    const desktop = new FakeDesktopDriver();
+    const provider = createProvider(desktop, [
+      turn('tool_use', call('screenshot')),
+      reportTurn({ status: 'failed', summary: 'Found the file on the Desktop, but did not open it.' }, call('left_click', { coordinate: [10, 10] })),
+    ]);
+
+    expect(await provider.runTask({ ...task, maxSteps: 2 })).toMatchObject({
+      status: 'failed',
+      summary: 'Found the file on the Desktop, but did not open it.',
+      stepsTaken: 2,
+    });
+    expect(desktop.calls).not.toContain('click left x1');
+  });
+
   it('returns a cancelled result when the signal aborts', async () => {
     const controller = new AbortController();
     controller.abort();

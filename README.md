@@ -323,6 +323,7 @@ Read the design documents for the details:
 
 | Day | What AHE can now do |
 | --- | --- |
+| 4 Nov | Report what it did when a step runs out of time, so it never repeats finished work |
 | 3 Nov | Prove its self-review with a benchmark, run CI on every package, start with one command, and show each Job's work |
 | 2 Nov | Use the computer with Meta Muse, run and pause many runs in WorkHub, launch a Strategy from a form, and show the work live |
 | 1 Nov | Think with Meta Muse, research the brief on the web, aim for creative design, and show a dashboard |
