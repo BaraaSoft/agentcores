@@ -10,8 +10,8 @@ const JOB_FOLDER_PREFIX = 'job-';
 /**
  * Keeps the final screen of visual Tasks on disk, at `job-<jobId>/screenshots/<taskId>.png` under the
  * temporary data folder, so Job review and the evaluator can see the work. A Task keeps only its
- * latest screenshot. The files are temporary: a Job's folder is deleted once the Job is evaluated, and
- * the orchestrator's sweep deletes any folder left behind.
+ * latest screenshot. The files are temporary: they stay after the evaluation, so the owner can see the
+ * work, and the orchestrator's sweep deletes a Job's folder two days after its last write.
  */
 @Injectable()
 export class JobScreenshotService {

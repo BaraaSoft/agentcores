@@ -1,4 +1,5 @@
 import { Briefcase } from 'lucide-react';
+import { jobScreenshotUrl } from '../../../api/jobs-api';
 import type { JobProgress } from '../../../api/types/job-progress';
 import type { StatusTone } from '../../../components/monitoring-components/types/status-tone';
 import type { NodePresentation } from './node-presentation';
@@ -35,6 +36,12 @@ function openJobStatus(job: JobProgress, waitsForEarlierJob: boolean, isPaused: 
   return { tone: 'live', badge: 'Reviewing' };
 }
 
+/** When the Job's last Task finished, or null before any has. A Task saves its screenshot before it finishes. */
+function lastFinishedAt(job: JobProgress): string | null {
+  const finished = job.tasks.flatMap((task) => (task.completedAt === null ? [] : [task.completedAt]));
+  return finished.length === 0 ? null : finished.reduce((latest, at) => (Date.parse(at) > Date.parse(latest) ? at : latest));
+}
+
 /** The tone and badge of a Job, from its outcome, its evaluation, its Tasks, and whether its Unit is paused. */
 function jobStatus(job: JobProgress, waitsForEarlierJob: boolean, isPaused: boolean): JobStatus {
   return job.outcomeStatus === null ? openJobStatus(job, waitsForEarlierJob, isPaused) : closedJobStatus(job, isPaused);
@@ -50,7 +57,11 @@ export function presentJob(job: JobProgress, waitsForEarlierJob: boolean, isPaus
   const total = job.tasks.length;
   const score = job.evaluation?.state === 'scored' && job.evaluation.score !== null ? `Score ${job.evaluation.score}` : undefined;
   const evaluation = job.evaluation;
+  const screenshotVersion = lastFinishedAt(job);
   const sections = [
+    ...(screenshotVersion === null
+      ? []
+      : [{ heading: 'Screenshot', image: { src: jobScreenshotUrl(job.id, screenshotVersion), alt: `The final screen of ${job.name}` } }]),
     { heading: 'Objective', body: job.objective },
     ...(job.outcomeSummary === null ? [] : [{ heading: 'Outcome', body: job.outcomeSummary }]),
     ...(evaluation === null || evaluation.whatGood === '' ? [] : [{ heading: 'What was good', body: evaluation.whatGood }]),

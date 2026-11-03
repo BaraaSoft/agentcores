@@ -4,13 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink, X } from 'lucide-react';
 import { glassSurface } from '../../../theme/glass-surface';
 import { StatusBadge } from '../status-badge/status-badge';
+import type { InspectorSection } from '../types/inspector-section';
 import type { StatusTone } from '../types/status-tone';
-
-/** One block of text in the inspector, such as "Objective" or "What was good". */
-interface InspectorSection {
-  readonly heading: string;
-  readonly body: string;
-}
+import { InspectorImage } from './inspector-image';
 
 /** What the inspector shows for the selected card. Null closes it. */
 export interface NodeInspectorProps {
@@ -169,12 +165,26 @@ export function NodeInspector({ node, onClose }: NodeInspectorProps) {
             </Badges>
           </Head>
           <Body>
-            {node.sections.map((section) => (
-              <Section key={section.heading}>
-                <Heading>{section.heading}</Heading>
-                <Text>{section.body}</Text>
-              </Section>
-            ))}
+            {node.sections.map((section) =>
+              'image' in section ? (
+                <InspectorImage
+                  key={section.image.src}
+                  src={section.image.src}
+                  alt={section.image.alt}
+                  frame={(image) => (
+                    <Section>
+                      <Heading>{section.heading}</Heading>
+                      {image}
+                    </Section>
+                  )}
+                />
+              ) : (
+                <Section key={section.heading}>
+                  <Heading>{section.heading}</Heading>
+                  <Text>{section.body}</Text>
+                </Section>
+              ),
+            )}
             {node.link !== undefined && (
               <Section>
                 <Heading>Where</Heading>

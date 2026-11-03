@@ -387,6 +387,7 @@ screen of every step. The Task processor saves it with `JobScreenshotService` at
 | `planTasks` | The same screenshot, when it runs right after a review (`revise`, or `continue` with an empty plan); none for a Job's first plan. It goes in the tool loop's first message, so it stays for every turn |
 | `judgeJob` | The Job's newest screenshot |
 | Task reasoning | Nothing: the screenshot is stripped from the `ExecutionResult` before it enters `history` |
+| The dashboard | `GET /api/jobs/:id/screenshot`: the screenshot of the last Task in the Job's sequence that has one, as a PNG, or 404. The Monitor Job panel shows it, and a click opens it full screen |
 
 The Job's folder stays after its evaluation, so the owner can look at the work. `JobScreenshotService.deleteJobScreenshots`
 is kept for a later owner-triggered cleanup. Each orchestrator pass deletes every Job folder untouched for
