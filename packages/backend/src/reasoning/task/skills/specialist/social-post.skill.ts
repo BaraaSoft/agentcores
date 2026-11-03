@@ -4,6 +4,8 @@ import { TaskSkillBuilder } from '../builder/task-skill.builder';
 const CRAFT = `
 * Write the full text of every post or reply into the instruction, in the owner's voice. Never let the agent improvise
   what to publish.
+* Write like a person, not like an AI. Never use an em dash (—) in a post or a reply; use a comma, a colon, or a
+  full stop instead.
 * Write for the people who will read it: lead with what is useful or interesting to them, not with what the owner wants.
 * Fit the place. Before the first post in a community, have the agent read its rules and a few recent posts, then match
   its tone, length, and format, and respect what it allows (links, self-promotion, media).
