@@ -5,13 +5,13 @@ import type { ActionOutcome } from '../actions/action-outcome';
 import { ActionRefusedError } from '../actions/action-refused.error';
 import type { ComputerUseComponents } from '../computer-use/computer-use-components';
 import type { ComputerUseOptions } from '../computer-use/computer-use-options';
-import { buildTaskPrompt } from '../computer-use/execution.prompts';
+import { buildTaskPrompt, LAST_TURN_NOTE } from '../computer-use/execution.prompts';
 import type { ExecutionTurn } from '../computer-use/types/execution-turn';
 import { DisplayGeometry } from '../geometry/display-geometry';
 import { redactSecrets } from '../utils/redact-secrets';
 import { MuseComputerTools } from './muse-computer-tools';
 import { MuseConversation } from './muse-conversation';
-import { buildMuseSystemPrompt, MUSE_LAST_TURN_NOTE, MUSE_NUDGE } from './muse-execution.prompts';
+import { buildMuseSystemPrompt, MUSE_NUDGE } from './muse-execution.prompts';
 import { MUSE_TASK_REPORT_TOOL } from './muse-task-report-tool';
 import { normalizeMuseReport } from './normalize-muse-report';
 
@@ -89,7 +89,7 @@ export class MuseComputerUseProvider implements ExecutionProvider {
         report = this.reportOf(calls, isLastTurn);
         if (report === null) {
           const results = await this.perform(calls, tools, executor, signal);
-          conversation.addToolResults(results, stepsTaken === task.maxSteps - 1 ? MUSE_LAST_TURN_NOTE : undefined);
+          conversation.addToolResults(results, stepsTaken === task.maxSteps - 1 ? LAST_TURN_NOTE : undefined);
         }
       }
     } catch (error) {

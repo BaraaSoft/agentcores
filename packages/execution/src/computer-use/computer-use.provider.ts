@@ -1,4 +1,5 @@
 import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@ahe/agent-core';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { ActionExecutor } from '../actions/action-executor';
 import { AnthropicComputerToolset } from '../anthropic/anthropic-computer-toolset';
@@ -7,8 +8,10 @@ import { DisplayGeometry } from '../geometry/display-geometry';
 import { redactSecrets } from '../utils/redact-secrets';
 import type { ComputerUseComponents } from './computer-use-components';
 import type { ComputerUseOptions } from './computer-use-options';
-import { buildSystemPrompt, buildTaskPrompt } from './execution.prompts';
+import { buildSystemPrompt, buildTaskPrompt, LAST_TURN_NOTE } from './execution.prompts';
 import type { ExecutionTurn } from './types/execution-turn';
+
+type ToolRunner = ReturnType<Anthropic['beta']['messages']['toolRunner']>;
 
 /**
  * The execution layer. Runs one mechanical instruction through Anthropic's computer-use
@@ -54,10 +57,11 @@ export class ComputerUseProvider implements ExecutionProvider {
         stepsTaken += 1;
         lastMessage = message;
         this.options.onTurn?.(this.turnOf(stepsTaken, message, secrets));
-        report = this.reportOf(message);
+        report = this.reportOf(message, stepsTaken === task.maxSteps);
         if (report !== null) {
           break;
         }
+        if (stepsTaken === task.maxSteps - 1) await this.addLastTurnNote(runner, message, signal);
       }
     } catch (error) {
       if (signal?.aborted) {
@@ -124,11 +128,28 @@ export class ComputerUseProvider implements ExecutionProvider {
     }
   }
 
-  /** The report input when the message's only tool call is `submit_task_report`; otherwise null. */
-  private reportOf(message: BetaMessage): unknown {
+  /**
+   * The report input when the message's only tool call is `submit_task_report`; otherwise null. On the last turn a
+   * report sent with actions counts too, and the actions are skipped, since no later turn could report them.
+   */
+  private reportOf(message: BetaMessage, isLastTurn: boolean): unknown {
     const toolUses = message.content.filter((block) => block.type === 'tool_use');
-    const [only] = toolUses;
-    return toolUses.length === 1 && only.name === TASK_REPORT_TOOL.name ? only.input : null;
+    const reports = toolUses.filter((block) => block.name === TASK_REPORT_TOOL.name);
+    if (reports.length === 0) return null;
+    return toolUses.length === 1 || isLastTurn ? reports[0].input : null;
+  }
+
+  /**
+   * Runs this turn's tools and puts their results in the history with `LAST_TURN_NOTE` after them. The runner sees
+   * the changed history, so it does not add the results a second time.
+   */
+  private async addLastTurnNote(runner: ToolRunner, message: BetaMessage, signal?: AbortSignal): Promise<void> {
+    const toolResponse = await runner.generateToolResponse(signal);
+    if (toolResponse === null || typeof toolResponse.content === 'string') return;
+    runner.pushMessages(
+      { role: 'assistant', content: message.content },
+      { role: 'user', content: [...toolResponse.content, { type: 'text', text: LAST_TURN_NOTE }] },
+    );
   }
 
   private turnOf(turn: number, message: BetaMessage, secrets: readonly string[]): ExecutionTurn {
