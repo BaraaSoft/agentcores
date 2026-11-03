@@ -2,6 +2,11 @@ import { ApiError } from './api-error';
 
 const API_PREFIX = '/api';
 
+/** The browser address of a backend route, for an element that loads it itself, such as an `<img>`. */
+export function apiUrl(path: string): string {
+  return `${API_PREFIX}${path}`;
+}
+
 /** The readable reason in a backend error body. Validation errors list one message per field. */
 async function errorReason(response: Response): Promise<string | null> {
   const body = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
@@ -11,7 +16,7 @@ async function errorReason(response: Response): Promise<string | null> {
 }
 
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${API_PREFIX}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method,
     headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

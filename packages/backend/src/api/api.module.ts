@@ -5,6 +5,8 @@ import { ReportingModule } from '../reporting/reporting.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { EscalationsController } from './escalations/escalations.controller';
 import { EscalationsApiService } from './escalations/escalations-api.service';
+import { JobsController } from './jobs/jobs.controller';
+import { JobsApiService } from './jobs/jobs-api.service';
 import { StrategiesController } from './strategies/strategies.controller';
 import { StrategiesApiService } from './strategies/strategies-api.service';
 import { WorkflowEscalationsController } from './workflows/escalations/workflow-escalations.controller';
@@ -31,6 +33,7 @@ import { WorkflowsApiService } from './workflows/workflows-api.service';
     ReportsController,
     WorkflowEscalationsController,
     EscalationsController,
+    JobsController,
   ],
   providers: [
     StrategiesApiService,
@@ -39,6 +42,7 @@ import { WorkflowsApiService } from './workflows/workflows-api.service';
     ReportsApiService,
     WorkflowEscalationsApiService,
     EscalationsApiService,
+    JobsApiService,
   ],
 })
 export class ApiModule {}
