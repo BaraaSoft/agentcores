@@ -1,5 +1,3 @@
-
-
 ![AHE: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
 
 ### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
@@ -7,11 +5,6 @@
 ![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
 
 **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Architecture](#architecture)**
-
-
-
-  
-
 
 ## What AHE is
 
@@ -51,12 +44,12 @@ work, such as a community on X, runs in rounds of experiments with no finish lin
 types, scrolls, and zooms to read small text.
 - **Research first.** Before it plans, it reads the links in your brief and searches the web for every name
 in it. It also studies how the best current work of that kind looks.
-- **Honest self-review.** It reviews each Job against the real screenshot, not a summary. When it does not
+- **Self-review.** It reviews each Job against the real screenshot, not a summary. When it does not  
 know what good looks like, it searches the web for strong examples first.
 - **Real evidence.** A post reviewed one minute after it went live has no likes yet. So AHE sends a real Job
 back to the computer to open the post and read the numbers. Then it reviews.
-- **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run
-of the same goal reads the last three runs. Past verdicts are stored as vectors, so AHE finds similar work
+- **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run  
+of the same goal reads the last three runs. Past verdicts are stored, so AHE finds similar work  
 by meaning.
 - **Recovery on its own.** It closes popups and reloads broken pages. It waits out rate limits. After a crash,
 it plans from what is already on the screen, so it never repeats a half-done step blindly.
@@ -84,12 +77,10 @@ AHE uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints
 
 ![The Job panel with the screenshot of the work, the objective, the outcome, and the agent's own review](.github/assets/monitor-judged.png)
 
-Click any card to open its details. A Job shows the final screen of its work, the objective, the outcome, and
+Click any card to open its details. A Job shows the final screen of its work, the objective, the outcome, and  
 the agent's own review: what worked, and what to fix. Click the screenshot to see it full screen.
 
-In this run, AHE reviewed its first logo and called it "correct but generic". Attempt 2 keeps the clean layers
-and fixes the weak idea with one bolder one: a path that returns to its start. The mark shows an agent that
-learns from its work and redirects.
+
 
 ### Brief it like a colleague
 
@@ -106,8 +97,8 @@ learns from its work and redirects.
 
 A Strategy is a reusable goal. Each Workflow is one run of it: running, paused, or done. **WorkHub** lists every
 run. Pause one, resume it, or open it in Monitor. To start a goal again from round 1, pick it in **Run again**.
-The fresh run still learns from the earlier runs. One Mac runs one Workflow at a time, so AHE pauses the
-current run first.
+The fresh run still learns from the earlier runs.   
+One Mac runs one Workflow at a time, so AHE pauses the current run first.
 
 ## How it works
 
@@ -132,13 +123,17 @@ evaluator. This keeps long autonomy cheap, and the thread stays clear after hund
 ### The loop that makes it better
 
 1. **Plan.** The Strategy planner researches the brief and writes the Jobs of the next round. Each round names
+
    the idea it tests, and why.
 2. **Act.** For each Task, the Task planner writes one step. The hands-on agent does the work on screen and
+
    reports back. The planner reads the result and writes the next step, until the Task is done.
 3. **Review.** The Job reviewer checks every finished Task. It continues, revises the plan, or closes the Job.
 4. **Reflect.** When a round ends, the evaluator reviews each Job. It writes what worked and what to fix, as
+
    advice for its own planner.
 5. **Self-improve.** The next round keeps what worked and fixes what did not. When the stop rule says the goal
+
    is met, the run is done.
 
 The orchestrator moves every run forward once a minute. A pass decides when a round opens, when it is reviewed,
@@ -146,17 +141,16 @@ and which Jobs may start.
 
 ### Thinking and doing are separate
 
-The **reasoning layer** plans and reviews. It writes structured JSON and never touches the screen. The
-**execution layer** sees the screen, and clicks and types. It gets one plain instruction, the scope of its Task,
-and nothing else. Each level picks its own model, so a fast model can plan every step and a strong model can
-review.
+The **reasoning layer** plans and reviews. It never touches the screen. The **execution layer** sees the screen,   
+and clicks and types. It gets one plain instruction, the scope of its Task, and nothing else.   
+Each level picks its own model, so a fast model can plan every step and a strong model can review.
 
 ## Quick start
 
 ### What you need
 
 - **A Mac with macOS.** AHE controls this Mac's own screen. Use a Mac that the agent can have while it works.
-- **Docker Desktop**, for Postgres and Redis.
+- **Docker Desktop**
 - **Node.js 22** and **pnpm 10**. Run `corepack enable` to get pnpm.
 - **Xcode Command Line Tools**, for the native mouse and keyboard module. Run `xcode-select --install`.
 - **A Meta API key** for Muse. An Anthropic key also works, if you want Claude.
@@ -165,44 +159,44 @@ review.
 
 1. Clone the repository and install the packages.
    ```bash
-    git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
-    cd ahe-autonomous-agent
-    corepack enable
-    pnpm install
+     git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
+     cd ahe-autonomous-agent
+     corepack enable
+     pnpm install
    ```
 2. Create your `.env` file from the example.
    ```bash
-    cp .env.example .env
+     cp .env.example .env
    ```
 3. Open `.env`. Add your Meta key, and set every layer to Muse.
    ```dotenv
-    META_API_KEY=your-meta-api-key
+     META_API_KEY=your-meta-api-key
 
-    REASONING_STRATEGY_PROVIDER=muse
-    REASONING_JOB_PROVIDER=muse
-    REASONING_TASK_PROVIDER=muse
-    EXECUTION_PROVIDER=muse
+     REASONING_STRATEGY_PROVIDER=muse
+     REASONING_JOB_PROVIDER=muse
+     REASONING_TASK_PROVIDER=muse
+     EXECUTION_PROVIDER=muse
    ```
 4. Start the database and the queue. Leave this terminal open.
    ```bash
-    pnpm compose:up
+     pnpm compose:up
    ```
 
-    This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
+     This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
 5. In a new terminal, give the agent the screen.
    ```bash
-    pnpm --filter @ahe/execution check:desktop
+     pnpm --filter @ahe/execution check:desktop
    ```
 
-    macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow both, then
-    restart the terminal. The check saves one screenshot, and it sends no mouse or keyboard input.
+     macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow both, then
+     restart the terminal. The check saves one screenshot, and it sends no mouse or keyboard input.
 6. Launch AHE.
    ```bash
-    pnpm dev:start
+     pnpm dev:start
    ```
 
-    This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
-    embedding model, one time.
+     This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
+     embedding model, one time.
 7. Open [http://localhost:5173](http://localhost:5173), and create your first strategy. Start small, for
 
    example: *"Open Figma, create a file named AHE test, and draw a calm blue circle."*
@@ -223,8 +217,7 @@ The Anthropic provider uses `ANTHROPIC_API_KEY`.
 | `REASONING_TASK_PROVIDER` | Plans every step, the hot path | `muse-wonder-1.0` |
 | `EXECUTION_PROVIDER` | Sees the screen, clicks, and types | `muse-wonder-1.0` |
 
-Each provider has a matching `_MODEL_ID` setting. We suggest `muse-spark-1.3` for the Task planner, because it
-is faster. Keep `muse-wonder-1.0` for execution, because Spark often stops early on screen work.
+Each provider has a matching `_MODEL_ID` setting. We suggest `muse-wonder-1.0`
 
 ### Useful commands
 
@@ -275,7 +268,7 @@ yet, so no private memory reaches the agent today.
 packages/
 ├── agent-core/    shared domain types and contracts
 ├── backend/       NestJS: the API, the reasoning layer, the BullMQ queues, and the orchestrator
-├── execution/     computer use: the macOS driver, and the Claude and Muse providers
+├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
 ├── migrations/    TypeORM migrations, applied by Docker on start
 └── web-ui/        the React dashboard
 ```
@@ -284,7 +277,10 @@ packages/
 React with Vite, Emotion, and Framer Motion. The execution layer uses robotjs for input, macOS `screencapture`
 for pixels, and sharp to scale each screenshot.
 
-**The engineering rules we hold to:**
+<details>
+<summary><b>Engineering notes</b>: the rules we hold to, and the design documents</summary>
+
+<br/>
 
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
 order changes nothing.
@@ -300,7 +296,9 @@ Read the design documents for the details:
 | [Orchestrator](packages/backend/src/orchestrator/tech-spec.md) | Runs, work types, the scheduling pass, and when work is reviewed |
 | [Governance processors](packages/backend/src/governance/processors/tech-spec.md) | How Jobs and Tasks move, wait, fail, and recover |
 | [Reasoning](packages/backend/src/reasoning/tech-spec.md) | Every planner and the evaluator, their inputs, and their prompts |
-| [Execution](packages/execution/tech-spec.md) | The computer-use loop, the macOS driver, and the providers |
+| [Execution](packages/execution/tech-spec.md) | The hands-on loop, the macOS driver, and the providers |
+
+</details>
 
 ## Roadmap
 
@@ -313,5 +311,4 @@ Read the design documents for the details:
 
 AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
 
-  
 Built by [Baraa](https://github.com/BaraaSoft) for the Meta Hackathon, 2026.
