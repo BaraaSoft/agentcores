@@ -25,6 +25,10 @@ export function buildMuseSystemPrompt(input: SystemPromptInput & { readonly scre
 ${buildSystemPrompt(input)}`;
 }
 
+/** Sent with the tool results before the last turn, so a step that runs out of turns still reports its work. */
+export const MUSE_LAST_TURN_NOTE =
+  'This is your last turn. Call submit_task_report now. If the instruction is finished, report done. If not, report failed, and say what you finished, what is left, and where the work is.';
+
 /** Sent when Muse ends a turn without a tool call. */
 export const MUSE_NUDGE =
   'Every turn must call a tool. If the instruction is finished, or you are blocked, call submit_task_report alone now; otherwise take your next action.';
