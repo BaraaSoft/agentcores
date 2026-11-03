@@ -25,6 +25,7 @@ import {
   EARLIER_RUN_UNITS_OF_WORK_LIMIT,
   EARLIER_RUNS_LIMIT,
   EARLIER_UNITS_OF_WORK_LIMIT,
+  INTERRUPTED_TASK_REASON,
   RELATED_EVALUATIONS_LIMIT,
   SCHEDULING_INTERVAL_MS,
   STUCK_TASK_MS,
@@ -66,9 +67,10 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
   ) {}
 
   /**
-   * Starts the scheduling loop.
+   * Ends the Tasks a stop or a crash cut off, then starts the scheduling loop.
    */
-  onApplicationBootstrap(): void {
+  async onApplicationBootstrap(): Promise<void> {
+    await this.failInterruptedTasks();
     this.timer = setInterval(() => void this.runScheduledPass(), SCHEDULING_INTERVAL_MS);
   }
 
@@ -179,6 +181,21 @@ export class OrchestratorService implements OnApplicationBootstrap, OnApplicatio
     await this.sweepStaleScreenshots();
     await this.reportStrayRunningTasks();
     return results;
+  }
+
+  /**
+   * A Task still `running` at start-up holds its Job forever, because nothing will finish it. Ending it
+   * `failed` makes it a finished Task awaiting review, so the next pass queues its Job and Job review plans
+   * from the state it left. A failed repair is logged and never stops the start-up.
+   */
+  private async failInterruptedTasks(): Promise<void> {
+    try {
+      const count = await this.tasks.failInterruptedTasks(INTERRUPTED_TASK_REASON);
+      if (count > 0)
+        this.logger.warn(`Ended ${count} Task${count === 1 ? '' : 's'} that ran when the backend stopped; Job review plans from there`);
+    } catch (error) {
+      this.logger.warn(`Interrupted Task repair failed: ${this.describe(error)}`);
+    }
   }
 
   /**

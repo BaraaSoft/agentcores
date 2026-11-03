@@ -1,4 +1,5 @@
 import type { AccountCredentials } from './account-credentials';
+import type { ExecutionScope } from './execution-scope';
 
 /**
  * What the backend's Task processor hands to the execution layer: one mechanical instruction
@@ -10,6 +11,8 @@ export interface ExecutionTask {
   /** Concrete instruction, e.g. "Open r/AICompanion and reply to the top thread with this text: …". */
   readonly instruction: string;
   readonly context: string;
+  /** The Task around the instruction and the work left for later Tasks. Left out when there is no Task, as in a desktop check. */
+  readonly scope?: ExecutionScope;
   /** Hard cap on computer-use loop iterations before giving up. */
   readonly maxSteps: number;
   /** Login for the account this task acts as, so a signed-out session can be resumed. `null` when none is needed. */

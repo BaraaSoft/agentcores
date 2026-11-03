@@ -15,8 +15,15 @@ function renderStep(step: StepRecord, index: number): string {
   return lines.join('\n');
 }
 
+/** The Job's later Tasks, with the rule that keeps this Task's steps off their work. */
+function renderLaterTasks(laterTasks: readonly string[]): string {
+  if (laterTasks.length === 0) return 'None — this is the last planned Task of the Job.';
+  const list = laterTasks.map((action, index) => `${index + 1}. ${action}`).join('\n');
+  return `${list}\nThis work is left for those Tasks. Plan no step that starts it, and mark this Task done once its own action is done.`;
+}
+
 /**
- * Renders the Task, the owner context, the Job's earlier Tasks, every step so far, and the account
+ * Renders the Task, the owner context, the Job's earlier and later Tasks, every step so far, and the account
  * pressure as tagged text.
  * Every Task reasoning method reads this same block.
  */
@@ -33,6 +40,10 @@ ${input.safeContext || 'None.'}
 <EARLIER_TASKS_IN_THIS_JOB>
 ${renderTaskOutcomes(input.earlierTasks, 'None — this is the first Task of the Job.')}
 </EARLIER_TASKS_IN_THIS_JOB>
+
+<LATER_TASKS_IN_THIS_JOB>
+${renderLaterTasks(input.laterTasks)}
+</LATER_TASKS_IN_THIS_JOB>
 
 <STEPS_SO_FAR>
 ${input.history.length === 0 ? 'None — this is the first step.' : input.history.map(renderStep).join('\n')}

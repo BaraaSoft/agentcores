@@ -15,6 +15,7 @@ import type { JobScreenshotService } from '../../../services/job-screenshot.serv
 import type { MetricsService } from '../../../services/metrics.service';
 import type { TaskService } from '../../../services/task.service';
 import { TASK_SKILLS } from '../../../../reasoning/task/skills';
+import { ExecutionPaceMeter } from '../execution-pace-meter';
 import { MAX_TASK_ITERATIONS } from '../task-execution.constants';
 import { TaskExecutionProcessor } from '../task-execution.processor';
 
@@ -102,7 +103,14 @@ function setup() {
     markTaskComplete: jest.fn(),
     markTaskFailed: jest.fn(),
     isTaskPaused: jest.fn().mockResolvedValue(false),
-    listTasks: jest.fn().mockResolvedValue([EARLIER_TASK, task, { ...EARLIER_TASK, id: 'task-3', sequence: 3, status: 'pending' }]),
+    listTasks: jest
+      .fn()
+      .mockResolvedValue([
+        EARLIER_TASK,
+        task,
+        { ...EARLIER_TASK, id: 'task-3', sequence: 3, status: 'pending', action: 'Upvote the replies to our comment' },
+        { ...EARLIER_TASK, id: 'task-4', sequence: 4, status: 'cancelled', action: 'Dropped from the plan' },
+      ]),
   };
   const screenshots = { saveTaskScreenshot: jest.fn() };
   const metrics = { recordReadings: jest.fn() };
@@ -130,6 +138,7 @@ function setup() {
     identity as unknown as IdentityService,
     reporting as unknown as ReportingService,
     screenshots as unknown as JobScreenshotService,
+    new ExecutionPaceMeter(),
   );
   const run = () => processor.process({ data: { workflowId: WORKFLOW_ID, taskId: TASK_ID } } as Job<TaskExecutionJobData>);
 
@@ -239,6 +248,20 @@ describe('TaskExecutionProcessor', () => {
     expect(t.taskQueue.add).not.toHaveBeenCalled();
   });
 
+  it("tells both layers the Task's own action and the Job's pending later Tasks, so neither starts their work", async () => {
+    const t = setup();
+    t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ isTaskDone: true }));
+    t.execution.runTask.mockResolvedValueOnce(result());
+
+    await t.run();
+
+    expect(t.reasoning.planNextStep.mock.calls[0][0].laterTasks).toEqual(['Upvote the replies to our comment']);
+    expect(t.execution.runTask.mock.calls[0][0]).toMatchObject({
+      scope: { taskAction: 'Reply to the top thread on r/AICompanion', laterTasks: ['Upvote the replies to our comment'] },
+      context: expect.not.stringContaining('Upvote the replies'),
+    });
+  });
+
   it('stops before the next step once the owner pauses the run, and fails the Task with what it already did', async () => {
     const t = setup();
     t.reasoning.planNextStep.mockResolvedValueOnce(step()).mockResolvedValueOnce(step({ instruction: 'Publish the post' }));
@@ -299,6 +322,7 @@ describe('TaskExecutionProcessor', () => {
       jobObjective: 'Engage with r/AICompanion',
       safeContext: 'Voice: warm, short.',
       earlierTasks: [EARLIER_OUTCOME],
+      laterTasks: ['Upvote the replies to our comment'],
       history: [{ instruction: step().instruction, platform: null, result: first }],
       recentChallengeCount: 0,
     });

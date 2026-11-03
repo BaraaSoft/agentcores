@@ -9,6 +9,7 @@ import { registerQueues } from '../../../queue/register-queues';
 import { ReasoningModule } from '../../../reasoning/reasoning.module';
 import { ReportingModule } from '../../../reporting/reporting.module';
 import { GovernanceModule } from '../../governance.module';
+import { ExecutionPaceMeter } from './execution-pace-meter';
 import { executionConfig } from './execution.config';
 import { TaskExecutionProcessor } from './task-execution.processor';
 import { EXECUTION_PROVIDER } from './task-execution.tokens';
@@ -33,15 +34,19 @@ const executionLogger = new Logger('Execution');
   providers: [
     {
       provide: EXECUTION_PROVIDER,
-      inject: [executionConfig.KEY],
-      useFactory: (config: ConfigType<typeof executionConfig>): ExecutionProvider => {
+      inject: [executionConfig.KEY, ExecutionPaceMeter],
+      useFactory: (config: ConfigType<typeof executionConfig>, paceMeter: ExecutionPaceMeter): ExecutionProvider => {
         executionLogger.log(`Computer use runs on ${config.providerName} (${config.modelId})`);
         return createExecutionProvider({
           ...config,
-          onTurn: ({ turn, toolCalls }) => executionLogger.debug(`Turn ${turn}: ${toolCalls.length} tool calls`),
+          onTurn: ({ turn, toolCalls }) => {
+            paceMeter.recordTurn(toolCalls);
+            executionLogger.debug(`Turn ${turn}: ${toolCalls.length} tool calls`);
+          },
         });
       },
     },
+    ExecutionPaceMeter,
     TaskExecutionProcessor,
   ],
 })

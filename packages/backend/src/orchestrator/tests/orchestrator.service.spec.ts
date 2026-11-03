@@ -12,7 +12,7 @@ import type { JobExecutionJobData } from '../../queue/types/job-execution-job-da
 import type { StrategyReasoningService } from '../../reasoning/strategy/strategy-reasoning.service';
 import type { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import type { WorkflowService } from '../../workflow/workflow.service';
-import { CONTINUOUS_EVALUATION_DELAY_MS, STUCK_TASK_MS } from '../orchestrator.constants';
+import { CONTINUOUS_EVALUATION_DELAY_MS, INTERRUPTED_TASK_REASON, SCHEDULING_INTERVAL_MS, STUCK_TASK_MS } from '../orchestrator.constants';
 import { OrchestratorService } from '../orchestrator.service';
 
 const NOW = new Date('2026-10-30T10:00:00Z');
@@ -110,7 +110,7 @@ function setup(workType: StrategyWorkType, strategyChanges: Record<string, unkno
     updateWorkflowState: jest.fn(async ({ workflowId, state }: { workflowId: string; state: string }) => ({ id: workflowId, state })),
   };
   const screenshots = { deleteScreenshotsOlderThan: jest.fn().mockResolvedValue(0) };
-  const tasks = { listStrayRunningTasks: jest.fn().mockResolvedValue([]) };
+  const tasks = { listStrayRunningTasks: jest.fn().mockResolvedValue([]), failInterruptedTasks: jest.fn().mockResolvedValue(0) };
 
   const service = new OrchestratorService(
     workflows as unknown as WorkflowService,
@@ -244,6 +244,39 @@ describe('OrchestratorService', () => {
       t.screenshots.deleteScreenshotsOlderThan.mockRejectedValue(new Error('EACCES'));
 
       await expect(t.service.scheduleAllWorkflows()).resolves.toEqual([]);
+    });
+  });
+
+  describe('start-up', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('ends the Tasks a stop or a crash cut off before the first pass, so Job review plans from there', async () => {
+      jest.useFakeTimers();
+      const t = setup('one_off');
+      t.tasks.failInterruptedTasks.mockResolvedValue(1);
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      await t.service.onApplicationBootstrap();
+
+      expect(t.tasks.failInterruptedTasks).toHaveBeenCalledWith(INTERRUPTED_TASK_REASON);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Ended 1 Task that ran when the backend stopped'));
+      expect(t.workflows.listWorkflowsByState).not.toHaveBeenCalled();
+      t.service.onApplicationShutdown();
+      warn.mockRestore();
+    });
+
+    it('still starts the scheduling loop when the repair fails', async () => {
+      jest.useFakeTimers();
+      const t = setup('one_off');
+      t.tasks.failInterruptedTasks.mockRejectedValue(new Error('connection lost'));
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      await t.service.onApplicationBootstrap();
+      await jest.advanceTimersByTimeAsync(SCHEDULING_INTERVAL_MS);
+
+      expect(t.workflows.listWorkflowsByState).toHaveBeenCalledWith('running');
+      t.service.onApplicationShutdown();
+      warn.mockRestore();
     });
   });
 

@@ -216,6 +216,17 @@ describeWithDatabase('TaskService (Postgres)', () => {
       expect(task).toEqual(expect.objectContaining({ locationPath: 'reddit.com/r/AICompanion/comments/abc123', locationDetails: null }));
     });
 
+    it('ends every running Task at start-up with the reason, and leaves the other Tasks alone', async () => {
+      const { tasks } = await jobWithTasks(['complete', 'running', 'pending']);
+
+      expect(await service.failInterruptedTasks('The backend stopped during this Task.')).toBe(1);
+      expect(await reload(tasks[1].id)).toEqual(
+        expect.objectContaining({ status: 'failed', failureReason: 'The backend stopped during this Task.' }),
+      );
+      expect((await reload(tasks[0].id)).status).toBe('complete');
+      expect((await reload(tasks[2].id)).status).toBe('pending');
+    });
+
     it('defers a running Task and clears its start time', async () => {
       const { tasks } = await jobWithTasks(['pending']);
       await service.markTaskRunning(tasks[0].id);
