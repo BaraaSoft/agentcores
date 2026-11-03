@@ -306,6 +306,25 @@ Read the design documents for the details:
 
 </details>
 
+<details>
+<summary><b>Built during Meta Global AI Hackathon 2026</b>: every feature, day by day</summary>
+
+<br/>
+
+| Day | What AHE can now do |
+| --- | --- |
+| 3 Nov | Prove its self-review with a benchmark, run CI on every package, start with one command, and show each Job's work |
+| 2 Nov | Use the computer with Meta Muse, run and pause many runs in WorkHub, launch a Strategy from a form, and show the work live |
+| 1 Nov | Think with Meta Muse, research the brief on the web, aim for creative design, and show a dashboard |
+| 31 Oct | Work with skills, ask the owner when it is stuck, and set up its own database |
+| 30 Oct | Work step by step on screen, and run ongoing, one-off, and multi-version goals |
+| 28 Oct | Judge work it has to see, and find out what good work looks like |
+| 27 Oct | Review its own work and learn from it, and record where each Task was done |
+
+Read the full log, with an example for each feature: [docs/hackathon-features-log.md](docs/hackathon-features-log.md).
+
+</details>
+
 ## Roadmap
 
 - Connect the HumanExperiences.IO memory, behind the privacy wall.
