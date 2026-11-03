@@ -20,6 +20,6 @@ coverage/
 
 # pnpm local store fallback
 .pnpm-store/
-docs/
 .cursor/
 .probe/
+documents/
