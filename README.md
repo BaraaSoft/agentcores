@@ -33,7 +33,8 @@ You do not prompt it step by step. You brief it once, like a colleague. Then you
 One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
 
-[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](.github/assets/ahe-demo.mp4)
+[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://github.com/user-attachments/assets/f9614bda-a689-40fe-91d2-30fbc59fd7e6)
+
 
 ## A co-worker, not an assistant
 
