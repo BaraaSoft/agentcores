@@ -284,7 +284,7 @@ yet, so no private memory reaches the agent today.
 ```text
 packages/
 ├── agent-core/    shared domain types and contracts
-├── backend/       the API, the reasoning layer, the queues, and the orchestrator
+├── backend/       runs on your Mac (localhost:3088): the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
 ├── migrations/    migrations, applied by Docker on start
 └── web-ui/        the ui dashboard
