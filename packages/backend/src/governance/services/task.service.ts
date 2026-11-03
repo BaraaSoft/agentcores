@@ -246,6 +246,16 @@ export class TaskService {
   }
 
   /**
+   * running → failed for every Task still `running`, storing the reason. Called at start-up: Tasks run in
+   * this process only, so a Task still `running` then was cut off by a stop or a crash, maybe half done.
+   * Returns how many Tasks it ended.
+   */
+  async failInterruptedTasks(reason: string): Promise<number> {
+    const update = await this.tasks.update({ status: 'running' }, { status: 'failed', failureReason: reason });
+    return update.affected ?? 0;
+  }
+
+  /**
    * running → escalated: held until the owner decides. The reason is stored in `failureReason`.
    */
   async markTaskEscalated(input: StopTaskInput): Promise<boolean> {

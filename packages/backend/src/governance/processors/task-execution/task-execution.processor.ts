@@ -22,6 +22,7 @@ import { JobScreenshotService } from '../../services/job-screenshot.service';
 import { MetricsService } from '../../services/metrics.service';
 import { TaskService } from '../../services/task.service';
 import { toTaskOutcome } from '../to-task-outcome';
+import { ExecutionPaceMeter } from './execution-pace-meter';
 import {
   CHALLENGE_WINDOW_MS,
   EARLIER_TASKS_IN_EXECUTION_CONTEXT,
@@ -36,6 +37,8 @@ type TaskRun = {
   readonly task: TaskEntity;
   readonly safeContext: string;
   readonly earlierTasks: readonly TaskOutcome[];
+  /** The actions of the Job's pending Tasks after this one, so neither layer starts their work early. */
+  readonly laterTasks: readonly string[];
 };
 
 type StepsEnd = Omit<TaskRunOutcome, 'taskId' | 'iterations'> & {
@@ -84,6 +87,7 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
     private readonly identity: IdentityService,
     private readonly reporting: ReportingService,
     private readonly screenshots: JobScreenshotService,
+    private readonly paceMeter: ExecutionPaceMeter,
   ) {
     super();
   }
@@ -111,7 +115,14 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
         query: task.action,
         limit: TASK_CONTEXT_RECORD_LIMIT,
       });
-      const run: TaskRun = { workflowId, task, safeContext: context.promptBlock, earlierTasks: await this.earlierTasks(task) };
+      const jobTasks = await this.tasks.listTasks(task.jobId);
+      const run: TaskRun = {
+        workflowId,
+        task,
+        safeContext: context.promptBlock,
+        earlierTasks: this.earlierTasks(task, jobTasks),
+        laterTasks: this.laterTasks(task, jobTasks),
+      };
       const end = await this.runSteps(run);
       await this.finish(run, owner, end);
       return {
@@ -144,6 +155,7 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
       jobObjective: run.task.job.objective,
       safeContext: run.safeContext,
       earlierTasks: run.earlierTasks,
+      laterTasks: run.laterTasks,
       history: [...history],
       recentChallengeCount,
     });
@@ -185,11 +197,15 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
   }
 
   /** The Job's Tasks that finished before this one, in order. */
-  private async earlierTasks(task: TaskEntity): Promise<TaskOutcome[]> {
-    const tasks = await this.tasks.listTasks(task.jobId);
-    return tasks
+  private earlierTasks(task: TaskEntity, jobTasks: readonly TaskEntity[]): TaskOutcome[] {
+    return jobTasks
       .filter((each) => each.sequence < task.sequence && (each.status === 'complete' || each.status === 'failed'))
       .map(toTaskOutcome);
+  }
+
+  /** The actions of the Job's Tasks still to run after this one, in order. Cancelled Tasks are out of the plan. */
+  private laterTasks(task: TaskEntity, jobTasks: readonly TaskEntity[]): string[] {
+    return jobTasks.filter((each) => each.sequence > task.sequence && each.status === 'pending').map((each) => each.action);
   }
 
   /**
@@ -202,19 +218,26 @@ export class TaskExecutionProcessor extends LoggedWorkerHost {
     const credentials =
       step.platform === null ? null : await this.identity.getCredentials({ workflowId: run.workflowId, platform: step.platform });
     const startedAt = Date.now();
+    this.paceMeter.start();
     const { finalScreenshot, ...result } = await this.executionProvider.runTask({
       taskId: run.task.id,
       instruction: step.instruction,
+      scope: { taskAction: run.task.action, laterTasks: run.laterTasks },
       context: this.executionContext(run),
       maxSteps: skill.maxExecutionSteps,
       credentials,
       returnsScreenshot: skill.returnsScreenshot,
     });
     // One line per execution step, to measure pace. A turn is one model call on screen: it looks at the latest
-    // screenshot and sends one or more actions. Few turns for the work means the agent batches its actions.
+    // screenshot and sends one or more actions. More actions per turn means the agent groups its actions.
     // The seconds are wall time for the whole step, model calls and screen actions together.
     const seconds = Math.round((Date.now() - startedAt) / MS_PER_SECOND);
-    this.logger.log(`Task ${run.task.id} [${run.task.skillType}] step ${result.status}: ${result.stepsTaken} turns in ${seconds}s`);
+    const actions = this.paceMeter.actionsTaken;
+    const perTurn = result.stepsTaken === 0 ? 0 : actions / result.stepsTaken;
+    this.logger.log(
+      `Task ${run.task.id} [${run.task.skillType}] step ${result.status}: ${result.stepsTaken} turns, ${actions} actions ` +
+        `(${perTurn.toFixed(1)} per turn) in ${seconds}s`,
+    );
     if (finalScreenshot !== undefined) {
       await this.screenshots.saveTaskScreenshot({ jobId: run.task.jobId, taskId: run.task.id, screenshot: finalScreenshot });
     }

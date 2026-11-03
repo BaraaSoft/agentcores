@@ -445,6 +445,21 @@ Evaluation has no pause gate. Evaluating only reads finished work, and an evalua
 would stay in `evaluating` with nothing to queue it again. Its one action on the screen is the evidence Job,
 which the Job processor gates on its own Unit like any other Job.
 
+**The backend stops mid-Task.** A Ctrl+C or a crash leaves the Task `running`, and nothing would finish it.
+At the next start-up the orchestrator ends it `failed` with "The backend stopped during this Task, so it may be
+half done…" (see the orchestrator tech spec). From there it goes like a paused Task: the Job is reviewed, and
+Job reasoning plans from the state on screen.
+
+**Staying in its lane.** Each run of a Task reads the Job's Tasks once. The finished ones before it are the
+earlier Tasks; the `pending` ones after it are the later Tasks. Task reasoning sees the later Tasks as
+`<LATER_TASKS_IN_THIS_JOB>`, and every execution step gets them as `scope`, with the Task's own action, so
+neither level starts the work of a later Task. Cancelled Tasks are left out.
+
+**Pace log.** After each execution step the processor logs one line, for example
+`step done: 42 turns, 118 actions (2.8 per turn) in 190s`. `ExecutionPaceMeter` counts the actions: the
+provider's `onTurn` feeds it, the processor resets it before each step, and the final report is not counted.
+Steps run one at a time, so one meter serves them all, for both providers.
+
 **Duplicate delivery.** A Task delivered twice runs once: the second delivery sees it is no longer
 pending or deferred and skips. A Job queued twice reviews its finished Task once (the second delivery
 finds nothing unreviewed) and queues the same current Task.
@@ -507,9 +522,11 @@ governance/processors/
 └── task-execution/
     ├── task-execution.module.ts              ← binds EXECUTION_PROVIDER → @ahe/execution
     ├── task-execution.processor.ts           ← the Task loop; concurrency 1; hands the Job back for review
+    ├── execution-pace-meter.ts               ← counts the actions of the step that runs now, for the pace log
+    ├── execution.config.ts                   ← EXECUTION_PROVIDER, its key, and the model
     ├── task-execution.tokens.ts · task-execution.constants.ts
     ├── types/task-run-outcome.ts
-    └── tests/task-execution.processor.spec.ts
+    └── tests/task-execution.processor.spec.ts · execution-pace-meter.spec.ts · execution.config.spec.ts
 ```
 
 Each level that runs work has its own folder and Nest module. `TaskExecutionModule` stays separate from

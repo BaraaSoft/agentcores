@@ -39,6 +39,7 @@ export type { BlockerKind } from './execution/blocker-kind';
 export type { ExecutionBlocker } from './execution/execution-blocker';
 export type { AccountCredentials } from './execution/account-credentials';
 export type { ExecutionTask } from './execution/execution-task';
+export type { ExecutionScope } from './execution/execution-scope';
 export type { ExecutionResult } from './execution/execution-result';
 export type { Screenshot } from './execution/screenshot';
 export type { ExecutionProvider } from './execution/execution-provider';

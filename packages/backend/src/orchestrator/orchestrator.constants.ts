@@ -28,6 +28,10 @@ export const UNIT_OF_WORK_NAME_PREFIXES: Record<StrategyWorkType, string> = {
 /** A Task running longer than this is logged as stray: the worker may have stopped without closing it. */
 export const STUCK_TASK_MS = 30 * 60_000;
 
+/** Why a Task still `running` at start-up ended `failed`. Job review reads it before it plans the next Task. */
+export const INTERRUPTED_TASK_REASON =
+  'The backend stopped during this Task, so it may be half done. Check what is already on the screen before you repeat any of it.';
+
 /** After a pause, a running Task may take this long to end its current step before it is logged as an error. */
 export const PAUSE_STEP_GRACE_MS = 10 * 60_000;
 

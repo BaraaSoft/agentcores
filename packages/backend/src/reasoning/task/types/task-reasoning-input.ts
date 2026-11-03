@@ -14,6 +14,8 @@ export interface TaskReasoningInput {
   readonly safeContext: string;
   /** The Job's Tasks that finished before this one (complete or failed), in order. */
   readonly earlierTasks: readonly TaskOutcome[];
+  /** The actions of the Job's pending Tasks after this one, in order, so the steps leave their work to them. */
+  readonly laterTasks: readonly string[];
   readonly history: readonly StepRecord[];
   /** Gates this account hit in the last 24 hours, so pacing can back off before a pattern forms. */
   readonly recentChallengeCount: number;

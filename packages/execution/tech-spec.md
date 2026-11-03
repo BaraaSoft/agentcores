@@ -158,7 +158,7 @@ prompts) and leaves `computer-use/` and `anthropic/` untouched.
 | Part                        | Job                                                                                       |
 | --------------------------- | ----------------------------------------------------------------------------------------- |
 | `MuseComputerTools`         | One plain tool per action (`left_click`, `scroll`, `zoom`, …), Zod input, maps to `ToolCall` |
-| `buildMuseSystemPrompt`     | Adds a `<SCREEN>` block: screenshot pixels (not a 0–1000 grid), zoom rules, a tool every turn |
+| `buildMuseSystemPrompt`     | Adds a `<SCREEN>` block (screenshot pixels, not a 0–1000 grid; zoom rules; a tool every turn) and a `<PACE>` block (group the predictable actions and end each group with a screenshot in the same turn) |
 | `MuseConversation`          | The message list; keeps the 3 newest screenshots and replaces older ones with a short note |
 | `MUSE_TASK_REPORT_TOOL`     | `submit_task_report` without `strict`                                                      |
 | `normalizeMuseReport`       | Fixes Muse's habits before parsing: `blocker: "null"` → `null`, `"14"` → `14`               |
@@ -168,6 +168,21 @@ Tool calls in one turn run in order. After the first failure the rest get "skipp
 "declined"; a report sent with other actions is ignored, and the model is told to report on its own. Thinking
 blocks go back to Meta unchanged. `muse-wonder-1.0` is the supported model: in probes it passed every simulated
 task, while `muse-spark-1.3` often ended turns in text only.
+
+Muse actions return no image; only `screenshot` and `zoom` do. In the first live Figma run, Muse mostly sent one
+action per turn and the screenshot in the next turn, about 4–5 s per turn. The `<PACE>` block targets that. The
+backend's step log shows the result as actions per turn (see `ExecutionPaceMeter` in the Task processor).
+
+---
+
+## Scope of one instruction
+
+`ExecutionTask.scope` is optional. When it is set, `buildTaskPrompt` adds a `<scope>` block after the instruction,
+for both providers. The block names the Task the instruction is a step of, lists the Job's later Tasks ("Left for
+later Tasks. Do not start them"), and adds one rule: do only what the instruction asks, and report once it is done,
+even if the screen shows other unfinished work. Without it the model cannot tell its own work from later Tasks'
+work, for example empty sections an earlier Task laid out on a Figma page. `context` stays for memory only.
+The e2e suite leaves `scope` out, so its prompts do not change.
 
 ---
 

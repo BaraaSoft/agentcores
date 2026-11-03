@@ -22,6 +22,7 @@ const INPUT: TaskReasoningInput = {
   jobObjective: 'Join the conversation on r/AICompanion',
   safeContext: 'Voice: warm, short.',
   earlierTasks: [],
+  laterTasks: [],
   history: [],
   recentChallengeCount: 0,
 };
@@ -65,6 +66,20 @@ describe('TaskReasoningService', () => {
       expect(userPrompt).toContain('None — this is the first step.');
       expect(userPrompt).toContain('Gates this account hit in the last 24 hours: 0');
       expect(userPrompt).toContain('None — this is the first Task of the Job.');
+      expect(userPrompt).toContain('None — this is the last planned Task of the Job.');
+    });
+
+    it("lists the Job's later Tasks and tells the planner to leave their work to them", async () => {
+      const t = setup();
+      t.model.completeStructured.mockResolvedValue(answer());
+
+      await t.service.planNextStep({ ...INPUT, laterTasks: ['Reply to the top post', 'Upvote the replies'] });
+
+      const { userPrompt } = t.call();
+      expect(userPrompt).toContain(
+        '<LATER_TASKS_IN_THIS_JOB>\n1. Reply to the top post\n2. Upvote the replies\nThis work is left for those Tasks.',
+      );
+      expect(userPrompt).toContain('Plan no step that starts it');
     });
 
     it('plans with the system prompt of the Task skill', async () => {

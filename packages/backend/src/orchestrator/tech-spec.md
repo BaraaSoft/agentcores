@@ -103,6 +103,16 @@ Task with the reasons and every id. Search the backend log for `[stray-task]`:
 
 The check only logs. It changes no data, and a failed check never stops the pass.
 
+### Repairing Tasks a stop cut off
+
+Tasks run only in this process. So a Task still `running` when the app boots was cut off by a stop
+(Ctrl+C) or a crash, and nothing will ever finish it: its Job stays active and never moves again.
+`onApplicationBootstrap` calls `TaskService.failInterruptedTasks` before it starts the timer. It ends each
+such Task `failed` with `INTERRUPTED_TASK_REASON` ("The backend stopped during this Task, so it may be half
+done…"). The Task is then a finished Task that awaits review, so the next pass queues its Job, and Job review
+plans from the state it left. This is the same path a pause takes, so a half-done step never runs again
+blindly. A paused run waits for resume, as usual. A failed repair is logged and never stops the start-up.
+
 ---
 
 ## Work types
@@ -140,7 +150,7 @@ until the run is `done` or paused:
 
 ### From boot to the first Job
 
-1. **The app boots.** `onApplicationBootstrap` starts the timer. Each pass loads only the `running`
+1. **The app boots.** `onApplicationBootstrap` ends the Tasks a stop cut off (see above), then starts the timer. Each pass loads only the `running`
    Workflows, so with none it does nothing.
 2. **`POST /workflows`** saves the Workflow as `paused`. The pass skips it, so nothing runs yet.
    `POST /strategies/:id/run` does this step and the next one in one call, for a fresh run.

@@ -1,4 +1,4 @@
-import type { ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionScope, ExecutionTask } from '@ahe/agent-core';
 import type { SystemPromptInput } from './types/system-prompt-input';
 
 /**
@@ -20,8 +20,9 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 
 <HOW_TO_WORK>
 * Start with a screenshot. Then work in groups: send the actions whose outcome you can predict together, such as a click into a field and the typing into it, or a run of controls you can already see, and end the group with one screenshot.
-* Take a screenshot straight after any single action whose result you cannot predict or cannot undo: a submit, a send, a publish, a delete, or a move to a new page or screen.
-* After each screenshot, state in one sentence what it shows and whether the group succeeded. If it didn't, try another way. Only move on once it is confirmed.
+* Group only actions on things you can see in the last screenshot: a click on a visible control, typing, a keyboard shortcut, a scroll. Never click where you expect a control to appear.
+* End the turn, with the screenshot in the same turn, after any action you cannot predict or cannot undo: a submit, a send, a publish, a delete, or opening a page or app you have not seen yet.
+* After each screenshot, state in one sentence what it shows and whether the group succeeded. If it didn't, try another way.
 * Before you type, make sure the field or element you mean has focus. Keystrokes in the wrong place are hard to notice and slow to undo.
 * Solve routine obstacles yourself: close popups, "what's new" dialogs, onboarding wizards, and notifications; dismiss cookie banners with the most restrictive option offered; reload a page that didn't load; restore a crashed tab.
 * If you're signed out and <robot_credentials> are provided for this site, sign in with them. Never type them on any other site, and never repeat them in your replies or report.
@@ -50,14 +51,30 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 }
 
 /**
- * The opening user message for one task: the instruction, its context, and the account login when one is supplied.
- * The instruction comes first, which improves click accuracy on the first screenshot.
+ * Where the instruction sits in its Job. Without it the model sees unfinished work on the screen, such as empty
+ * sections a planner laid out for later Tasks, and fills it in, because nothing says that work is not its own.
+ */
+function renderScope(scope: ExecutionScope): string {
+  const laterTasks =
+    scope.laterTasks.length === 0 ? 'None.' : scope.laterTasks.map((action, index) => `${index + 1}. ${action}`).join('\n');
+  return `<scope>
+This instruction is one step of the Task: ${scope.taskAction}
+
+Left for later Tasks. Do not start them:
+${laterTasks}
+
+Do only what the instruction asks. When it is done, report, even if the screen shows other unfinished work. That work belongs to other Tasks.
+</scope>`;
+}
+
+/**
+ * The opening user message for one task: the instruction, its scope, its context, and the account login when one
+ * is supplied. The instruction comes first, which improves click accuracy on the first screenshot.
  */
 export function buildTaskPrompt(task: ExecutionTask): string {
-  const sections = [
-    `<instruction>\n${task.instruction}\n</instruction>`,
-    `<context>\n${task.context}\n</context>`,
-  ];
+  const sections = [`<instruction>\n${task.instruction}\n</instruction>`];
+  if (task.scope !== undefined) sections.push(renderScope(task.scope));
+  sections.push(`<context>\n${task.context}\n</context>`);
   if (task.credentials !== null) {
     const { platform, username, password } = task.credentials;
     sections.push(`<robot_credentials site="${platform}">\nusername: ${username}\npassword: ${password}\n</robot_credentials>`);

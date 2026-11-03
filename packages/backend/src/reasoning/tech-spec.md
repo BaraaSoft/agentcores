@@ -308,13 +308,18 @@ sequenceDiagram
 ```
 
 - **One input, mirrored from execution.** Both methods take the same `TaskReasoningInput`
-  (`taskAction`, `skillType`, `jobObjective`, `safeContext`, `earlierTasks`, `history`, `recentChallengeCount`).
+  (`taskAction`, `skillType`, `jobObjective`, `safeContext`, `earlierTasks`, `laterTasks`, `history`, `recentChallengeCount`).
   Each `StepRecord` is the instruction sent plus the `ExecutionResult` returned, without its screenshot, so
   there is no separate summary type to keep in sync.
 - **Earlier Tasks are context.** `earlierTasks` holds the Job's Tasks that finished before this one, with their
   results and locations, rendered as `<EARLIER_TASKS_IN_THIS_JOB>`. The execution context gets the latest
   `EARLIER_TASKS_IN_EXECUTION_CONTEXT` (10) of them too, so both levels build on earlier work (the design's
   edit link, say) instead of searching for it again.
+- **Later Tasks are a boundary.** `laterTasks` holds the actions of the Job's `pending` Tasks after this one,
+  rendered as `<LATER_TASKS_IN_THIS_JOB>` with the rule to plan no step that starts them. The execution layer
+  gets the same list, with the Task's own action, as `ExecutionTask.scope` (a `<scope>` block in its task
+  prompt). Without it, both levels saw unfinished work on the screen, such as empty sections an earlier Task
+  laid out for later ones, and filled it in. The memory `context` stays for memory only.
 - **No separate evaluation call.** `planNextStep` reads the latest result at the end of `history` and decides
   in one call: retry, move on, or `isTaskDone`. It is one structured call (`PLANNED_STEP_SCHEMA`, at most
   `PLAN_NEXT_STEP_MAX_TOKENS`) that renders every step so far with its status, result, metrics, location,
