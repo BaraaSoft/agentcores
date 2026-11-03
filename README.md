@@ -271,13 +271,7 @@ packages/
 └── web-ui/        the React dashboard
 ```
 
-  
-
-
-**Engineering notes**: the rules we hold to, and the design documents
-
-  
-
+**The engineering rules we hold to:**
 
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
 order changes nothing.
@@ -294,8 +288,6 @@ Read the design documents for the details:
 | [Governance processors](packages/backend/src/governance/processors/tech-spec.md) | How Jobs and Tasks move, wait, fail, and recover |
 | [Reasoning](packages/backend/src/reasoning/tech-spec.md) | Every planner and the evaluator, their inputs, and their prompts |
 | [Execution](packages/execution/tech-spec.md) | The hands-on loop, the macOS driver, and the providers |
-
-
 
 ## Roadmap
 
