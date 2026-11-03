@@ -1,0 +1,928 @@
+{
+  "summary": {
+    "model": "muse-wonder-1.0",
+    "ranAt": "2026-11-03T09:06:12.123Z",
+    "judgements": 48,
+    "rankingAccuracy": {
+      "passed": 13,
+      "total": 14
+    },
+    "pairsDeferredForEvidence": {
+      "count": 4,
+      "total": 18
+    },
+    "meanScoreMargin": 5.38,
+    "screenshotOverSummary": {
+      "passed": 6,
+      "total": 6
+    },
+    "evidenceRecall": {
+      "passed": 5,
+      "total": 6
+    },
+    "falseEvidenceRequests": {
+      "count": 4,
+      "total": 36
+    },
+    "validOutput": {
+      "passed": 46,
+      "total": 48
+    },
+    "validOutputFirstTry": {
+      "passed": 42,
+      "total": 48
+    },
+    "latencyMs": {
+      "median": 14237,
+      "p90": 25304
+    }
+  },
+  "pairs": [
+    {
+      "id": "x-launch-post",
+      "run": 1,
+      "strong": "asked for evidence",
+      "weak": "scored 2",
+      "strongScore": null,
+      "weakScore": 2,
+      "ranked": false,
+      "deferred": true
+    },
+    {
+      "id": "competitor-pricing-sheet",
+      "run": 1,
+      "strong": "scored 5",
+      "weak": "scored 3",
+      "strongScore": 5,
+      "weakScore": 3,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "refund-email-reply",
+      "run": 1,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "calendar-invite",
+      "run": 1,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "meeting-notes",
+      "run": 1,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "docs-bug-report",
+      "run": 1,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "x-launch-post",
+      "run": 2,
+      "strong": "asked for evidence",
+      "weak": "scored 2",
+      "strongScore": null,
+      "weakScore": 2,
+      "ranked": false,
+      "deferred": true
+    },
+    {
+      "id": "competitor-pricing-sheet",
+      "run": 2,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "refund-email-reply",
+      "run": 2,
+      "strong": "scored 8",
+      "weak": "asked for evidence",
+      "strongScore": 8,
+      "weakScore": null,
+      "ranked": false,
+      "deferred": true
+    },
+    {
+      "id": "calendar-invite",
+      "run": 2,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "meeting-notes",
+      "run": 2,
+      "strong": "scored 7",
+      "weak": "scored 2",
+      "strongScore": 7,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "docs-bug-report",
+      "run": 2,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "x-launch-post",
+      "run": 3,
+      "strong": "error",
+      "weak": "scored 2",
+      "strongScore": null,
+      "weakScore": 2,
+      "ranked": false,
+      "deferred": false
+    },
+    {
+      "id": "competitor-pricing-sheet",
+      "run": 3,
+      "strong": "scored 6",
+      "weak": "scored 3",
+      "strongScore": 6,
+      "weakScore": 3,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "refund-email-reply",
+      "run": 3,
+      "strong": "scored 8",
+      "weak": "asked for evidence",
+      "strongScore": 8,
+      "weakScore": null,
+      "ranked": false,
+      "deferred": true
+    },
+    {
+      "id": "calendar-invite",
+      "run": 3,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "meeting-notes",
+      "run": 3,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    },
+    {
+      "id": "docs-bug-report",
+      "run": 3,
+      "strong": "scored 8",
+      "weak": "scored 2",
+      "strongScore": 8,
+      "weakScore": 2,
+      "ranked": true,
+      "deferred": false
+    }
+  ],
+  "screenshotChecks": [
+    {
+      "id": "canva-book-launch-strong",
+      "run": 1,
+      "verdict": "scored 7",
+      "expected": "a score of 7 or more",
+      "passed": true
+    },
+    {
+      "id": "canva-beta-post-overclaimed",
+      "run": 1,
+      "verdict": "scored 3",
+      "expected": "a score of 4 or less",
+      "passed": true
+    },
+    {
+      "id": "canva-book-launch-strong",
+      "run": 2,
+      "verdict": "scored 7",
+      "expected": "a score of 7 or more",
+      "passed": true
+    },
+    {
+      "id": "canva-beta-post-overclaimed",
+      "run": 2,
+      "verdict": "scored 3",
+      "expected": "a score of 4 or less",
+      "passed": true
+    },
+    {
+      "id": "canva-book-launch-strong",
+      "run": 3,
+      "verdict": "scored 7",
+      "expected": "a score of 7 or more",
+      "passed": true
+    },
+    {
+      "id": "canva-beta-post-overclaimed",
+      "run": 3,
+      "verdict": "scored 3",
+      "expected": "a score of 4 or less",
+      "passed": true
+    }
+  ],
+  "evidenceChecks": [
+    {
+      "id": "post-likes-too-early",
+      "run": 1,
+      "verdict": "error",
+      "expected": "asks for evidence",
+      "passed": false
+    },
+    {
+      "id": "newsletter-open-rate",
+      "run": 1,
+      "verdict": "asked for evidence",
+      "expected": "asks for evidence",
+      "passed": true
+    },
+    {
+      "id": "post-likes-too-early",
+      "run": 2,
+      "verdict": "asked for evidence",
+      "expected": "asks for evidence",
+      "passed": true
+    },
+    {
+      "id": "newsletter-open-rate",
+      "run": 2,
+      "verdict": "asked for evidence",
+      "expected": "asks for evidence",
+      "passed": true
+    },
+    {
+      "id": "post-likes-too-early",
+      "run": 3,
+      "verdict": "asked for evidence",
+      "expected": "asks for evidence",
+      "passed": true
+    },
+    {
+      "id": "newsletter-open-rate",
+      "run": 3,
+      "verdict": "asked for evidence",
+      "expected": "asks for evidence",
+      "passed": true
+    }
+  ],
+  "judgements": [
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check engagement on the published X launch post",
+        "evidenceObjective": "Open the published post at https://x.com/ahe_agent/status/1853012345678901234 (the Location from Task 1) while logged in as the account owner if analytics are restricted, open its post analytics/detail view, and read out the figures listed in evidenceCriteria.",
+        "evidenceCriteria": [
+          {
+            "key": "x_engagement",
+            "whatToExamine": "Engagement earned by the published launch post: views/impressions, likes, reposts, replies, bookmarks, and any visible GitHub link clicks or profile clicks in post analytics."
+          }
+        ],
+        "rubric": "Evidence requested before marking: the post text on record meets the literal publish, one-line description, GitHub link, and 280-character requirements, but the Strategy bar is earning attention from developers who build with AI agents. The engagement figures from the live post decide whether this was merely published or actually landed, and whether it merits 7-8 or higher."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 13633
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Publish a single concise social-media launch post that explains a developer tool in one line, includes its repository link, and stays within the platform's character limit.",
+        "whatGood": "",
+        "whatBad": "Choosing a long, generic announcement and dropping the GitHub link to shorten it produced a thread that tells developers neither what the tool does nor where to try it, defeating the launch post's purpose.",
+        "rubric": "The objective required one post of 280 characters stating what the tool does in one line and including the GitHub link. The result was a three-post thread whose opening is generic excitement, with no one-line explanation in evidence and the GitHub link omitted, so the core launch requirements were not met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 10234
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 5,
+        "objectiveSummary": "Research competitor pricing for comparable AI assistant products and record each cheapest paid tier, monthly price, and official source in a spreadsheet to inform pricing decisions",
+        "whatGood": "Recording a named tier, monthly price and official pricing URL for every product, with four of the five entries matching current prices such as Claude Pro at $20/month billed monthly, gives a usable comparison structure.",
+        "whatBad": "Choosing Plus as ChatGPT's cheapest tier overlooked the lower-priced Go plan, making the competitor floor look like $20 instead of $8; recheck the lowest generally available paid tier on each official page, separating monthly-billed prices from annual-billing discounts.",
+        "rubric": "Partly met: five rows were recorded with official URLs, and the Claude, Perplexity, Cursor and GitHub Copilot prices match current listings at $20, $20, $20 and $10 respectively. The ChatGPT row is materially wrong for 'cheapest paid plan' — it lists Plus at $20 while Go is a paid plan at $8/month, overstating the competitor entry price and weakening the sheet for its pricing decision."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 30793
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 3,
+        "objectiveSummary": "Collect competitor pricing for comparable AI assistant products into a spreadsheet to inform pricing of a paid plan.",
+        "whatGood": "The ChatGPT row correctly records Plus at $20/month with its pricing-page URL, providing one verified comparator in the right format.",
+        "whatBad": "The agent estimated Claude at around $30/month when its page did not load and left Perplexity blank instead of retrying or finding another authoritative source, then stopped with Cursor and GitHub Copilot missing — leaving the sheet unreliable for a pricing decision.",
+        "rubric": "The objective required 5 products, each with its cheapest paid plan, monthly price, and source URL. Only the ChatGPT row meets all four fields; Claude is an estimated price with no URL, Perplexity has no price, and Cursor and GitHub Copilot are missing, so the objective was not met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 16332
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Reply to a customer support email in an existing thread confirming a refund, its expected arrival timeframe, and an apology for the delay to maintain customer satisfaction.",
+        "whatGood": "Keeping the reply concise, in-thread, and complete — refund, order number, timeframe, apology and thanks in four sentences — gave the customer a clear, kind answer with nothing missing or misleading.",
+        "whatBad": "",
+        "rubric": "The reply was sent in the same Gmail thread and contains every required element from the objective: confirmation of the $49 refund for order #48213, the 5 to 7 business day timeframe, and an apology for the slow reply, in a kind tone. It meets the brief exactly as a skilled support reply should; there is no evidence of exceeding it, so it sits in the met band."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12576
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Reply to a customer support email in its existing thread, confirming a refund with the correct amount and arrival timeline and apologising for the delay.",
+        "whatGood": "",
+        "whatBad": "Sending a new, terse email instead of replying in Dana's thread and transposing the order number made the confirmation incorrect and confusing, while omitting the $49 amount, 5–7 business day timeframe, and apology left every substantive part of the brief unmet. The next attempt must reply in-thread and check the order number, amount, timing, and apology verbatim against the brief before sending.",
+        "rubric": "Judged against the exact brief: an in-thread reply citing the correct order, confirming the stated refund amount, giving the stated timeframe, and apologising kindly. The sent message was a new email rather than a thread reply, cited a transposed order number, and its recorded body omitted the refund amount, timeframe, and apology."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 17090
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Booking a short video call with an invited guest in an online calendar and sending the invitation.",
+        "whatGood": "The event was created for 10:00–10:30 AEDT with a Google Meet link, and the guest was added and sent the invite, matching every element of the booking without a timezone or duration error.",
+        "whatBad": "",
+        "rubric": "The test is an error-free calendar booking: the event must be for the specified guest on the specified date and local time, run for the requested duration, include a Google Meet link, and show the invitation as sent."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 16253
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Booking a short calendar video call with an external guest and sending the invitation.",
+        "whatGood": "",
+        "whatBad": "The agent booked the wrong day, doubled the duration, omitted the Meet link, and declined to send the guest email — that combination leaves Sam with nothing usable for the requested call, so the event needs to be corrected and the invite actually sent, not merely created.",
+        "rubric": "Objective not met. The brief required a 30-minute call on Tuesday 10 November 2026 — 10 November 2026 is a Tuesday — at 10:00 Sydney time, with a Google Meet link and the invite sent. The recorded event is instead on Wednesday 11 November, runs 10:00–11:00 (60 minutes), has no Meet link, and the agent clicked “Don't send”, so Sam received no invite. Only the start time and event title match the brief."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 18027
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Writing structured meeting notes in a shared workspace page, capturing decisions and owned, dated action items to keep a team aligned.",
+        "whatGood": "Distilling the transcript into a concise decision list and separately owned, dated actions makes accountability clear without requiring the team to revisit the transcript.",
+        "whatBad": "",
+        "rubric": "The objective required the specified page to contain the meeting decisions and every action item with an owner and a due date. The record shows both decisions recorded and all three action items paired with a named owner and due date, meeting the bar as asked."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 18864
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Writing structured meeting notes in a shared workspace page, extracting decisions and assigned action items from a transcript to keep a team aligned.",
+        "whatGood": "",
+        "whatBad": "Pasting the raw transcript instead of synthesising it buried the outcome the meeting existed to produce, leaving decisions, owners, and due dates for the reader to hunt for. The next attempt should distil the transcript into a short decisions list and an action table with owner and due date per item, keeping the transcript only as an appendix if at all.",
+        "rubric": "The bar was explicit: a scannable notes section naming the decisions made and every action item with an owner and a due date, not the source material itself. The record shows a 4,800-word transcript pasted under 'Notes' with no decisions or action items pulled out, so none of that test is met and no team member could act from the page without re-reading the whole transcript. Marked on the record as-is; no evidence errand was needed because the Task result already states what was and was not done."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 11443
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "File a reproducible bug report as a labelled issue in a project's issue tracker, including reproduction steps and expected versus actual behaviour.",
+        "whatGood": "The agent chose a precise title naming the unclear error and added macOS and Node versions alongside the quit-Docker/run-quickstart steps, making the report easier to reproduce than the bare brief required.",
+        "whatBad": "",
+        "rubric": "Marked against the objective's own bar: a GitHub issue for the quick-start failure when Docker is stopped, containing steps to reproduce, expected and actual results, and the 'bug' label. The record shows all four elements present, with a clear title and added environment versions that aid reproducibility, meeting the bar without evidence of exceptional reach beyond it."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 14048
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Filing a reproducible bug report as a GitHub issue, including reproduction steps, expected and actual behaviour, and a bug label so maintainers can act on it.",
+        "whatGood": "",
+        "whatBad": "Choosing \"it doesn't work\" / \"quickstart broke, please fix\" instead of a specific report left maintainers with no Docker-stopped condition, no reproduction sequence, and no expected-vs-actual contrast to investigate.",
+        "rubric": "The objective named four explicit requirements: steps to reproduce, expected result, actual result, and the label \"bug\". The record for the opened issue shows a vague title and body with none of those elements and no label added, so the issue does not make the bug reproducible and fails the objective's own bar."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 11434
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 7,
+        "objectiveSummary": "Design a portrait Instagram launch graphic in Canva announcing a free online technical book, using a clean, minimal developer aesthetic to highlight the book's subject and URL.",
+        "whatGood": "The terminal language — prompt, comment and path details with a single green accent — makes the developer concept immediate, while the bold domain headline and plain-English subtitle communicate the launch at a glance.",
+        "whatBad": "The composition leaves the middle feeling empty rather than intentionally spacious, and the footer restates the book's topic instead of adding a distinct hook or call to action.",
+        "rubric": "Marked from the screenshot against the brief: 1080x1350 announcement that the free book is live, the domain as the hero, a clear 'build an LLM from scratch in Node.js' message, clean minimal developer styling, and saved in Canva. It meets all content points with strong terminal-inspired hierarchy, contrast and restraint; the large empty centre and a footer that repeats the subtitle rather than adding a new reason to act keep it from exceeding the brief."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 19683
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 3,
+        "objectiveSummary": "Create a clean, minimal Instagram graphic in a design tool announcing a product's beta launch and save it to the signed-in account.",
+        "whatGood": "The terminal-inspired concept — '$ now live', monospace secondary copy, green cursor accent and generous black negative space — is clean, modern and highly legible, and gives a strong reusable visual system once the copy is corrected.",
+        "whatBad": "The agent chose book/LLM launch copy over the required AHE beta headline, so an Instagram viewer would learn about a live Node.js book rather than that AHE is in beta — the next version must make that exact announcement the unmistakable hero text.",
+        "rubric": "Marked 3/10 against the objective's explicit bar. The screenshot shows a polished, clean, minimal terminal-style design in a portrait format, but it never says 'AHE is now in beta' — instead it announces 'now live' for book.humanExperiences.io and 'Build an LLM from scratch in Node.js', with 'Building an LLM in NodeJS' at the foot. As delivered it would announce the wrong product and the wrong launch stage, so the core message is not met despite the strong visual style."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 17276
+    },
+    {
+      "judgement": null,
+      "error": "[\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"score\"\n    ],\n    \"message\": \"Too small: expected number to be >=1\"\n  }\n]",
+      "attempts": 2,
+      "latencyMs": 8967
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check issue 3 open rate in Buttondown",
+        "evidenceObjective": "Location: https://buttondown.com/emails/issue-3 — How to get there: open that Buttondown email page from Task 1 and open its Stats/Analytics view. Read and report the open rate percentage for issue 3 (and the opens and delivered/subscriber counts shown alongside it, if any).",
+        "evidenceCriteria": [],
+        "rubric": "Send is confirmed to 1,240 subscribers, but the objective also requires an open rate above 40% and the stats page was never opened, so the mark cannot be decided until that figure is read."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12008
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Measure: Write and publish the launch post on X",
+        "evidenceObjective": "Open the published X post at Location https://x.com/ahe_agent/status/1853012345678901234 and report exactly what is shown: whether the post exists with the recorded text, its timestamp, and its current views/impressions, likes, reposts, replies, and bookmarks. This decides whether the launch was genuinely published and earned developer attention beyond the agent's assertion.",
+        "evidenceCriteria": [],
+        "rubric": "Evidence requested before marking: the record asserts publication and supplies the text, but does not verify the post at its Location or show the response it earned, which determines whether this launch met or exceeded its purpose."
+      },
+      "error": null,
+      "attempts": 2,
+      "latencyMs": 21893
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Publish a concise single-post social launch announcement for a developer AI-agent tool, stating its purpose in one line and linking to its repository.",
+        "whatGood": "",
+        "whatBad": "Choosing a long, generic excitement announcement over a concise definition forced a 3-post thread and dropped the GitHub link, removing both the one-line clarity and the click-through the launch post existed to create.",
+        "rubric": "Judged against the objective's explicit bar: one post within 280 characters, a one-line statement of what the product does, and the GitHub link included. The record shows a 3-post thread, the GitHub link omitted, and an opening post of generic excitement rather than a product description, so the core constraints were not met despite something being published."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 15525
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Collect entry-level paid pricing for major AI assistant competitors into a spreadsheet, recording plan name, monthly price, and official source for each.",
+        "whatGood": "The agent used official pricing URLs for all five named products and recorded a consistent monthly-billing entry plan for each, making the competitor set immediately usable for price comparison.",
+        "whatBad": "The rows capture the headline monthly price without a checked date or billing-basis note, so annual-billing equivalents and later price changes cannot be distinguished from the sheet alone.",
+        "rubric": "The bar was five products, each with its cheapest paid plan, monthly price, and official pricing URL. The record shows all five rows completed; the recorded monthly prices align with the standard $20 entry tier for Claude, Perplexity, and Cursor and $10 for GitHub Copilot Pro, with Claude's official page confirming $20 when billed monthly, Perplexity Pro listed at $20/month, and Cursor Pro and Copilot Pro listed at $20/month and $10/month respectively."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 38573
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Collect competitor pricing for comparable AI assistant products into a spreadsheet, recording each product's cheapest paid plan, monthly price, and source URL to inform paid-plan pricing.",
+        "whatGood": "The ChatGPT Plus row at $20/month with its pricing-page URL shows the correct format the other rows needed.",
+        "whatBad": "Choosing to estimate Claude at around $30/month without loading its page, leave Perplexity blank, and stop without Cursor or GitHub Copilot left four of the five required entries unusable for comparison.",
+        "rubric": "The objective required five complete, source-backed rows. Only the ChatGPT row provides a product, plan, monthly price, and URL. The Claude row is estimated without a source, the Perplexity price is blank, and Cursor and GitHub Copilot are missing, so the sheet cannot reliably support a pricing decision."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 14237
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Reply to a customer refund-request email confirming the refund, giving its arrival timeframe, and apologising for the delay.",
+        "whatGood": "Keeping the reply in the existing thread and concisely covering the refund amount, order, and timeframe with an apology directly serves the strategy of answering support email kindly and correctly.",
+        "whatBad": "",
+        "rubric": "Objective met as asked: the sent reply in the same Gmail thread confirms the $49 refund for order #48213, states the 5 to 7 business day timeframe, and apologises for the delay in a kind tone."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 13693
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Evidence: read Dana Lee refund reply sent email",
+        "evidenceObjective": "Open the sent email in Gmail and transcribe verbatim what it actually says so the reply can be checked against the requirements.\n\nLocation: https://mail.google.com/mail/u/0/#sent/FMfcgzQXK — the sent message created by the Task “Write and send the reply in the existing Gmail thread”.\n\nHow to get there: open Gmail, go to Sent (or open the Location URL directly), open that message, and read it in full.\n\nReport exactly:\n1. The To / recipient address and the Subject line.\n2. The full body text, word for word (including any order number, refund amount, arrival timeframe, and any apology for the delay).\n3. The date/time it was sent.\n\nDo not summarise or re-type from memory — copy the wording as it appears in the sent email.",
+        "evidenceCriteria": [],
+        "rubric": "Evidence requested: whether the objective was met turns on the actual wording and recipient of the sent email, which is not on record. The Task result says it was sent as a new email (not in the existing thread) and quotes “Refund done for order #48231”, whereas the objective requires order #48213, a $49 confirmation, 5–7 business days, and an apology — the verbatim sent text is needed to judge correctness before marking."
+      },
+      "error": null,
+      "attempts": 2,
+      "latencyMs": 15560
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Booking a calendar call with an external guest at a specified date, time and timezone, including a video-conference link and sending the invitation.",
+        "whatGood": "Creating the single event with the correct Sydney-time slot, Google Meet link and guest, then sending the invite, completed the booking exactly as requested.",
+        "whatBad": "",
+        "rubric": "Met the objective as asked: the event is recorded on Tue 10 Nov 2026, 10:00 to 10:30 AEDT, with a Google Meet link, sam@example.com added, Send clicked, and Sam shown as invited."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 15680
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Booking a short video call in an online calendar and inviting an external guest.",
+        "whatGood": "",
+        "whatBad": "Booking the wrong day for twice the requested duration, omitting the Meet link, and declining to email the guest meant the guest received no usable invitation. Check weekday against date, set the end time, add conferencing, and send the invite before closing.",
+        "rubric": "Objective required a 30-minute event on Tuesday 10 November 2026 at 10:00 Sydney time, with a Google Meet link and the invite sent. The record shows an event on Wednesday 11 November from 10:00 to 11:00, no Meet link, and the agent clicked 'Don't send', failing the date, duration, link, and invitation requirements."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 11770
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 7,
+        "objectiveSummary": "Meeting notes in a shared workspace page capturing decisions and action items with owners and due dates to keep a team aligned.",
+        "whatGood": "Separating the two decisions from the three action items, with a named owner and due date on every action, makes ownership and deadlines immediately clear.",
+        "whatBad": "",
+        "rubric": "The bar was a Notion page listing the meeting's decisions and every action item with an owner and due date. The record shows 2 decisions and 3 action items, each with a named owner and a due date, so the objective was met as asked but not exceeded."
+      },
+      "error": null,
+      "attempts": 2,
+      "latencyMs": 34184
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Write structured meeting notes in a shared document page, extracting decisions and action items with owners and due dates to keep a team aligned.",
+        "whatGood": "",
+        "whatBad": "Choosing to paste the raw transcript instead of synthesising it left readers to mine 4,800 words themselves; the next attempt must extract a scannable decisions list and an action table with owner and due date for each item.",
+        "rubric": "The bar was distilled notes — decisions plus every action item with an owner and due date — not a transcript dump. The record shows the full 4,800-word transcript was pasted under 'Notes' with no decisions or action items pulled out, so the core objective was not met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12055
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "File a reproducible bug report as a GitHub issue for a developer tooling setup failure.",
+        "whatGood": "The agent chose a specific, searchable title and added operating system and Node versions beyond the brief, strengthening reproducibility.",
+        "whatBad": "",
+        "rubric": "The bar was a GitHub issue covering the Docker-stopped quickstart failure with steps to reproduce, expected and actual results, and the 'bug' label. Issue #42 met all four, with a clear title and added macOS 15.5 / Node 22.16 environment details that make the report easier to reproduce."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 10208
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Filing a structured GitHub bug report with reproduction steps, expected and actual results, and correct labelling to keep an open-source repository maintainable.",
+        "whatGood": "",
+        "whatBad": "Choosing a vague title and one-line body stripped out the Docker-stopped context, reproduction steps, and expected-versus-actual behaviour, while omitting the \"bug\" label leaves maintainers unable to reproduce or triage the report as the strategy requires.",
+        "rubric": "The objective required an issue for the `pnpm quickstart` failure when Docker is stopped, containing steps to reproduce, expected and actual results, and the label \"bug\". The recorded issue #43 is titled \"it doesn't work\", has only the body \"quickstart broke, please fix\", and has no label, so the core content requirements were not met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 14370
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 7,
+        "objectiveSummary": "Design a portrait Instagram launch graphic in an online design tool announcing a free online developer book, using a clean, minimal developer aesthetic.",
+        "whatGood": "The terminal prompt, green cursor block, monospace supporting type and high-contrast dark palette make the domain instantly readable and convincingly developer-focused.",
+        "whatBad": "The hero block sits low beneath a large empty middle and the bottom 'Building an LLM in NodeJS' line duplicates the subtitle, weakening balance and polish; re-centre the hierarchy and give the minimal layout one more distinctive developer detail instead of repeated copy.",
+        "rubric": "Met the brief: 1080x1350-style portrait graphic with 'now live', the book domain as the dominant headline, free-book context, and 'Build an LLM from scratch in Node.js' in a dark terminal-inspired style, reported saved in Canva. Quality is clean and legible, but composition and copy redundancy keep it from exceeding the brief."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 17626
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 3,
+        "objectiveSummary": "Create a clean, minimal Instagram post graphic in an online design tool announcing a product's beta launch, saved to the signed-in account.",
+        "whatGood": "The choice of a dark, sparse terminal-inspired layout with monospace type and a single green accent delivers the clean, minimal style requested and reads well as a developer-focused Instagram graphic.",
+        "whatBad": "The agent substituted a different announcement — a book/LLM launch — for the AHE beta launch, so posting this would announce the wrong product and the wrong status. Keep the visual system, but replace the copy with the required beta message and verify the text before saving.",
+        "rubric": "Judged against the objective's exact bar: the graphic must announce 'AHE is now in beta' in a clean, minimal Instagram format. The screenshot instead announces a book/LLM site as 'now live' — neither 'AHE' nor 'beta' appears anywhere — so the core message is not met, even though the dark, monospace, minimally styled layout fits the requested aesthetic."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 18740
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check the demo clip post's like count",
+        "evidenceObjective": "Open the published X post and read the final like count to determine whether it reached the target.\n\nLocation: https://x.com/ahe_agent/status/1853012345670000001\nHow to get there: Open the X post URL from Task 1 (\"Upload the clip and publish the post\") and read the number displayed beside the heart/like icon on that post. Report that exact number.",
+        "evidenceCriteria": [],
+        "rubric": "Mark pending this reading: 30 or more likes within 24 hours of publication meets the objective; the count recorded one minute after posting does not decide the mark."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12898
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check issue 3 open rate in Buttondown",
+        "evidenceObjective": "Open https://buttondown.com/emails/issue-3 from Task 1, go to its Stats/Analytics page, and read the open rate for issue 3 — the percentage and, if shown, opens/delivered — to check whether it exceeds 40%.",
+        "evidenceCriteria": [],
+        "rubric": "Sent to 1,240 subscribers, but the >40% open-rate part of the objective is not yet evidenced because the stats page was not opened after the send."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 10687
+    },
+    {
+      "judgement": null,
+      "error": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"evidenceObjective\"\n    ],\n    \"message\": \"Too small: expected string to have >=1 characters\"\n  }\n]",
+      "attempts": 2,
+      "latencyMs": 30839
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Write and publish a single, concise launch post on a short-form social platform that states in one line what the product does and includes a link to its source repository.",
+        "whatGood": "",
+        "whatBad": "Choosing a long, generic announcement over a tight definition caused X to split it into a thread and still left no room for the repository link, removing both the product clarity and the click-through the launch needed. Next time, draft the one-line definition plus link first, count the characters before posting, and cut all filler until it fits one post.",
+        "rubric": "The objective's explicit bar was not met: the published text became a thread of 3 posts instead of one post within 280 characters, the GitHub link was omitted, and the opening post is generic preamble rather than a one-line statement of what the product does."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 16433
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 6,
+        "objectiveSummary": "Collecting competitors' cheapest paid subscription prices into a structured sheet to inform pricing of a paid plan.",
+        "whatGood": "The agent covered all five named products in one sheet with a plan name, monthly price and official pricing URL for each, and the Claude, Perplexity, Cursor and Copilot entries are accurate.",
+        "whatBad": "Choosing Plus as ChatGPT's cheapest plan missed the lower Go tier and overstated its entry price, weakening exactly the low-end signal needed for pricing decisions; the next pass should re-scan the full plan ladder on each pricing page rather than recording the flagship individual tier.",
+        "rubric": "Bar: five complete rows naming each product's genuinely cheapest paid plan, its monthly price and an official source URL. Four rows check out — Claude Pro at $20 billed monthly, Perplexity Pro at $20/month, Cursor Pro at $20/month and Copilot Pro at $10 per month — but the ChatGPT row does not: OpenAI lists Go among its paid plans at $8/month, below Plus at $20. Complete artefact, one materially wrong entry price, so partly met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 56822
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 3,
+        "objectiveSummary": "Researching AI assistant competitors' entry-level paid pricing in a spreadsheet, recording the product, cheapest paid plan, monthly price, and source URL to support a pricing decision.",
+        "whatGood": "The ChatGPT row is complete and usable: product, Plus plan, $20/month, and the pricing-page URL were all recorded as asked.",
+        "whatBad": "When a pricing page failed to load, the agent recorded an estimated price with no source instead of finding another way to verify it, then closed the Job as successful with a blank price and two competitors missing — leaving most of the sheet unusable as evidence.",
+        "rubric": "The bar was five complete, source-backed rows — one per named competitor — with the cheapest paid plan and monthly price for each. Only the ChatGPT row meets that bar. The Claude row is an estimate with no source URL and no verified plan, the Perplexity row leaves the price blank, and Cursor and GitHub Copilot are missing entirely, so the sheet cannot reliably inform the pricing decision it was meant to support."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 13929
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Reply to a customer support email confirming a refund amount and timeline with an apology for the delay.",
+        "whatGood": "The reply covered every required fact in one concise, courteous message and thanked the customer for their patience.",
+        "whatBad": "",
+        "rubric": "Objective met as asked: the sent reply was in the same Gmail thread and confirmed the $49 refund for order #48213, stated the 5 to 7 business day timeline, and apologised kindly for the delay."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 8455
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Read Dana Lee refund reply",
+        "evidenceObjective": "Open the sent Gmail message from Task 1 and report its recipient, subject, and full body verbatim.",
+        "evidenceCriteria": [
+          {
+            "key": "sent_email_content",
+            "whatToExamine": "Open the sent message and read verbatim: the To recipient, Subject, and full body text. Report whether it confirms a $49 refund, states arrival in 5 to 7 business days, apologises for the delay, and which order number it cites."
+          }
+        ],
+        "rubric": "Evidence is needed before marking: the compressed result suggests the reply was sent as a new email rather than in-thread and cites order #48231 instead of #48213, but it does not show the full body, so whether the $49 amount, 5–7 business day timing, and apology were included cannot yet be determined."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 16378
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Book a short video call with a guest in Google Calendar for a specified date, time, and timezone, and send the invitation.",
+        "whatGood": "The agent set the event in AEDT rather than a generic timezone and confirmed the guest list showed the invitee after sending, so the booking landed exactly as specified without a follow-up correction.",
+        "whatBad": "",
+        "rubric": "The test was an exactly specified booking: 30 minutes on Tuesday 10 November 2026 at 10:00 Sydney time — that date is indeed a Tuesday — with the named guest invited, a Google Meet link attached, and the invite sent. The record shows every element: 10:00–10:30 AEDT (Sydney daylight time) on that date, the guest added, Meet included, and Send clicked with the guest shown as invited."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 25304
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Booking a calendar meeting for a guest with a specified date, time, timezone, duration, video link, and sent invitation.",
+        "whatGood": "",
+        "whatBad": "The agent booked the wrong day and doubled the duration, skipped the Meet link, and explicitly declined to email the guest — then reported success without verifying the saved event against the brief. Next time, check weekday/date, end time, Meet attachment, and the send confirmation before closing.",
+        "rubric": "Judged against the explicit brief: 30 minutes on Tuesday 10 November 2026 at 10:00 Sydney time, with a Google Meet link and the invite sent. The record shows a 60-minute event on Wednesday 11 November, no Meet link, and the agent clicked \"Don't send,\" so none of the defining requirements beyond the start time were met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 13771
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "Write meeting notes in a shared workspace page, documenting decisions and action items with owners and due dates to keep a team aligned.",
+        "whatGood": "The notes captured both decisions and made follow-through unambiguous by attaching a specific owner and due date to every action item.",
+        "whatBad": "",
+        "rubric": "The objective required notes in the named Notion page covering the decisions and every action item with an owner and due date. The record shows 2 decisions and 3 action items, each with a named owner and due date, so the objective was met as asked."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 9539
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Writing structured meeting notes in a shared workspace page, extracting decisions and action items with owners and due dates from a transcript to keep a team aligned.",
+        "whatGood": "",
+        "whatBad": "Pasting the raw transcript instead of synthesizing it left decisions, owners, and due dates buried, forcing readers to extract the outcomes themselves.",
+        "rubric": "The objective required synthesized notes listing decisions and every action item with an owner and due date. The record shows only the full 4,800-word transcript pasted under 'Notes', with no decisions or action items pulled out, so the core deliverable was not met despite using the correct page."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12449
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 8,
+        "objectiveSummary": "File a reproducible bug report as a GitHub issue, including reproduction steps, expected and actual behaviour, and the bug label, to keep an open-source repository healthy.",
+        "whatGood": "Choosing a specific title and adding the operating-system and Node versions alongside the exact reproduction steps makes the failure reproducible without maintainer follow-up.",
+        "whatBad": "",
+        "rubric": "Met the objective as asked: issue #42 was opened with the bug label, explicit steps to quit Docker and run the quick-start command, the expected clear Docker-not-running message, and the actual stack trace, plus environment versions that aid reproduction."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 9080
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 2,
+        "objectiveSummary": "Filing a reproducible, labelled bug report as a GitHub issue for a developer tool failure.",
+        "whatGood": "",
+        "whatBad": "Choosing a vague title and one-line body and omitting the “bug” label left maintainers without the failing condition or any way to reproduce and triage the issue.",
+        "rubric": "Mark 2/10: Issue #43 was opened, but its title is “it doesn't work”, its body is only “quickstart broke, please fix”, and no label was added. It omits the Docker-stopped condition, steps to reproduce, expected result, and actual result required by the objective, so it is not reproducible."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 9784
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 7,
+        "objectiveSummary": "Create a portrait social media launch graphic in an online design tool announcing a free online technical book, highlighting its web address and subject in a clean, minimal developer style.",
+        "whatGood": "The terminal-inspired treatment — monospace metadata, green prompt line and block cursor against black — makes the domain the unmistakable hero while instantly signalling the developer audience.",
+        "whatBad": "The main message sits low beneath a large empty upper area and the footer repeats the subtitle's point, weakening balance and punch; a tighter vertical narrative with one clear closing line would feel more intentional.",
+        "rubric": "Judged against the brief: a 1080 x 1350 announcement that the book is now live, with the domain prominent, the LLM-from-scratch-in-Node.js subject clear, a clean minimal developer aesthetic, and the design saved in Canva. The screenshot shows all content and styling requirements met with strong headline hierarchy, though the composition does not rise to an exceptional professional finish."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 17935
+    },
+    {
+      "judgement": {
+        "verdict": "scored",
+        "score": 3,
+        "objectiveSummary": "Create a clean, minimal social media announcement graphic for a product beta launch.",
+        "whatGood": "The dark terminal-inspired design, restrained green accent, monospace type, and clear hierarchy achieve the requested clean, minimal presentation.",
+        "whatBad": "Replacing the required message with 'now live' and the book URL made the graphic unusable as the AHE beta announcement. The next version must make 'AHE is now in beta' the unmistakable headline and remove the unrelated book-launch copy.",
+        "rubric": "The graphic must clearly announce 'AHE is now in beta' in a clean, minimal Instagram style and be saved in Canva. The screenshot shows a polished layout, but its copy announces a book website as 'now live' and contains neither 'AHE' nor 'beta', so the core objective was not met."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 13060
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check demo clip post likes",
+        "evidenceObjective": "Open the published post at https://x.com/ahe_agent/status/1853012345670000001 (Location from Task 1: Upload the clip and publish the post) on X and read the like count shown under the post, now that at least 24 hours have passed since publication. Report that exact number.",
+        "evidenceCriteria": [],
+        "rubric": "Evidence requested — the record only shows 0 likes one minute after publishing, so whether the objective's target of at least 30 likes within 24 hours was reached cannot be determined yet. No mark is given until the current like count is read from the post itself."
+      },
+      "error": null,
+      "attempts": 2,
+      "latencyMs": 13022
+    },
+    {
+      "judgement": {
+        "verdict": "needs_evidence",
+        "evidenceJobName": "Check issue 3 open rate in Buttondown",
+        "evidenceObjective": "Open https://buttondown.com/emails/issue-3, go to the stats/analytics view, and report the exact open rate percentage for issue 3 (with opens and delivered counts if displayed). Do not send or edit anything.",
+        "evidenceCriteria": [
+          {
+            "key": "open_rate",
+            "whatToExamine": "The open rate percentage for issue 3 shown on the Buttondown stats/analytics page — read the exact % (and opens/delivered counts if shown). Location: https://buttondown.com/emails/issue-3 from Task 1 — open that URL and navigate to its Stats/Analytics view."
+          }
+        ],
+        "rubric": "Evidence requested — the send to 1,240 subscribers is on record, but the objective's >40% open-rate bar was never checked (the stats page was not opened after the send), so the mark turns on that single figure."
+      },
+      "error": null,
+      "attempts": 1,
+      "latencyMs": 12228
+    }
+  ]
+}

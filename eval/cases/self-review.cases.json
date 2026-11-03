@@ -1,0 +1,264 @@
+{
+  "pairs": [
+    {
+      "id": "x-launch-post",
+      "strategyObjective": "Launch AHE on X to developers. Each post should earn attention from people who build with AI agents.",
+      "jobName": "Write and publish the launch post on X",
+      "objective": "Publish one launch post on X for AHE. It must say what AHE does in one line, include the GitHub link, and stay within one post of 280 characters.",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Published one post that meets every requirement.",
+        "tasks": [
+          {
+            "action": "Compose and publish the launch post on X",
+            "status": "complete",
+            "summary": "Published one post (212 characters): \"AHE is an AI co-worker that runs long work on a real Mac and self-improves every round. Give it a goal; it plans, clicks, types, and learns. Open source, built on Meta Muse: https://github.com/BaraaSoft/ahe-autonomous-agent\"",
+            "locationPath": "https://x.com/ahe_agent/status/1853012345678901234"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Published the launch announcement.",
+        "tasks": [
+          {
+            "action": "Compose and publish the launch post on X",
+            "status": "complete",
+            "summary": "The text was too long for one post, so X split it into a thread of 3 posts. Post 1: \"Today we are very excited and proud to finally share something our team has been working on for a long time...\". The GitHub link was left out to keep the text shorter.",
+            "locationPath": "https://x.com/ahe_agent/status/1853012345678909999"
+          }
+        ]
+      }
+    },
+    {
+      "id": "competitor-pricing-sheet",
+      "strategyObjective": "Price AHE's paid plan well. Know what the closest competitors charge.",
+      "jobName": "Collect competitor prices into a Google Sheet",
+      "objective": "Find the pricing pages of 5 AI assistant products (ChatGPT, Claude, Perplexity, Cursor, and GitHub Copilot), and record each product, its cheapest paid plan, the monthly price, and the source URL in the sheet \"Competitor pricing\".",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "The sheet has 5 rows, each with a price read from the official pricing page.",
+        "tasks": [
+          {
+            "action": "Open each pricing page and fill one row per product",
+            "status": "complete",
+            "summary": "Filled 5 rows, each read on the official page: ChatGPT, Plus, $20/month, https://openai.com/chatgpt/pricing; Claude, Pro, $20/month, https://www.anthropic.com/pricing; Perplexity, Pro, $20/month, https://www.perplexity.ai/pro; Cursor, Pro, $20/month, https://cursor.com/pricing; GitHub Copilot, Pro, $10/month, https://github.com/features/copilot/plans.",
+            "locationPath": "https://docs.google.com/spreadsheets/d/1Comp3titorPric1ng/edit"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Filled the sheet with the prices found.",
+        "tasks": [
+          {
+            "action": "Open each pricing page and fill one row per product",
+            "status": "complete",
+            "summary": "Filled 3 rows: ChatGPT, Plus, $20/month, https://openai.com/chatgpt/pricing; Claude, around $30/month (estimated, the page did not load), no URL; Perplexity, price not shown, left blank. Cursor and GitHub Copilot were not found.",
+            "locationPath": "https://docs.google.com/spreadsheets/d/1Comp3titorPric1ng/edit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "refund-email-reply",
+      "strategyObjective": "Keep customers happy. Answer every support email within one day, kindly and correctly.",
+      "jobName": "Reply to Dana's refund request",
+      "objective": "Reply in Gmail to Dana Lee's email about order #48213. Confirm the refund of $49, say it arrives in 5 to 7 business days, and apologise for the delay.",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Sent a correct, kind reply.",
+        "tasks": [
+          {
+            "action": "Write and send the reply in the existing Gmail thread",
+            "status": "complete",
+            "summary": "Sent in the same thread: \"Hi Dana, I'm sorry for the slow reply. I have refunded $49 for order #48213. You will see it in 5 to 7 business days. Thank you for your patience. Baraa\"",
+            "locationPath": "https://mail.google.com/mail/u/0/#sent/FMfcgzQXJ"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Sent the reply.",
+        "tasks": [
+          {
+            "action": "Write and send the reply in the existing Gmail thread",
+            "status": "complete",
+            "summary": "Sent as a new email, not in the thread: \"Refund done for order #48231.\"",
+            "locationPath": "https://mail.google.com/mail/u/0/#sent/FMfcgzQXK"
+          }
+        ]
+      }
+    },
+    {
+      "id": "calendar-invite",
+      "strategyObjective": "Run the owner's week. Book meetings without mistakes.",
+      "jobName": "Book the call with Sam",
+      "objective": "In Google Calendar, book a 30-minute call with sam@example.com on Tuesday 10 November 2026 at 10:00 Sydney time, with a Google Meet link, and send Sam the invite.",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Booked and invited.",
+        "tasks": [
+          {
+            "action": "Create the event and send the invite",
+            "status": "complete",
+            "summary": "Created \"Call with Sam\" on Tue 10 Nov 2026, 10:00 to 10:30 AEDT, with a Google Meet link. Added sam@example.com and clicked Send. The guest list shows Sam as invited.",
+            "locationPath": "https://calendar.google.com/calendar/u/0/r/eventedit/Y2FsbFdpdGhTYW0"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Created the event.",
+        "tasks": [
+          {
+            "action": "Create the event and send the invite",
+            "status": "complete",
+            "summary": "Created \"Call with Sam\" on Wed 11 Nov 2026, 10:00 to 11:00 AEDT. No Meet link was added. Clicked \"Don't send\" when Calendar asked to email the guest.",
+            "locationPath": "https://calendar.google.com/calendar/u/0/r/eventedit/Y2FsbFdpdGhTYW1Y"
+          }
+        ]
+      }
+    },
+    {
+      "id": "meeting-notes",
+      "strategyObjective": "Keep the team aligned. Every meeting ends with clear decisions and owners.",
+      "jobName": "Write the notes for the planning meeting",
+      "objective": "In the Notion page \"Planning, 3 Nov\", write the meeting notes from the transcript: the decisions, and each action item with an owner and a due date.",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "The notes list 2 decisions and 3 owned action items.",
+        "tasks": [
+          {
+            "action": "Write the notes in the Notion page",
+            "status": "complete",
+            "summary": "Wrote: Decisions: 1. Ship the demo video on Wed 4 Nov. 2. Keep Muse on every layer. Actions: Baraa records the video, due Wed 4 Nov; Sam writes the submission text, due Wed 4 Nov; Lee tests the quick start on a fresh Mac, due Tue 3 Nov.",
+            "locationPath": "https://www.notion.so/Planning-3-Nov-8f1c"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Added the notes.",
+        "tasks": [
+          {
+            "action": "Write the notes in the Notion page",
+            "status": "complete",
+            "summary": "Pasted the full transcript (4,800 words) into the page under the heading \"Notes\". No decisions or action items were pulled out.",
+            "locationPath": "https://www.notion.so/Planning-3-Nov-8f1c"
+          }
+        ]
+      }
+    },
+    {
+      "id": "docs-bug-report",
+      "strategyObjective": "Keep AHE's open-source repo healthy. Every bug that users report is easy to reproduce.",
+      "jobName": "File the quick-start bug on GitHub",
+      "objective": "Open a GitHub issue for the bug where `pnpm quickstart` fails when Docker is stopped. Include the steps to reproduce, the expected and the actual result, and the label \"bug\".",
+      "strong": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Opened a complete issue with the bug label.",
+        "tasks": [
+          {
+            "action": "Open the issue on GitHub",
+            "status": "complete",
+            "summary": "Opened issue #42 \"quickstart: unclear error when Docker is stopped\" with the label bug. Steps: 1. Quit Docker Desktop. 2. Run pnpm quickstart. Expected: a message that says Docker is not running. Actual: a stack trace from docker compose. Added macOS 15.5 and Node 22.16.",
+            "locationPath": "https://github.com/BaraaSoft/ahe-autonomous-agent/issues/42"
+          }
+        ]
+      },
+      "weak": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Opened the issue.",
+        "tasks": [
+          {
+            "action": "Open the issue on GitHub",
+            "status": "complete",
+            "summary": "Opened issue #43 \"it doesn't work\" with the body \"quickstart broke, please fix\". No label was added.",
+            "locationPath": "https://github.com/BaraaSoft/ahe-autonomous-agent/issues/43"
+          }
+        ]
+      }
+    }
+  ],
+  "screenshotChecks": [
+    {
+      "id": "canva-book-launch-strong",
+      "strategyObjective": "Launch the free online book book.humanExperiences.io to developers on Instagram.",
+      "jobName": "Design the launch post graphic in Canva",
+      "objective": "Make an Instagram post graphic (1080 x 1350) in Canva that announces that the free online book book.humanExperiences.io is now live. Say what the book teaches: building an LLM from scratch in Node.js. Use a clean, minimal developer style, and save it in the Canva account that is signed in on this Mac.",
+      "minScore": 7,
+      "job": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Designed and saved the launch graphic.",
+        "screenshot": "fixtures/canva-book-launch-post.png",
+        "tasks": [
+          {
+            "action": "Design the 1080 x 1350 launch graphic in Canva and save it",
+            "status": "complete",
+            "summary": "Designed a dark, minimal 1080 x 1350 graphic: a terminal-style \"$ now live\" line, the domain book.humanExperiences.io as the headline, and \"Build an LLM from scratch in Node.js. No black boxes.\" Saved it in the signed-in Canva account.",
+            "locationPath": "https://www.canva.com/design/DAG-book-launch/edit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "canva-beta-post-overclaimed",
+      "strategyObjective": "Announce AHE's beta on Instagram.",
+      "jobName": "Design the AHE beta graphic in Canva",
+      "objective": "Make an Instagram post graphic in Canva that announces 'AHE is now in beta'. Use a clean, minimal style, and save it in the Canva account that is already signed in on this Mac.",
+      "maxScore": 4,
+      "job": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "The graphic announces that AHE is now in beta.",
+        "screenshot": "fixtures/canva-book-launch-post.png",
+        "tasks": [
+          {
+            "action": "Design the beta announcement graphic in Canva and save it",
+            "status": "complete",
+            "summary": "Designed a clean, minimal graphic with the headline \"AHE is now in beta\" and saved it in the signed-in Canva account.",
+            "locationPath": "https://www.canva.com/design/DAG-ahe-beta/edit"
+          }
+        ]
+      }
+    }
+  ],
+  "evidenceChecks": [
+    {
+      "id": "post-likes-too-early",
+      "strategyObjective": "Grow AHE's community on X. Each round tests one idea for posts that people engage with.",
+      "jobName": "Publish the demo clip post",
+      "objective": "Publish the 30-second demo clip on X, and reach at least 30 likes within 24 hours.",
+      "job": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Published the post with the clip.",
+        "tasks": [
+          {
+            "action": "Upload the clip and publish the post",
+            "status": "complete",
+            "summary": "Published the post with the 30-second clip one minute ago. No likes or replies were visible yet.",
+            "locationPath": "https://x.com/ahe_agent/status/1853012345670000001"
+          }
+        ]
+      }
+    },
+    {
+      "id": "newsletter-open-rate",
+      "strategyObjective": "Grow the AHE newsletter. Each issue should beat a 40% open rate.",
+      "jobName": "Send issue 3 of the newsletter",
+      "objective": "Send issue 3 of the newsletter in Buttondown to all subscribers, and reach an open rate above 40%.",
+      "job": {
+        "outcomeStatus": "success",
+        "outcomeSummary": "Sent issue 3.",
+        "tasks": [
+          {
+            "action": "Send issue 3 in Buttondown",
+            "status": "complete",
+            "summary": "Sent issue 3 to 1,240 subscribers. The stats page was not opened after the send.",
+            "locationPath": "https://buttondown.com/emails/issue-3"
+          }
+        ]
+      }
+    }
+  ]
+}
