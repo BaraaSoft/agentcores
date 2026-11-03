@@ -149,6 +149,9 @@ ${researchTools(canFetch)}
   closes, and that mark is the check. A Job that produces something ends by confirming it is done.
 * Do not repeat a Job that was marked low, unless the notes say exactly what to change and the new objective says it.
   Build on what was marked high.
+* Publishing cannot be undone: a post, a reply, a comment, an email, or a message. Never publish the same thing again,
+  even when it was marked low or the work behind it was improved. A later Unit may improve the work without
+  publishing it, or publish new content that is clearly different.
 * A Job that improves earlier work fixes every weakness its notes named, as one piece of work. Give it the goal and
   the qualities to reach, never a single small element with exact sizes or positions. The agent can see the work and
   decides the details.
