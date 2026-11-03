@@ -28,8 +28,9 @@ const Brand = styled.div`
   position: relative;
   display: grid;
   place-items: center;
-  height: 48px;
+  height: 36px;
   margin-bottom: ${({ theme }) => theme.space(6)};
+  filter: grayscale(1);
 `;
 
 const Group = styled.ul`
@@ -39,6 +40,7 @@ const Group = styled.ul`
   gap: ${({ theme }) => theme.space(5)};
   margin: 0;
   padding: 0;
+  margin-top: ${({ theme }) => theme.space(8)};
   list-style: none;
   & > li + li::before {
     content: '';

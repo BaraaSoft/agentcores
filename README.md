@@ -19,9 +19,9 @@ Most AI agents stop at advice. Others run one loop with a few tools, and they lo
 AHE is different. It is an **AI co-worker**. It takes ownership of a goal, and it carries the work for days or weeks.
 
 AHE has its own internal governance and orchestration system. The system breaks a goal into levels of work.
-AHE does each piece on a real Mac with the mouse and the keyboard, like a person. Then it scores the result
-out of 10, and it plans the next round from that evidence. It recovers from failures, gets past routine
-obstacles, and builds a knowledge base of what worked. It asks you only when a decision is yours to make.
+AHE does each piece on a real Mac with the mouse and the keyboard, like a person. It self-improves. It learns
+from its own work: it keeps what worked, and it fixes what did not. It recovers from failures, gets past
+routine obstacles, and builds a knowledge base as it goes. It asks you only when a decision is yours to make.
 
 You do not prompt it step by step. You brief it once, like a colleague. Then you watch it work.
 
@@ -36,8 +36,8 @@ An assistant waits for your next prompt. A co-worker owns a piece of the work, a
 | | A typical agent | AHE |
 | --- | --- | --- |
 | Scope | One prompt, one loop | One goal that runs for days or weeks |
-| Memory of the work | The chat window | A database of every round, Job, Task, and score |
-| Quality | It stops when the steps end | It scores its own work and tries a better idea |
+| Memory of the work | The chat window | A database of every round, Job, Task, and lesson |
+| Quality | It stops when the steps end | It learns from its own work and tries a better idea |
 | Evidence | It guesses | It opens the real post, file, or design first |
 | When stuck | It fails or loops | It recovers, waits, or asks you one clear question |
 | Control | Kill the process | Pause, resume, or run again from a dashboard |
@@ -51,11 +51,11 @@ work, such as a community on X, runs in rounds of experiments with no finish lin
 types, scrolls, and zooms to read small text.
 - **Research first.** Before it plans, it reads the links in your brief and searches the web for every name
 in it. It also studies how the best current work of that kind looks.
-- **Honest marks.** It scores each Job out of 10 on an anchored scale. It looks at the real screenshot, not a
-summary. When it does not know what good looks like, it searches the web for strong examples first.
-- **Real evidence.** A post marked one minute after it went live has no likes yet. So AHE sends a real Job back
-to the computer to open the post and read the numbers. Then it scores.
-- **Learning across rounds and runs.** The next round starts from the last scores and critiques. A fresh run
+- **Honest self-review.** It reviews each Job against the real screenshot, not a summary. When it does not
+know what good looks like, it searches the web for strong examples first.
+- **Real evidence.** A post reviewed one minute after it went live has no likes yet. So AHE sends a real Job
+back to the computer to open the post and read the numbers. Then it reviews.
+- **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run
 of the same goal reads the last three runs. Past verdicts are stored as vectors, so AHE finds similar work
 by meaning.
 - **Recovery on its own.** It closes popups and reloads broken pages. It waits out rate limits. After a crash,
@@ -76,19 +76,20 @@ The screenshots below use sample data. The Figma screen inside the Job panel com
 
 The **Monitor** page draws the whole run as a live board in four lanes: Strategy, Units of Work, Jobs, and
 Tasks. The green card runs now, and a light flows along its line. The bar on top sums up the run: the rounds,
-the Jobs at work, the Tasks done, and the best score. The board updates every 2 seconds.
+the Jobs at work, the Tasks done, and the best result. The board updates every 2 seconds.
 
 AHE uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints the Wi-Fi address and a QR code.
 
-### See what it made, and how it judged it
+### See what it made, and what it learned
 
-![The Job panel with the screenshot of the work, the objective, the outcome, and the agent's own critique](.github/assets/monitor-judged.png)
+![The Job panel with the screenshot of the work, the objective, the outcome, and the agent's own review](.github/assets/monitor-judged.png)
 
 Click any card to open its details. A Job shows the final screen of its work, the objective, the outcome, and
-the agent's own marks: what was good, and what to improve. Click the screenshot to see it full screen.
+the agent's own review: what worked, and what to fix. Click the screenshot to see it full screen.
 
-In this run, AHE gave its first logo a 6. It called the work "correct but generic". Attempt 2 starts from one
-bolder idea: a path that returns to its start. The mark shows an agent that measures, learns, and redirects.
+In this run, AHE reviewed its first logo and called it "correct but generic". Attempt 2 keeps the clean layers
+and fixes the weak idea with one bolder one: a path that returns to its start. The mark shows an agent that
+learns from its work and redirects.
 
 ### Brief it like a colleague
 
@@ -120,8 +121,8 @@ flowchart TD
     J --> T["Task<br/>one action on the screen"]
     T --> Mac[["A real Mac<br/>screen, mouse, keyboard"]]
     Mac -. "result and location" .-> J
-    J -. "outcome" .-> E{{"Evaluator<br/>score out of 10"}}
-    E -. "scores and critique" .-> S
+    J -. "outcome" .-> E{{"Evaluator<br/>what worked, what to fix"}}
+    E -. "lessons" .-> S
 ```
 
 Each level reads only a short summary of the level below it. The Strategy planner never sees a Task. The Task
@@ -131,25 +132,24 @@ evaluator. This keeps long autonomy cheap, and the thread stays clear after hund
 ### The loop that makes it better
 
 1. **Plan.** The Strategy planner researches the brief and writes the Jobs of the next round. Each round names
-
    the idea it tests, and why.
 2. **Act.** For each Task, the Task planner writes one step. The hands-on agent does the work on screen and
    reports back. The planner reads the result and writes the next step, until the Task is done.
 3. **Review.** The Job reviewer checks every finished Task. It continues, revises the plan, or closes the Job.
-4. **Judge.** When a round ends, the evaluator scores each Job out of 10. It writes what was good and what to
+4. **Reflect.** When a round ends, the evaluator reviews each Job. It writes what worked and what to fix, as
+   advice for its own planner.
+5. **Self-improve.** The next round keeps what worked and fixes what did not. When the stop rule says the goal
+   is met, the run is done.
 
-   improve, as advice for its own planner.
-5. **Learn.** The next round starts from those scores. When the stop rule says the goal is met, the run is done.
-
-The orchestrator moves every run forward once a minute. A pass decides when a round opens, when it is judged,
+The orchestrator moves every run forward once a minute. A pass decides when a round opens, when it is reviewed,
 and which Jobs may start.
 
 ### Thinking and doing are separate
 
-The **reasoning layer** plans and judges. It writes structured JSON and never touches the screen. The
+The **reasoning layer** plans and reviews. It writes structured JSON and never touches the screen. The
 **execution layer** sees the screen, and clicks and types. It gets one plain instruction, the scope of its Task,
 and nothing else. Each level picks its own model, so a fast model can plan every step and a strong model can
-judge.
+review.
 
 ## Quick start
 
@@ -218,7 +218,7 @@ The Anthropic provider uses `ANTHROPIC_API_KEY`.
 
 | Setting | What it runs | Muse default |
 | --- | --- | --- |
-| `REASONING_STRATEGY_PROVIDER` | Plans each round, and judges the work | `muse-wonder-1.0` |
+| `REASONING_STRATEGY_PROVIDER` | Plans each round, and reviews the work | `muse-wonder-1.0` |
 | `REASONING_JOB_PROVIDER` | Plans and reviews the Tasks of each Job | `muse-wonder-1.0` |
 | `REASONING_TASK_PROVIDER` | Plans every step, the hot path | `muse-wonder-1.0` |
 | `EXECUTION_PROVIDER` | Sees the screen, clicks, and types | `muse-wonder-1.0` |
@@ -297,7 +297,7 @@ Read the design documents for the details:
 
 | Document | What it explains |
 | --- | --- |
-| [Orchestrator](packages/backend/src/orchestrator/tech-spec.md) | Runs, work types, the scheduling pass, and when work is judged |
+| [Orchestrator](packages/backend/src/orchestrator/tech-spec.md) | Runs, work types, the scheduling pass, and when work is reviewed |
 | [Governance processors](packages/backend/src/governance/processors/tech-spec.md) | How Jobs and Tasks move, wait, fail, and recover |
 | [Reasoning](packages/backend/src/reasoning/tech-spec.md) | Every planner and the evaluator, their inputs, and their prompts |
 | [Execution](packages/execution/tech-spec.md) | The computer-use loop, the macOS driver, and the providers |
