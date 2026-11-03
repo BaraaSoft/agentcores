@@ -2,9 +2,15 @@
 
 ### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
 
-![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
+<div align="center">
 
-**[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Architecture](#architecture)**
+![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)&nbsp;&nbsp;![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)&nbsp;&nbsp;![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)&nbsp;&nbsp;![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)&nbsp;&nbsp;![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)&nbsp;&nbsp;![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
+
+</div>
+
+<p align="center">
+  <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#architecture">Architecture</a></b>
+</p>
 
 ## What AHE is
 
@@ -45,7 +51,8 @@ types, scrolls, and zooms to read small text.
 - **Research first.** Before it plans, it reads the links in your brief and searches the web for every name
 in it. It also studies how the best current work of that kind looks.
 - **Self-review.** It reviews each Job against the real screenshot, not a summary. When it does not  
-know what good looks like, it searches the web for strong examples first.
+know what good looks like, it searches the web for strong examples first. In [our benchmark](eval/), it
+never ranked weak work above strong work, and it judged every visual check from the screen itself.
 - **Real evidence.** A post reviewed one minute after it went live has no likes yet. So AHE sends a real Job
 back to the computer to open the post and read the numbers. Then it reviews.
 - **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run  
@@ -61,7 +68,7 @@ reject once, and the work continues.
 
 The dashboard is where you brief your co-worker and watch it work. It is dark, glassy, and live.
 
-The screenshots below use sample data. The Figma screen inside the Job panel comes from a real AHE run.
+The screenshots below use sample data. The Canva graphic inside the Job panel is real: AHE designed it in an earlier run.
 
 ### Watch the work, live
 
@@ -294,6 +301,9 @@ order changes nothing.
 - **Reasoning is stateless.** Each reasoner reads its inputs from the database, decides, and returns JSON.
 - **Tests at every level.** 479 automated tests: 277 backend unit tests, 69 database integration tests, and
 133 execution tests. An end-to-end suite also runs the real desktop with a real model.
+- **A benchmark for the self-review.** [`eval/`](eval/) runs the real evaluator on pairs of strong and weak
+work, on screenshots of real visual work, and on Jobs that need live evidence. It reports ranking accuracy, evidence requests, valid output,
+and latency.
 
 Read the design documents for the details:
 
