@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  agent-core:
+    name: agent-core · typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ahe/agent-core typecheck
+      - run: pnpm --filter @ahe/agent-core build
+
+  backend-unit:
+    name: backend · unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install libXtst, which the robotjs prebuild links against
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxtst6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:libs
+      - run: pnpm --filter @ahe/backend typecheck
+      - run: pnpm --filter @ahe/backend test
+
+  backend-integration:
+    name: backend · database integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ahe
+          POSTGRES_PASSWORD: ahe
+          POSTGRES_DB: ahe_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ahe -d ahe_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://ahe:ahe@localhost:5432/ahe_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:libs
+      - run: pnpm --filter @ahe/backend test:integration
+
+  execution:
+    name: execution · unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ahe/agent-core build
+      - run: pnpm --filter @ahe/execution typecheck
+      - run: pnpm --filter @ahe/execution test
+
+  migrations:
+    name: migrations · typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:libs
+      - run: pnpm --filter @ahe/migrations typecheck
+
+  web-ui:
+    name: web-ui · typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ahe/web-ui build
