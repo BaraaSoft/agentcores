@@ -80,8 +80,6 @@ AHE uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints
 Click any card to open its details. A Job shows the final screen of its work, the objective, the outcome, and  
 the agent's own review: what worked, and what to fix. Click the screenshot to see it full screen.
 
-
-
 ### Brief it like a colleague
 
 ![The Create strategy page with a goal for an AHE logo](.github/assets/create-strategy.png)
@@ -97,7 +95,7 @@ the agent's own review: what worked, and what to fix. Click the screenshot to se
 
 A Strategy is a reusable goal. Each Workflow is one run of it: running, paused, or done. **WorkHub** lists every
 run. Pause one, resume it, or open it in Monitor. To start a goal again from round 1, pick it in **Run again**.
-The fresh run still learns from the earlier runs.   
+The fresh run still learns from the earlier runs.  
 One Mac runs one Workflow at a time, so AHE pauses the current run first.
 
 ## How it works
@@ -141,8 +139,8 @@ and which Jobs may start.
 
 ### Thinking and doing are separate
 
-The **reasoning layer** plans and reviews. It never touches the screen. The **execution layer** sees the screen,   
-and clicks and types. It gets one plain instruction, the scope of its Task, and nothing else.   
+The **reasoning layer** plans and reviews. It never touches the screen. The **execution layer** sees the screen,  
+and clicks and types. It gets one plain instruction, the scope of its Task, and nothing else.  
 Each level picks its own model, so a fast model can plan every step and a strong model can review.
 
 ## Quick start
@@ -159,44 +157,44 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 1. Clone the repository and install the packages.
    ```bash
-     git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
-     cd ahe-autonomous-agent
-     corepack enable
-     pnpm install
+      git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
+      cd ahe-autonomous-agent
+      corepack enable
+      pnpm install
    ```
 2. Create your `.env` file from the example.
    ```bash
-     cp .env.example .env
+      cp .env.example .env
    ```
 3. Open `.env`. Add your Meta key, and set every layer to Muse.
    ```dotenv
-     META_API_KEY=your-meta-api-key
+      META_API_KEY=your-meta-api-key
 
-     REASONING_STRATEGY_PROVIDER=muse
-     REASONING_JOB_PROVIDER=muse
-     REASONING_TASK_PROVIDER=muse
-     EXECUTION_PROVIDER=muse
+      REASONING_STRATEGY_PROVIDER=muse
+      REASONING_JOB_PROVIDER=muse
+      REASONING_TASK_PROVIDER=muse
+      EXECUTION_PROVIDER=muse
    ```
 4. Start the database and the queue. Leave this terminal open.
    ```bash
-     pnpm compose:up
+      pnpm compose:up
    ```
 
-     This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
+      This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
 5. In a new terminal, give the agent the screen.
    ```bash
-     pnpm --filter @ahe/execution check:desktop
+      pnpm --filter @ahe/execution check:desktop
    ```
 
-     macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow both, then
-     restart the terminal. The check saves one screenshot, and it sends no mouse or keyboard input.
+      macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow both, then
+      restart the terminal. The check saves one screenshot, and it sends no mouse or keyboard input.
 6. Launch AHE.
    ```bash
-     pnpm dev:start
+      pnpm dev:start
    ```
 
-     This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
-     embedding model, one time.
+      This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
+      embedding model, one time.
 7. Open [http://localhost:5173](http://localhost:5173), and create your first strategy. Start small, for
 
    example: *"Open Figma, create a file named AHE test, and draw a calm blue circle."*
@@ -273,14 +271,13 @@ packages/
 └── web-ui/        the React dashboard
 ```
 
-**The stack:** TypeScript in strict mode, NestJS 11, PostgreSQL with pgvector, Redis with BullMQ, TypeORM, and
-React with Vite, Emotion, and Framer Motion. The execution layer uses robotjs for input, macOS `screencapture`
-for pixels, and sharp to scale each screenshot.
+  
 
-<details>
-<summary><b>Engineering notes</b>: the rules we hold to, and the design documents</summary>
 
-<br/>
+**Engineering notes**: the rules we hold to, and the design documents
+
+  
+
 
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
 order changes nothing.
@@ -298,7 +295,7 @@ Read the design documents for the details:
 | [Reasoning](packages/backend/src/reasoning/tech-spec.md) | Every planner and the evaluator, their inputs, and their prompts |
 | [Execution](packages/execution/tech-spec.md) | The hands-on loop, the macOS driver, and the providers |
 
-</details>
+
 
 ## Roadmap
 
