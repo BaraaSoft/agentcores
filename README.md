@@ -9,7 +9,7 @@
 </div>
 
 <p align="center">
-  <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#architecture">Architecture</a></b>
+  <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#architecture">Architecture</a></b>
 </p>
 
 ## What AHE is
@@ -27,6 +27,13 @@ You do not prompt it step by step. You brief it once, like a colleague. Then you
 > [!NOTE]
 > We built AHE for the Meta Hackathon. **Meta Muse runs every layer**: the planning, the judgement, and the
 > hands-on work on screen. One Meta API key is enough to run all of it.
+
+## Demo
+
+One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
+it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
+
+<!-- Upload documents/example/demo/AHE_Demo_small.mp4 in the GitHub web editor, and put its URL on the next line. -->
 
 ## A co-worker, not an assistant
 
