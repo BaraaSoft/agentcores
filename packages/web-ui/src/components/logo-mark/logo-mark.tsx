@@ -1,28 +1,43 @@
 import { useTheme } from '@emotion/react';
+import { useId } from 'react';
 
-/** The size of the mark in pixels. */
 export interface LogoMarkProps {
   readonly size?: number;
 }
 
-const DEFAULT_SIZE = 38;
-const INK = '#FFFFFF';
+const DEFAULT_SIZE = 40;
 
-/** The AHE mark: three stacked layers, for Strategy, Jobs, and Tasks, on a Meta blue tile. */
+/** The AHE mark: stacked layers for the levels of work, on a Meta blue tile. */
 export function LogoMark({ size = DEFAULT_SIZE }: LogoMarkProps) {
   const theme = useTheme();
+  const id = useId();
+  const tile = `${id}-tile`;
+  const sheen = `${id}-sheen`;
+  const lift = `${id}-lift`;
+
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label="AHE">
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" role="img" aria-label="AHE">
       <defs>
-        <linearGradient id="logo-mark-fill" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={tile} x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor={theme.color.accentStrong} />
           <stop offset="1" stopColor={theme.color.accent} />
         </linearGradient>
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.22" />
+          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" />
+        </linearGradient>
+        <filter id={lift} x="-10%" y="-10%" width="120%" height="125%">
+          <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="#002A6B" floodOpacity="0.35" />
+        </filter>
       </defs>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#logo-mark-fill)" />
-      <path d="M7 15.5 12 18l5-2.5" fill="none" stroke={INK} strokeOpacity="0.45" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7 12 12 14.5 17 12" fill="none" stroke={INK} strokeOpacity="0.7" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 6 17 8.5 12 11 7 8.5Z" fill={INK} />
+      <rect width="512" height="512" rx="136" fill={`url(#${tile})`} />
+      <rect width="512" height="512" rx="136" fill={`url(#${sheen})`} />
+      <rect x="4" y="4" width="504" height="504" rx="132" stroke="#FFFFFF" strokeOpacity="0.16" strokeWidth="8" />
+      <g filter={`url(#${lift})`} stroke="#FFFFFF" strokeWidth="44" strokeLinejoin="miter" strokeMiterlimit="1.6">
+        <path d="M96 181 256 101 416 181 256 261Z" />
+        <path d="M96 256 256 336 416 256" />
+        <path d="M96 331 256 411 416 331" />
+      </g>
     </svg>
   );
 }
