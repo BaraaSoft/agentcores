@@ -8,6 +8,7 @@
     "dev:backend": "pnpm build:libs && pnpm --filter @ahe/backend start:dev",
     "dev:reset": "bash scripts/reset-dev.sh",
     "quickstart": "bash scripts/quickstart.sh",
+    "eval": "pnpm build:libs && pnpm --filter @ahe/backend eval:self-review",
     "dev:start": "concurrently --kill-others --names backend,web --prefix-colors \"#0081FB.bold,#4CB782.bold\" \"pnpm dev:backend\" \"wait-on --timeout 180000 tcp:localhost:3088 && pnpm dev:web\"",
     "dev:web": "pnpm --filter @ahe/web-ui dev",
     "typecheck": "pnpm build:libs && pnpm -r typecheck",
