@@ -155,49 +155,62 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 ### Run it
 
-1. Clone the repository and install the packages.
+1. Clone the repository.
    ```bash
-      git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
-      cd ahe-autonomous-agent
-      corepack enable
-      pnpm install
+   git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
+   cd ahe-autonomous-agent
+   corepack enable
    ```
-2. Create your `.env` file from the example.
+2. Run the quick start. Paste your Meta API key when it asks.
    ```bash
-      cp .env.example .env
+   pnpm quickstart
    ```
-3. Open `.env`. Add your Meta key, and set every layer to Muse.
-   ```dotenv
-      META_API_KEY=your-meta-api-key
-
-      REASONING_STRATEGY_PROVIDER=muse
-      REASONING_JOB_PROVIDER=muse
-      REASONING_TASK_PROVIDER=muse
-      EXECUTION_PROVIDER=muse
-   ```
-4. Start the database and the queue. Leave this terminal open.
-   ```bash
-      pnpm compose:up
-   ```
-
-      This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
-5. In a new terminal, give the agent the screen.
-   ```bash
-      pnpm --filter @ahe/execution check:desktop
-   ```
-
-      macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow both, then
-      restart the terminal. The check saves one screenshot, and it sends no mouse or keyboard input.
-6. Launch AHE.
-   ```bash
-      pnpm dev:start
-   ```
-
-      This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
-      embedding model, one time.
-7. Open [http://localhost:5173](http://localhost:5173), and create your first strategy. Start small, for
-
+   It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
+   layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
+   permissions and launches AHE.
+3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy. Start small, for
    example: *"Open Figma, create a file named AHE test, and draw a calm blue circle."*
+
+The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
+both, restart the terminal, and run `pnpm quickstart` again. Each run skips the work that is already done.
+
+<details>
+<summary><b>Run each step by hand</b></summary>
+
+<br/>
+
+1. Install the packages, and create your `.env` file from the example.
+   ```bash
+   pnpm install
+   cp .env.example .env
+   ```
+2. Open `.env`. Add your Meta key, and set every layer to Muse.
+   ```dotenv
+   META_API_KEY=your-meta-api-key
+
+   REASONING_STRATEGY_PROVIDER=muse
+   REASONING_JOB_PROVIDER=muse
+   REASONING_TASK_PROVIDER=muse
+   EXECUTION_PROVIDER=muse
+   ```
+3. Start the database and the queue. Leave this terminal open.
+   ```bash
+   pnpm compose:up
+   ```
+   This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
+4. In a new terminal, give the agent the screen.
+   ```bash
+   pnpm --filter @ahe/execution check:desktop
+   ```
+   The check saves one screenshot, and it sends no mouse or keyboard input.
+5. Launch AHE.
+   ```bash
+   pnpm dev:start
+   ```
+   This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
+   embedding model, one time.
+
+</details>
 
 > [!WARNING]
 > AHE uses the real mouse and keyboard. Do not use the Mac while a Task runs. Pause the run from the dashboard
