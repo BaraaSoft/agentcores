@@ -2,6 +2,7 @@ import type { TaskSkillType } from '@ahe/agent-core';
 import { renderTaskOutcome, renderTaskOutcomes } from '../task-outcome.prompts';
 import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB, TASKS_ADDED_PER_REVISION } from './job-reasoning.constants';
 import type { JobPlanningInput } from './types/job-planning-input';
+import type { FinishedSiblingJob } from './types/finished-sibling-job';
 import type { JobReviewInput } from './types/job-review-input';
 import type { OpenSiblingJob } from './types/open-sibling-job';
 import type { PlannedTask } from './types/planned-task';
@@ -35,11 +36,19 @@ function renderOpenSiblingJobs(siblingJobs: readonly OpenSiblingJob[]): string {
   return siblingJobs.map((siblingJob, index) => `${index + 1}. ${siblingJob.name}: ${siblingJob.objective}`).join('\n');
 }
 
+function renderFinishedSiblingJobs(siblingJobs: readonly FinishedSiblingJob[]): string {
+  if (siblingJobs.length === 0) return 'None.';
+  return siblingJobs
+    .map((siblingJob) => `${siblingJob.name}:\n${renderTaskOutcomes(siblingJob.outcomes, 'No complete Tasks.')}`)
+    .join('\n\n');
+}
+
 function renderJob(input: {
   jobName: string;
   objective: string;
   unitOfWorkName: string;
   openSiblingJobs: readonly OpenSiblingJob[];
+  finishedSiblingJobs: readonly FinishedSiblingJob[];
   safeContext: string;
 }): string {
   return `<JOB>
@@ -51,6 +60,10 @@ Unit of Work: ${input.unitOfWorkName}
 <OTHER_JOBS_IN_UNIT>
 ${renderOpenSiblingJobs(input.openSiblingJobs)}
 </OTHER_JOBS_IN_UNIT>
+
+<FINISHED_JOBS_IN_UNIT>
+${renderFinishedSiblingJobs(input.finishedSiblingJobs)}
+</FINISHED_JOBS_IN_UNIT>
 
 <OWNER_CONTEXT>
 ${input.safeContext || 'None.'}
@@ -133,8 +146,8 @@ ${renderActions(input.remainingActions)}
 * Keep what still fits. Prefer small edits over rewriting the plan.
 * Each Task is one concrete action with a clear end. No vague Tasks ("Grow presence").
 * Do not re-add a Task that was dropped (cancelled) or that already failed, unless you change how it is done.
-* When a Task returns to where an earlier Task worked, copy that place into the action from the earlier Task's Location,
-  so the agent goes straight there instead of searching for it.
+* When a Task returns to where an earlier Task worked, in this Job or in a finished Job of the Unit, copy that place
+  into the action from the earlier Task's Location, so the agent goes straight there instead of searching for it.
 * Plan the full ordered list needed to meet the objective.
 * Never plan a Task that only checks earlier work. The Task that does the work reports where it lives and how it
   ended, a visual skill returns a screenshot, and the evaluator can ask for evidence. That is the proof.

@@ -72,6 +72,7 @@ function setup() {
   };
   const tasks = {
     listTasks: jest.fn().mockResolvedValue([]),
+    listTasksInJobs: jest.fn().mockResolvedValue([]),
     findUnreviewedTask: jest.fn().mockResolvedValue(null),
     replaceRemainingTasks: jest.fn().mockResolvedValue([]),
     markTaskReviewed: jest.fn().mockResolvedValue(true),
@@ -144,6 +145,26 @@ describe('JobExecutionProcessor', () => {
       expect(t.jobs.listJobsInUnits).toHaveBeenCalledWith(['unit-1']);
       expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(
         expect.objectContaining({ openSiblingJobs: [{ name: 'Report the replies', objective: 'Write up the replies the intro earned' }] }),
+      );
+    });
+
+    it("shows planning the Unit's closed Jobs with only their complete Tasks", async () => {
+      const t = setup();
+      const found = { ...task(1, 'complete', 'Find r/AICompanion'), jobId: 'job-done', locationPath: 'reddit.com/r/AICompanion' };
+      t.tasks.listTasksInJobs.mockResolvedValue([found, { ...task(2, 'failed'), jobId: 'job-done' }]);
+
+      await t.run();
+
+      expect(t.tasks.listTasksInJobs).toHaveBeenCalledWith(['job-done']);
+      expect(t.jobReasoning.planTasks).toHaveBeenCalledWith(
+        expect.objectContaining({
+          finishedSiblingJobs: [
+            {
+              name: 'Find the subreddit',
+              outcomes: [expect.objectContaining({ action: 'Find r/AICompanion', locationPath: 'reddit.com/r/AICompanion' })],
+            },
+          ],
+        }),
       );
     });
 

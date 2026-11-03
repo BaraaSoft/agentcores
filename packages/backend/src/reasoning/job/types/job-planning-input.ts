@@ -1,4 +1,5 @@
 import type { Screenshot } from '@ahe/agent-core';
+import type { FinishedSiblingJob } from './finished-sibling-job';
 import type { OpenSiblingJob } from './open-sibling-job';
 import type { PlannedTask } from './planned-task';
 import type { TaskOutcome } from './task-outcome';
@@ -12,6 +13,8 @@ export interface JobPlanningInput {
   readonly unitOfWorkName: string;
   /** The Unit's other Jobs that have not closed yet. Their work is theirs, so this plan leaves it to them. */
   readonly openSiblingJobs: readonly OpenSiblingJob[];
+  /** The Unit's other Jobs that have closed, with what they made and where, so this plan builds on it. */
+  readonly finishedSiblingJobs: readonly FinishedSiblingJob[];
   /** Owner context from the safe memory zone, already rendered as text. */
   readonly safeContext: string;
   /** Why planning runs: the first plan, the review's revision notes, or an empty plan. */

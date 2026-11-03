@@ -21,6 +21,14 @@ why it matters, and where it lives in the code.
 
 ## 4 Nov 2026
 
+### A Job now builds on the work of the Jobs before it
+
+When a Job plans, it now sees what the finished Jobs of the same round made and where. For example, the posting
+Job knows the design Job saved the graphic on the Desktop, so it attaches that file instead of searching for it.
+
+- **Why it matters:** the agent stops searching for work it already made, and never picks up an older copy by mistake.
+- **Where:** Job planning and review, in `packages/backend/src/reasoning/job/` and the Job processor.
+
 ### A step that runs out of time still says what it did
 
 Before its last turn, the screen agent now gets a note, with Meta Muse and with Claude: report now, with what you finished, what is left, and
