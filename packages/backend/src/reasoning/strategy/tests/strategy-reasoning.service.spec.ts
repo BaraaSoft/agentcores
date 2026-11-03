@@ -97,6 +97,7 @@ describe('StrategyReasoningService', () => {
       expect(systemPrompt).toContain('You have two web tools, and you choose which fits');
       expect(systemPrompt).toContain('Read every address the Strategy or the owner context gives. Search for every name');
       expect(systemPrompt).toContain('Turn inspiration into direction, never into a copy.');
+      expect(systemPrompt).toContain('Never publish the same thing again,\n  even when it was marked low');
     });
 
     it('tells a model that cannot fetch pages to search for addresses, and never mentions web_fetch', async () => {
