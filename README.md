@@ -260,15 +260,15 @@ the mouse.
 The bridge to HumanExperiences memory sits behind a **privacy wall** that fails closed. The bridge is not wired
 yet, so no private memory reaches the agent today.
 
-## Architecture
+## Project structure
 
 ```text
 packages/
 ├── agent-core/    shared domain types and contracts
-├── backend/       NestJS: the API, the reasoning layer, the BullMQ queues, and the orchestrator
+├── backend/       the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
-├── migrations/    TypeORM migrations, applied by Docker on start
-└── web-ui/        the React dashboard
+├── migrations/    migrations, applied by Docker on start
+└── web-ui/        the ui dashboard
 ```
 
 <details>
@@ -296,10 +296,10 @@ Read the design documents for the details:
 
 ## Roadmap
 
-- Connect the HumanExperiences memory, behind the privacy wall.
+- Connect the HumanExperiences.IO memory, behind the privacy wall.
 - Run several Macs at once, one Workflow on each.
-- Add more skills, for video editing and long-form writing.
-- Let the owner answer questions from the dashboard and from the phone (coming soon)
+- Add more skills, for video editing and CAD engineering design.
+- Let the owner answer questions from the dashboard, Slack workspace and WhatsApp
 
 ## License
 
