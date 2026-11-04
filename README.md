@@ -1,19 +1,14 @@
 ![AHE: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
-<div align="center">
-<h3>Give it a goal. It plans, acts on a real computer, and self-improves with every round.</h3>
-  <div></div>
-</div>
 
-<div align="center">
+### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
 
-![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)&nbsp;&nbsp;![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)&nbsp;&nbsp;![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)&nbsp;&nbsp;![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)&nbsp;&nbsp;![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)&nbsp;&nbsp;![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
 
-</div>
 
-<p align="center">
-  <b><a href="https://baraasoft.github.io/ahe-ai-coworker/">Website</a></b> · <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
-</p>
+![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)  ![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)  ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)  ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)  ![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)  ![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
 
+
+
+**[Website](https://baraasoft.github.io/ahe-ai-coworker/)** · **[Demo](#demo)** · **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Project structure](#Project-structure)**
 
 ## What AHE is
 
@@ -37,9 +32,9 @@ One run, from start to end. AHE plans a book launch, designs the graphic in Canv
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up. This run used
 Claude on every layer. Each layer can also run on Muse.
 
-[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://youtu.be/SmZx7uCVIyU)
+![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)
 
-<sub>No YouTube? <a href="https://github.com/user-attachments/assets/ca1138b0-b9ae-4669-8b00-6606a39df38c">Play the demo on GitHub</a>.</sub>
+No YouTube? [Play the demo on GitHub](https://github.com/user-attachments/assets/ca1138b0-b9ae-4669-8b00-6606a39df38c).
 
 ## A co-worker, not an assistant
 
@@ -48,7 +43,7 @@ An assistant waits for your next prompt. A co-worker owns a piece of the work, a
 | | A typical agent | AHE |
 | --- | --- | --- |
 | Scope | One prompt, one loop | One goal that runs for days or weeks |
-| Memory of the work | The chat window | A database of every round, Job, Task, and lesson |
+| Memory of the work | The chat window | A knowledge base of every round, Job, Task, and lesson |
 | Quality | It stops when the steps end | It learns from its own work and tries a better idea |
 | Evidence | It guesses | It opens the real post, file, or design first |
 | When stuck | It fails or loops | It recovers, waits, or asks you one clear question |
@@ -56,24 +51,22 @@ An assistant waits for your next prompt. A co-worker owns a piece of the work, a
 
 ## What it can do
 
-- **Three kinds of work.** *One-off* work, such as a launch post, gets up to 3 attempts until it is good.
-*Multi-version* work, such as three logo concepts, makes each version in a new direction. *Continuous*
-work, such as a community on X, runs in rounds of experiments with no finish line.
-- **Any app on the Mac.** It works in Figma, Canva, and the browser. It sees the screen, then clicks,
-types, scrolls, and zooms to read small text.
-- **Research first.** Before it plans, it reads the links in your brief and searches the web for every name
-in it. It also studies how the best current work of that kind looks.
-- **Self-review.** It reviews each Job against the real screenshot, not a summary. When it does not  
-know what good looks like, it searches the web for strong examples first. In [our benchmark](eval/), it
-never ranked weak work above strong work, and it judged every visual check from the screen itself.
-- **Real evidence.** A post reviewed one minute after it went live has no likes yet. So AHE sends a real Job
-back to the computer to open the post and read the numbers. Then it reviews.
-- **Learning across rounds and runs.** The next round keeps what worked and fixes what did not. A fresh run  
-of the same goal reads the last three runs. Past verdicts are stored, so AHE finds similar work  
-by meaning.
-- **Recovery on its own.** It closes popups and reloads broken pages. It waits out rate limits. After a crash,
-it plans from what is already on the screen, so it never repeats a half-done step blindly.
-- **Its own lane.** Each Job and each Task knows which work belongs to later steps, and it leaves that work alone.
+**Governance, not just execution.** AHE splits a goal into four levels: Strategy, Unit of Work, Job, and Task.
+Each level plans on its own and reads only a short summary of the level below. This keeps long autonomy cheap
+and clear, even after hundreds of steps. Many agents work as one co-worker and share what they learn.
+
+**Self-improvement is the core.** After every round, an evaluator reviews each Job against real evidence: the
+actual output and the actual numbers, opened on the real screen. When the evidence is missing, AHE sends a real
+Job to get it, for example to open the analytics dashboard and read this week's sign-ups. The lessons feed the
+next round: keep what worked, fix what did not. A new run of the same goal reads the last three runs, and AHE
+finds similar past work by meaning. In [our benchmark](eval/), it never ranked weak work above strong work.
+
+**Any app on the Mac.** AHE operates macOS with the mouse, the keyboard, and screenshots, like a person. It works  
+in Canva, spreadsheets, the browser, or anything else on the screen. It recovers on its own from popups, broken pages,  
+rate limits, and crashes.
+
+**Safety by design.** Hard walls block system settings, purchases, and account changes. AHE reports a CAPTCHA
+and never solves it. It types a login only on that login's own site.
 
 ## The dashboard
 
@@ -175,62 +168,59 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 1. Clone the repository.
    ```bash
-   git clone https://github.com/BaraaSoft/ahe-ai-coworker.git
-   cd ahe-ai-coworker
-   corepack enable
+    git clone https://github.com/BaraaSoft/ahe-ai-coworker.git
+    cd ahe-ai-coworker
+    corepack enable
    ```
 2. Run the quick start. Paste your Meta API key when it asks.
    ```bash
-   pnpm quickstart
+    pnpm quickstart
    ```
-   It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
-   layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
-   permissions and launches AHE.
+
+    It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
+    layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
+    permissions and launches AHE.
 3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy.
 
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
 both, restart the terminal, and run `pnpm quickstart` again. Each run skips the work that is already done.
 
-<details>
-<summary><b>Run each step by hand</b></summary>
+**Run each step by hand**
 
-<br/>
+  
+
 
 1. Install the packages, and create your `.env` file from the example.
    ```bash
-   pnpm install
-   cp .env.example .env
+    pnpm install
+    cp .env.example .env
    ```
 2. Open `.env`, and add your Meta key. Create the key in the
-   [Meta Model API dashboard](https://dev.meta.ai/docs/authentication). Then set every layer to Muse.
-   ```dotenv
-   META_API_KEY=your-meta-api-key
 
-   REASONING_STRATEGY_PROVIDER=muse
-   REASONING_JOB_PROVIDER=muse
-   REASONING_TASK_PROVIDER=muse
-   EXECUTION_PROVIDER=muse
-   ```
+   [Meta Model API dashboard](https://dev.meta.ai/docs/authentication). Then set every layer to Muse.
    > **Tip:** For the most reliable screen control, keep Muse on the reasoning layers, and run execution on
    > Claude. Set `EXECUTION_PROVIDER=anthropic`, and add your `ANTHROPIC_API_KEY`.
 3. Start the database and the queue. Leave this terminal open.
    ```bash
-   pnpm compose:up
+    pnpm compose:up
    ```
-   This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
+
+    This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
 4. In a new terminal, give the agent the screen.
    ```bash
-   pnpm --filter @ahe/execution check:desktop
+    pnpm --filter @ahe/execution check:desktop
    ```
-   The check saves one screenshot, and it sends no mouse or keyboard input.
+
+    The check saves one screenshot, and it sends no mouse or keyboard input.
 5. Launch AHE.
    ```bash
-   pnpm dev:start
+    pnpm dev:start
    ```
-   This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
-   embedding model, one time.
 
-</details>
+    This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
+    embedding model, one time.
+
+
 
 > [!WARNING]
 > AHE uses the real mouse and keyboard. Do not use the Mac while a Task runs. Pause the run from the dashboard
@@ -291,7 +281,6 @@ report. It also removes tokens and tracking codes from every saved link.
 - **One machine, one run.** A new run on the Mac pauses the current one first, so two runs never fight for
 the mouse.
 
-
 ## Project structure
 
 ```text
@@ -303,10 +292,10 @@ packages/
 └── web-ui/        the ui dashboard (localhost:5173)
 ```
 
-<details>
-<summary><b>Engineering notes</b>: the rules we hold to, and the design documents</summary>
+**Engineering notes**: the rules we hold to, and the design documents
 
-<br/>
+  
+
 
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
 order changes nothing.
@@ -327,12 +316,12 @@ Read the design documents for the details:
 | [Reasoning](packages/backend/src/reasoning/README.md) | Every planner and the evaluator, their inputs, and their prompts |
 | [Execution](packages/execution/README.md) | The hands-on loop, the macOS driver, and the providers |
 
-</details>
 
-<details>
-<summary><b>Built during Meta Global AI Hackathon 2026</b>: every feature, day by day</summary>
 
-<br/>
+**Built during Meta Global AI Hackathon 2026**: every feature, day by day
+
+  
+
 
 | Day | What AHE can now do |
 | --- | --- |
@@ -347,7 +336,7 @@ Read the design documents for the details:
 
 Read the full log, with an example for each feature: [docs/hackathon-features-log.md](docs/hackathon-features-log.md).
 
-</details>
+
 
 ## Roadmap
 
