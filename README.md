@@ -11,7 +11,7 @@
 </div>
 
 <p align="center">
-  <b><a href="https://baraasoft.github.io/ahe-autonomous-agent/">Website</a></b> · <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
+  <b><a href="https://baraasoft.github.io/ahe-ai-coworker/">Website</a></b> · <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
 </p>
 
 
@@ -177,8 +177,8 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 1. Clone the repository.
    ```bash
-   git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git
-   cd ahe-autonomous-agent
+   git clone https://github.com/BaraaSoft/ahe-ai-coworker.git
+   cd ahe-ai-coworker
    corepack enable
    ```
 2. Run the quick start. Paste your Meta API key when it asks.
