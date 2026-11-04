@@ -89,6 +89,24 @@ jobs:
       - run: pnpm --filter @ahe/execution typecheck
       - run: pnpm --filter @ahe/execution test
 
+  smoke:
+    name: smoke · live Meta Model API
+    runs-on: ubuntu-latest
+    env:
+      META_API_KEY: ${{ secrets.META_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install libXtst, which the robotjs prebuild links against
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxtst6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:libs
+      - run: pnpm --filter @ahe/backend test:smoke
+
   migrations:
     name: migrations · typecheck
     runs-on: ubuntu-latest

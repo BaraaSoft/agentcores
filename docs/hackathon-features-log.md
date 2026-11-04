@@ -186,7 +186,7 @@ Each thinking level of the agent can run on Muse: the strategist, the Job planne
 Muse Wonder handles the big decisions, and any level can switch to the faster Muse Spark.
 
 - **Why it matters:** the agent's planning and its self-review run on Meta's own models.
-- **Where:** `packages/backend/src/reasoning/providers`, plus a live check script, `muse-smoke.ts`.
+- **Where:** `packages/backend/src/reasoning/providers`, plus a live smoke test in `packages/backend/test`.
 
 ### The agent stops polishing
 
@@ -230,7 +230,7 @@ answer unblocks it: approved, the Task runs again; rejected, the agent plans aro
 A change that would delete data is written down, but not applied until a person checks it.
 
 - **Why it matters:** AHE runs on a fresh machine, and the code and the database never drift apart.
-- **Where:** `docker-compose-dev.yml` and `packages/migrations`.
+- **Where:** `compose.yaml` and `packages/migrations`.
 
 ---
 

@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-COMPOSE=(docker compose -f docker-compose-dev.yml)
+COMPOSE=(docker compose -f compose.yaml)
 BOLD=$'\033[1m'
 BLUE=$'\033[38;2;0;129;251m'
 RED=$'\033[31m'
