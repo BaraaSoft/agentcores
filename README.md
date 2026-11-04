@@ -132,17 +132,13 @@ evaluator. This keeps long autonomy cheap, and the thread stays clear after hund
 ### The loop that makes it better
 
 1. **Plan.** The Strategy planner researches the brief and writes the Jobs of the next round. Each round names
-
    the idea it tests, and why.
 2. **Act.** For each Task, the Task planner writes one step. The hands-on agent does the work on screen and
-
    reports back. The planner reads the result and writes the next step, until the Task is done.
 3. **Review.** The Job reviewer checks every finished Task. It continues, revises the plan, or closes the Job.
 4. **Reflect.** When a round ends, the evaluator reviews each Job. It writes what worked and what to fix, as
-
    advice for its own planner.
 5. **Self-improve.** The next round keeps what worked and fixes what did not. When the stop rule says the goal
-
    is met, the run is done.
 
 The orchestrator moves every run forward once a minute. A pass decides when a round opens, when it is reviewed,
