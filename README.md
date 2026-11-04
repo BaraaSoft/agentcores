@@ -260,6 +260,70 @@ The backend also serves two admin tools: the API docs at [localhost:3088/admin/d
 and the queues at [localhost:3088/admin/queues](http://localhost:3088/admin/queues). The login comes from
 `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`.
 
+## Troubleshooting
+
+<details>
+<summary><b>Troubleshooting guide</b>: fixes for common setup errors</summary>
+
+<br/>
+
+#### "AHE needs Node.js 22 or newer"
+
+The scripts run with the Node that pnpm uses, and that can differ from the `node` in your terminal. Compare
+the two:
+
+```bash
+node -v             # the Node in your terminal
+pnpm exec node -v   # the Node your scripts get
+```
+
+If either one is below 22, switch to Node 22 with the tool you already use, then get pnpm again on top of it:
+
+| You use | Switch to Node 22 |
+| --- | --- |
+| The installer from [nodejs.org](https://nodejs.org) | Install the 22 LTS release |
+| Homebrew | `brew install node@22 && brew link --overwrite --force node@22` |
+| nvm | `nvm install 22 && nvm alias default 22` |
+| fnm | `fnm install 22 && fnm default 22` |
+| Volta | `volta install node@22` |
+
+```bash
+corepack enable                          # gives you the pnpm version in package.json (10.4.1)
+corepack prepare pnpm@10.4.1 --activate
+```
+
+With Volta, run `volta install pnpm@10.4.1` instead. Volta keeps each tool on the Node it was installed
+with, so pnpm stays on the old Node until you reinstall it.
+
+Open a new terminal, and check that `pnpm exec node -v` shows 22 and `pnpm -v` shows 10.4.1. If it still
+shows an old version, run `which -a pnpm`. A pnpm installed earlier with `npm install -g pnpm` or Homebrew
+may come first on your `PATH`. Remove it with `npm uninstall -g pnpm` or `brew uninstall pnpm`.
+
+#### "Screen Recording: MISSING" or "Accessibility (input): MISSING"
+
+macOS gives these permissions to the app that runs the terminal, not to the terminal tab. In the Cursor or
+VS Code terminal, that app is Cursor or VS Code. Otherwise it is Terminal or iTerm.
+
+1. Open **System Settings › Privacy & Security**.
+2. Turn the app on in **Accessibility** and in **Screen & System Audio Recording**. If it is not in the list,
+   add it with **+**.
+3. Quit the app with Cmd+Q, and open it again. A new tab is not enough.
+4. Run `pnpm quickstart` again.
+
+#### "Cannot find module '../bin/napi-v6/darwin/x64/onnxruntime_binding.node'"
+
+This happens on Intel Macs. `onnxruntime-node` 1.24 and later ship no Intel Mac binary, so the local
+embedding model cannot load. The root `package.json` pins the last release that has one:
+
+```json
+"pnpm": { "overrides": { "onnxruntime-node": "1.23.2" } }
+```
+
+If you still see the error, reinstall so the pin takes effect: `pnpm install`. Then check that
+`node_modules/.pnpm/onnxruntime-node@1.23.2/node_modules/onnxruntime-node/bin/napi-v6/darwin/x64` exists.
+
+</details>
+
 ## Safety
 
 The safety rules live in the structure, not in a filter at the end.
@@ -353,65 +417,3 @@ Read the full log, with an example for each feature: [docs/hackathon-features-lo
 AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
 
 Built by [Baraa](https://github.com/BaraaSoft) Powered by Meta Muse, 2026.
-
-<details>
-<summary><b>Troubleshooting guide</b>: fixes for common setup errors</summary>
-
-<br/>
-
-#### "AHE needs Node.js 22 or newer"
-
-The scripts run with the Node that pnpm uses, and that can differ from the `node` in your terminal. Compare
-the two:
-
-```bash
-node -v             # the Node in your terminal
-pnpm exec node -v   # the Node your scripts get
-```
-
-If either one is below 22, switch to Node 22 with the tool you already use, then get pnpm again on top of it:
-
-| You use | Switch to Node 22 |
-| --- | --- |
-| The installer from [nodejs.org](https://nodejs.org) | Install the 22 LTS release |
-| Homebrew | `brew install node@22 && brew link --overwrite --force node@22` |
-| nvm | `nvm install 22 && nvm alias default 22` |
-| fnm | `fnm install 22 && fnm default 22` |
-| Volta | `volta install node@22` |
-
-```bash
-corepack enable                          # gives you the pnpm version in package.json (10.4.1)
-corepack prepare pnpm@10.4.1 --activate
-```
-
-With Volta, run `volta install pnpm@10.4.1` instead. Volta keeps each tool on the Node it was installed
-with, so pnpm stays on the old Node until you reinstall it.
-
-Open a new terminal, and check that `pnpm exec node -v` shows 22 and `pnpm -v` shows 10.4.1. If it still
-shows an old version, run `which -a pnpm`. A pnpm installed earlier with `npm install -g pnpm` or Homebrew
-may come first on your `PATH`. Remove it with `npm uninstall -g pnpm` or `brew uninstall pnpm`.
-
-#### "Screen Recording: MISSING" or "Accessibility (input): MISSING"
-
-macOS gives these permissions to the app that runs the terminal, not to the terminal tab. In the Cursor or
-VS Code terminal, that app is Cursor or VS Code. Otherwise it is Terminal or iTerm.
-
-1. Open **System Settings › Privacy & Security**.
-2. Turn the app on in **Accessibility** and in **Screen & System Audio Recording**. If it is not in the list,
-   add it with **+**.
-3. Quit the app with Cmd+Q, and open it again. A new tab is not enough.
-4. Run `pnpm quickstart` again.
-
-#### "Cannot find module '../bin/napi-v6/darwin/x64/onnxruntime_binding.node'"
-
-This happens on Intel Macs. `onnxruntime-node` 1.24 and later ship no Intel Mac binary, so the local
-embedding model cannot load. The root `package.json` pins the last release that has one:
-
-```json
-"pnpm": { "overrides": { "onnxruntime-node": "1.23.2" } }
-```
-
-If you still see the error, reinstall so the pin takes effect: `pnpm install`. Then check that
-`node_modules/.pnpm/onnxruntime-node@1.23.2/node_modules/onnxruntime-node/bin/napi-v6/darwin/x64` exists.
-
-</details>
