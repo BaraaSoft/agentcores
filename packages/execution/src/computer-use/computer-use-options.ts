@@ -5,7 +5,7 @@ import type { ExecutionTurn } from './types/execution-turn';
  * Tuning for the computer-use loop.
  */
 export interface ComputerUseOptions {
-  /** A model that supports `computer_toolset_20260801`, e.g. `claude-sonnet-5-5` or `claude-haiku-5-5`. */
+  /** A model that supports `computer_toolset_20260801`, e.g. `claude-sonnet-5-5`. */
   readonly modelId: string;
   /** Output token cap per model turn. */
   readonly maxTokens: number;
