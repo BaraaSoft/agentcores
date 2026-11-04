@@ -2,12 +2,12 @@
 # Wipes the local dev run state so the next run starts fresh: every BullMQ queue, and every table
 # except the Strategies (and the migrations record), and the temporary screenshots in .data/temp.
 # Each Strategy loses its evaluation, so it reads as a goal that never ran.
-# Works only through the docker-compose-dev containers, so it can never touch a remote database.
+# Works only through the compose.yaml containers, so it can never touch a remote database.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-COMPOSE=(docker compose -f docker-compose-dev.yml)
+COMPOSE=(docker compose -f compose.yaml)
 PORT=$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2 || true)
 PORT=${PORT:-3088}
 KEEP_TABLES="'strategies', 'migrations'"
