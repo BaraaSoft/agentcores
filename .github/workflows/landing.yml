@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - packages/landing/**
-      - .github/workflows/pages.yml
+      - .github/workflows/landing.yml
   workflow_dispatch:
 
 permissions:
@@ -21,6 +21,7 @@ jobs:
   deploy:
     name: landing · deploy to GitHub Pages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
