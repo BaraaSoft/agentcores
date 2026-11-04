@@ -4,7 +4,7 @@ The orchestrator is the control plane of the AHE runtime. Every minute it looks 
 moves that run forward one step, and starts the Jobs that are ready. It is the only place
 that **creates Units of Work** and the only place that **decides when an evaluation starts**. It never
 queues Tasks: a queued Job queues its own Tasks, one at a time (see
-[governance/processors/tech-spec.md](../governance/processors/tech-spec.md)).
+[governance/processors/README.md](../governance/processors/README.md)).
 
 - [The model](#the-model)
 - [Runs: one Strategy, many Workflows](#runs-one-strategy-many-workflows)
@@ -26,9 +26,9 @@ queues Tasks: a queued Job queues its own Tasks, one at a time (see
 > **A Strategy is only a reusable goal. Each Workflow is one run of it: running, paused, or done.**
 
 ```text
-Strategy           what the owner wants, and how the work repeats (its work type) — a reusable goal
+Strategy           what the owner wants, and how the work repeats (its work type): a reusable goal
  └ Workflow        one run of the Strategy on one machine: running, paused, or done
-    └ Unit of Work one round, attempt, or version of that run — a group of Jobs, nothing more
+    └ Unit of Work one round, attempt, or version of that run: a group of Jobs, nothing more
        └ Job       one objective, planned and reviewed by Job reasoning
           └ Task   one action on the screen
 ```
@@ -121,7 +121,7 @@ The owner picks the work type when they create the Strategy. The planner never c
 
 | Work type | Each Unit is | The next Unit opens | The run is `done` |
 | --- | --- | --- | --- |
-| `continuous` | a round of experiments ("Round 3") | as soon as no Unit is open — it does not wait for the last round's evaluation | never |
+| `continuous` | a round of experiments ("Round 3") | as soon as no Unit is open; it does not wait for the last round's evaluation | never |
 | `one_off` | an attempt at the outcome ("Attempt 2") | after the last attempt is evaluated, if the planner says the outcome is not met yet | when the planner says the outcome is met, or after `maxAttempts` attempts (default 3) |
 | `multi_version` | one version of the outcome ("Version 2") | after the last version is evaluated | after `versionCount` versions |
 
@@ -169,7 +169,7 @@ flowchart TD
     Boot(["App boots: setInterval every 60 s"]) --> Pass
     Start(["POST /workflows/:id/start"]) -->|"pass at once"| Pass
 
-    subgraph Orchestrator["Orchestrator pass — between Jobs"]
+    subgraph Orchestrator["Orchestrator pass: between Jobs"]
         Pass["Pass over each running Workflow"]
         Pass --> Settle["Settle the open Unit of Work<br/>all Jobs closed → evaluating"]
         Settle --> Eval["Evaluate the due Units of Work<br/>queue one evaluate message per Job"]
@@ -177,7 +177,7 @@ flowchart TD
         Open --> Ready["Queue the ready Jobs<br/>up to maxConcurrentJobs"]
     end
 
-    subgraph Chain["Queue chain — inside one Job"]
+    subgraph Chain["Queue chain: inside one Job"]
         JobP["JobExecutionProcessor<br/>plan, or review the last Task"]
         TaskP["TaskExecutionProcessor<br/>run one Task on the screen"]
         JobP -->|"queue the next pending Task"| TaskP
@@ -261,13 +261,13 @@ to move: no Tasks yet, a finished Task awaiting review, or a pending current Tas
 
 A Unit has two independent fields:
 
-- `state` — `running` or `paused`. The owner's switch. A paused Unit's Jobs and Tasks are not carried out.
-- `status` — `open`, `evaluating`, or `complete`. Where the Unit is in its life. Only the orchestrator moves it.
+- `state`: `running` or `paused`. The owner's switch. A paused Unit's Jobs and Tasks are not carried out.
+- `status`: `open`, `evaluating`, or `complete`. Where the Unit is in its life. Only the orchestrator moves it.
 
 ```mermaid
 stateDiagram-v2
     [*] --> open: orchestrator opens the Unit with its planned Jobs
-    open --> evaluating: every Job is closed — evaluateAfter = now (+24h for continuous)
+    open --> evaluating: every Job is closed, evaluateAfter = now (+24h for continuous)
     evaluating --> complete: every Job's evaluation is scored or failed
     complete --> [*]
 ```
@@ -303,7 +303,7 @@ wait differs by work type:
 | Work type | Wait after the Unit's last Job closes | Why |
 | --- | --- | --- |
 | `one_off`, `multi_version` | none | The work is an artifact. It can be evaluated now, and the next attempt or version is waiting for the mark. |
-| `continuous` | 24 hours (`CONTINUOUS_EVALUATION_DELAY_MS`) | The work is mostly engagement — views, likes, replies — which takes a day to arrive. |
+| `continuous` | 24 hours (`CONTINUOUS_EVALUATION_DELAY_MS`) | The work is mostly engagement (views, likes, replies), which takes a day to arrive. |
 
 The wait is stored on the Unit as `evaluateAfter`, not as a delayed queue message, so it survives a restart
 and the database shows when each Unit will be evaluated.
@@ -326,7 +326,7 @@ When every evaluation of the Unit is `scored` or `failed`, the Unit is `complete
 
 - the Strategy's objective and work type, and which round, attempt, or version of this run this is;
 - the earlier Units of this run (the last five), each with the idea it tested and why, and each Job's
-  objective, outcome, and evaluation — the score, what was good, and what was bad;
+  objective, outcome, and evaluation: the score, what was good, and what was bad;
 - the earlier runs of the same Strategy (the last three runs, `EARLIER_RUNS_LIMIT`), each with its last
   three Units in the same form (`EARLIER_RUN_UNITS_OF_WORK_LIMIT`). A fresh run starts at attempt 1, but it
   does not start from nothing: the planner keeps what worked and avoids what scored low;

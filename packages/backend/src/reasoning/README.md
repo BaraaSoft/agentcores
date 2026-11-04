@@ -1,8 +1,8 @@
 # Reasoning layer
 
 The thinking half of AHE's [two-tier split](../../../../docs/base/02-system-architecture.md): every
-planning, evaluating, and deciding call to Opus goes through this module. It is split into **one reasoner per
-governance level that decides something** — Strategy, Job, Task — plus the **evaluator** that marks
+planning, evaluating, and deciding call to Opus or Muse Wonder goes through this module. It is split into **one reasoner per
+governance level that decides something** (Strategy, Job, Task), plus the **evaluator** that marks
 finished work, each calling the model through a model client configured for its level, over one shared
 Anthropic instance. A Unit of Work only groups Jobs, so it has no reasoner: the Strategy planner fills each
 Unit with Jobs.
@@ -25,7 +25,7 @@ Unit with Jobs.
 
 ```mermaid
 flowchart TB
-    subgraph Above["Layer above — callers"]
+    subgraph Above["Layer above: callers"]
         Orch["orchestrator/OrchestratorService<br/>opens each Unit of Work"]
         JobExec["governance/processors/job-execution/JobExecutionProcessor<br/>plans a Job, reviews each finished Task"]
         JobEval["governance/processors/job-evaluation/JobEvaluationProcessor<br/>marks each Job of an evaluated Unit"]
@@ -48,8 +48,8 @@ flowchart TB
     end
 
     subgraph Below["Layers below"]
-        Anthropic["Anthropic API — Opus<br/>text in, structured JSON out"]
-        Execution["@ahe/execution — Sonnet/Haiku<br/>computer use (reached via the Task loop)"]
+        Anthropic["Anthropic API: Opus, or Meta Model API: Muse Wonder<br/>text in, structured JSON out"]
+        Execution["@ahe/execution: Sonnet<br/>computer use (reached via the Task loop)"]
     end
 
     Orch --> S
@@ -74,7 +74,7 @@ flowchart TB
 
 | Reasoner | Scope | Methods | Reads | Produces | Called by |
 | --- | --- | --- | --- | --- | --- |
-| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs, and what it finds on the web | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered` — or `done` | `OrchestratorService` |
+| `StrategyReasoningService` | The whole Strategy | `planUnitOfWork` | The objective, the work type, **the Job outcomes and marks** of earlier Units, similar past Jobs, and what it finds on the web | `UnitOfWorkPlan`: the next Unit's Jobs, each `ordered` or `unordered`, or `done` | `OrchestratorService` |
 | `JobReasoningService` | One objective | `reviewJob`, `planTasks` | **Task outcomes**, the final screenshot of a visual Task, and the names and objectives of the Unit's other open Jobs, so it leaves their work to them | `JobReview` (continue / revise / met / abandon), plan edits through tools, each Task with its skill | `JobExecutionProcessor` |
 | `TaskReasoningService` | One atomic action | `planNextStep`, `decideOnBlocker` | **`ExecutionResult`s**, unchanged, from the execution layer, and the Job's earlier Task outcomes | `PlannedStep`, `BlockerDecision` | `TaskExecutionProcessor` |
 | `EvaluationReasoningService` | One finished Job | `judgeJob` | **Task outcomes**, the final screenshot of visual work, the Strategy's objective, gathered evidence, the web | `ScoredJob` (1–10 + `whatGood` / `whatBad`) or an `EvidenceRequest` | `JobEvaluationProcessor` |
@@ -87,7 +87,7 @@ The one picture that goes up is the final screen of a visual Task, to Job review
 | | Strategy | Job | Task |
 | --- | --- | --- | --- |
 | Cadence | Once per Unit of Work | When a Job starts, after every finished Task | Every step of a Task |
-| Volume | Very low | Medium | High — the hot path |
+| Volume | Very low | Medium | High, the hot path |
 
 The evaluator sits beside the Job level rather than on it: it runs once per Job, after the Job's Unit has
 finished, so its volume follows how much work the agent did.
@@ -112,7 +112,7 @@ sequenceDiagram
     Note over O: no Unit is open, and the work type's stop rule allows another
     O->>S: planUnitOfWork(objective, workType, earlierUnitsOfWork with marks, similar past Jobs)
     S-->>O: UnitOfWorkPlan { title · rationale · jobs: name · objective · ordered | unordered } or done
-    O->>DB: createUnitOfWork — the Unit and its Jobs in one write
+    O->>DB: createUnitOfWork (the Unit and its Jobs in one write)
     O->>JW: job-execution, per startable Job (within maxConcurrentJobs)
     opt a finished Task awaits review
         JW->>J: reviewJob(job, openSiblingJobs, finishedSiblingJobs, safeContext, latestOutcome, history, remainingActions, latestScreenshot)
@@ -152,11 +152,11 @@ says to judge visual work by what it shows: the wrong design, or a weak one, is 
 | `continue` | The plan still fits | Keeps it. With nothing left to run, calls `planTasks` to plan what is left, so the Job never sits idle |
 | `revise` | The plan should change | Calls `planTasks` with `revisionNotes` as the reason |
 | `met` | The objective is achieved | Closes the Job as `success` with `summary` |
-| `abandon` | **We decided to stop** — not worth continuing | Closes the Job as `abandoned` with `rationale` |
+| `abandon` | **We decided to stop**: not worth continuing | Closes the Job as `abandoned` with `rationale` |
 
 `planTasks` gets the reason it was called, the history, the current plan, and how many Tasks have started. It
-gets a new `JobPlanningToolset` from `ToolsetFactory.createJobPlanningToolset` — tools over an in-memory
-draft — runs the loop with its tools, and returns the draft. The Task budget (`TASK_BUDGET_PER_JOB`, about 20
+gets a new `JobPlanningToolset` from `ToolsetFactory.createJobPlanningToolset` (tools over an in-memory
+draft), runs the loop with its tools, and returns the draft. The Task budget (`TASK_BUDGET_PER_JOB`, about 20
 per Job, and about 5 added per revision) is **soft**: the prompt states it, and the model may go over it
 when the objective genuinely needs more Tasks, saying why in its rationale. Only the hard limit
 `MAX_TASKS_PER_JOB` (60, three times the budget) is enforced: the toolset gets the room left under it and
@@ -165,9 +165,9 @@ first. The toolset is local to that call,
 so no draft is shared between Jobs. The Job processor saves the result in one
 write, so a run that crashes halfway changes nothing. Saving is governance's job; the module stays a leaf.
 
-Job reasoning never declares `failed`: **failed means "we couldn't do it"** and is set by the system — too
+Job reasoning never declares `failed`: **failed means "we couldn't do it"** and is set by the system: too
 many failed Tasks in a row, an empty plan, or the hard Task limit (see the
-[processors spec](../governance/processors/tech-spec.md#how-a-job-ends)). The review prompt tells the model
+[processors spec](../governance/processors/README.md#how-a-job-ends)). The review prompt tells the model
 not to abandon because Tasks keep failing, so the two outcomes stay distinct signals.
 
 ---
@@ -175,27 +175,27 @@ not to abandon because Tasks keep failing, so the two outcomes stay distinct sig
 ## Marking finished work
 
 `judgeJob` is the agent grading itself. Once a Unit of Work has finished, each of its Jobs is marked out of
-10 with one sentence on what was good and one on what was bad — at once for `one_off` and `multi_version`
+10 with one sentence on what was good and one on what was bad, at once for `one_off` and `multi_version`
 work, a day later for `continuous` work so engagement can arrive. Those marks are the only memory the
 planner has of how its own work landed.
 
 | | |
 | --- | --- |
-| Who picks the standard | The model does. The objective's own bar first, then what the Strategy as a whole is trying to achieve, then the test that kind of work deserves — stated back in `rubric`. Where it has no sound basis for any of those, it searches the web for how the work is done well rather than marking on instinct |
+| Who picks the standard | The model does. The objective's own bar first, then what the Strategy as a whole is trying to achieve, then the test that kind of work deserves, stated back in `rubric`. Where it has no sound basis for any of those, it searches the web for how the work is done well rather than marking on instinct |
 | How the scale is held | Anchored in the prompt: 1–3 not met, 4–6 partly, 7–8 met, 9–10 exceeded *with evidence*. Without anchors a 1–10 scale collapses to "everything is a 7" |
 | Who the feedback is for | The next planner, not the owner. `whatGood` and `whatBad` name the decision, not the outcome: "led with a question, which pulled replies", not "the post did well" |
-| What `objectiveSummary` is for | Finding this Job again. Written in general terms — kind of work, medium, intent — because it is the text the planner's search is matched against |
+| What `objectiveSummary` is for | Finding this Job again. Written in general terms (kind of work, medium, intent), because it is the text the planner's search is matched against |
 
-**When it does not know, it does not guess — it goes and finds out.** An evaluation can be short of two
+**When it does not know, it does not guess: it goes and finds out.** An evaluation can be short of two
 different things, and what is missing decides how it is fetched.
 
 | What is missing | How it is fetched | Why that way |
 | --- | --- | --- |
 | **The standard.** The evaluator cannot say what good would have looked like for this kind of work | It searches the web mid-evaluation, up to `JUDGE_JOB_MAX_SEARCHES` times, and answers in the same call | This is public knowledge. Sending a Job out for it would cost a planning round and a browser session to learn something a search answers in seconds |
-| **The work itself.** A post evaluated minutes after it went up has no engagement yet; a video or a design cannot be evaluated from the fact that it was exported | It returns an `EvidenceRequest`, which becomes a real Job in the Unit being evaluated. The evaluation parks until that Job closes, then marks on what came back | No search can reach this. A logged-in account, a file on disk, a project open in an editor — only a Job on the owner's machine opens any of them |
+| **The work itself.** A post evaluated minutes after it went up has no engagement yet; a video or a design cannot be evaluated from the fact that it was exported | It returns an `EvidenceRequest`, which becomes a real Job in the Unit being evaluated. The evaluation parks until that Job closes, then marks on what came back | No search can reach this. A logged-in account, a file on disk, a project open in an editor: only a Job on the owner's machine opens any of them |
 
 Searching for the standard is for **aspiration, not imitation**: the feedback says what would have lifted
-the Job towards it — the angle, the shape, the level of craft — and never tells the planner to reproduce
+the Job towards it (the angle, the shape, the level of craft), and never tells the planner to reproduce
 what it found. The next Job has to be the agent's own work, as good as the best of its kind.
 
 **Work that lives in a file is reachable because the location travels with the Task.** A Task that renders
@@ -214,13 +214,13 @@ it just learnt about how this kind of work is done well, and the processor rende
 objective with the key each reading must come back under.
 
 That turns prose into numbers. The errand opens the work once, rates each criterion, and reports them as
-`metricReadings` — which is a `Record<string, number>` with no size limit, unlike the 100-word summary — and
+`metricReadings` (a `Record<string, number>` with no size limit, unlike the 100-word summary), and
 those readings are printed straight back into the second evaluating pass as `Metrics: title_legibility=8`. The
 evaluator sets the standard, the execution layer applies its eyes, and the mark comes from both.
 
 An outcome that is only a figure on a page needs no criteria, and `evidenceCriteria` is empty for it.
 
-Evidence is one round only — the second call is told the evidence is in and must mark on it.
+Evidence is one round only: the second call is told the evidence is in and must mark on it.
 
 ```mermaid
 flowchart LR
@@ -287,8 +287,8 @@ between:
 sequenceDiagram
     autonumber
     participant P as TaskExecutionProcessor
-    participant T as TaskReasoning (Opus)
-    participant X as ExecutionProvider (Sonnet/Haiku)
+    participant T as TaskReasoning (Opus or Muse Wonder)
+    participant X as ExecutionProvider (Sonnet)
 
     P->>T: planNextStep(TaskReasoningInput)
     loop until done, escalated, deferred, failed, or MAX_TASK_ITERATIONS
@@ -338,7 +338,7 @@ sequenceDiagram
   defers, `nextStep` continues, and none of them fails the Task. Moving work to another platform belongs to
   the Strategy planner.
 - **Gates are never solved.** Whatever the model plans must avoid the gate, not get past it; see
-  [07 — Privacy & safety](../../../../docs/base/07-privacy-and-safety.md#platform-gates-and-accounts).
+  [07: Privacy & safety](../../../../docs/base/07-privacy-and-safety.md#platform-gates-and-accounts).
 
 ---
 
@@ -440,7 +440,7 @@ builder writes `anyOf`; the branches fix the discriminator to different values, 
 | `JOB_JUDGEMENT_OUTPUT_SCHEMA` | `scored`, `needs_evidence` | a mark has a score; an evidence request has its objective and criteria |
 | `UNIT_OF_WORK_PLAN_OUTPUT_SCHEMA` | `plan`, `done` | a plan has a title and at least one Job |
 | `JOB_REVIEW_SCHEMA` | `revise`, the other three | a revision has its notes |
-| `PLANNED_STEP_SCHEMA` | none, flat | — |
+| `PLANNED_STEP_SCHEMA` | none, flat | none |
 
 Three limits came out of live tests on Claude, Muse Wonder, and Muse Spark:
 
@@ -459,7 +459,7 @@ Three limits came out of live tests on Claude, Muse Wonder, and Muse Spark:
 
 `ReasoningProviders` builds each provider on first use and shares it between levels, so a key is needed only
 for a provider some level uses; a missing one fails at boot with its env name. Execution (computer use) picks its
-own provider with `EXECUTION_PROVIDER` (see `packages/execution/tech-spec.md`), so with Muse everywhere the app
+own provider with `EXECUTION_PROVIDER` (see `packages/execution/README.md`), so with Muse everywhere the app
 needs only `META_API_KEY`. The Muse SDK sets `apiKey: null`,
 so the Anthropic key is never sent to Meta. Prompts and schemas are the same for both, with one exception: each
 provider declares `canFetch`, the client exposes it, and the Strategy prompt's `<RESEARCH>` opening depends on it.
@@ -562,14 +562,14 @@ from there (e.g. `PlanUnitOfWorkInput` imports `JobEvaluation` from `evaluation/
 
 ## Extending
 
-- **A new decision at a level** — add a method, its input and output types, and a prompt to that level's
+- **A new decision at a level**: add a method, its input and output types, and a prompt to that level's
   folder. Keep its input to the level's own data and the level below.
-- **A different model per level** — set `REASONING_JOB_MODEL_ID` or `REASONING_TASK_MODEL_ID`. The Task
+- **A different model per level**: set `REASONING_JOB_MODEL_ID` or `REASONING_TASK_MODEL_ID`. The Task
   level runs on every step, so it is where cost concentrates. To give Strategy or evaluation their own model,
   add a subclass, a settings entry in `reasoning.config.ts`, and a factory provider, as for Job and Task.
-- **A new governance level** — add a folder with its reasoner, wire it into `ReasoningModule`, and slot it
+- **A new governance level**: add a folder with its reasoner, wire it into `ReasoningModule`, and slot it
   into the planning and review flows in governance.
-- **Governance as tools (planned)** — governance services will later be exposed to the reasoners as tools
+- **Governance as tools (planned)**: governance services will later be exposed to the reasoners as tools
   (read Jobs, metrics, past evaluations; write through the autonomy rules). To keep this module a leaf,
   each reasoner will receive its level's tools as an argument instead of importing governance, with every
   write tool enforcing the governance rules itself.

@@ -43,7 +43,7 @@ type NextUnitOfWork = 'opened' | 'open' | 'waiting' | 'done';
  * evaluates the Units of Work that are due, opens the next one when the work type's stop rule allows,
  * or marks the run `done` — and starts the Jobs that are ready, within the Workflow's Job limit. It is
  * the only place that creates Units of Work and the only place that starts an evaluation. It never
- * queues Tasks: a queued Job queues its own Tasks, one at a time. `tech-spec.md` beside this file
+ * queues Tasks: a queued Job queues its own Tasks, one at a time. `README.md` beside this file
  * explains the rules.
  */
 @Injectable()

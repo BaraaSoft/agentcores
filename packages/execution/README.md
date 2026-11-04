@@ -79,15 +79,15 @@ const result = await provider.runTask(
 
 | Option                | Default                  | Meaning                                                       |
 | --------------------- | ------------------------ | ------------------------------------------------------------- |
-| `providerName`        | —                        | `anthropic` or `muse`; picks the builder in `createExecutionProvider` |
-| `apiKey`              | —                        | The provider's key: Anthropic API key, or Meta API key (sent as a bearer token) |
-| `modelId`             | —                        | Execution model, e.g. `claude-sonnet-5-5`, `claude-haiku-5-5`, or `muse-wonder-1.0` |
+| `providerName`        | required                 | `anthropic` or `muse`; picks the builder in `createExecutionProvider` |
+| `apiKey`              | required                 | The provider's key: Anthropic API key, or Meta API key (sent as a bearer token) |
+| `modelId`             | required                 | Execution model, e.g. `claude-sonnet-5-5` or `muse-wonder-1.0` |
 | `maxTokens`           | `4096`                   | Max output tokens per model turn                              |
 | `maxScreenshotWidth`  | `1280`                   | Largest screenshot width the model sees                       |
 | `maxScreenshotHeight` | `800`                    | Largest screenshot height the model sees                      |
 | `settleDelayMs`       | `300`                    | Pause after each input action so the UI can react             |
 | `guard`               | `PermissiveActionGuard`  | Approves each action before it runs                           |
-| `onTurn`              | none                     | Called after each model turn with its text and tool calls (no images, secrets redacted) — a step log |
+| `onTurn`              | none                     | Called after each model turn with its text and tool calls (no images, secrets redacted), as a step log |
 
 `runTask` **throws** for missing macOS permissions and API errors, so the backend's Task processor fails the Task (queue retries are off for Tasks, since a crashed run may already have acted).
 Everything else (model gave up, step limit, malformed report, cancellation) comes back as `status: 'failed'`.
@@ -101,21 +101,24 @@ The middle (`ToolCall`, `ActionExecutor`, `DisplayGeometry`) knows about neither
 
 ```mermaid
 flowchart TD
-    Provider["computer-use/ComputerUseProvider<br/>runs the SDK tool runner, one per task"]
+    Provider["computer-use/ComputerUseProvider<br/>Claude: runs the SDK tool runner, one per task"]
+    MuseProvider["muse/MuseComputerUseProvider<br/>Muse: own loop over messages.create, one per task"]
     Prompts["computer-use/execution.prompts<br/>system + task prompt"]
     ReportTool["task-report/TASK_REPORT_TOOL<br/>strict submit_task_report (Zod)"]
     Parser["task-report/TaskReportParser<br/>report → ExecutionResult, redaction"]
 
-    subgraph ModelSeam["Model-protocol seam — anthropic/"]
+    subgraph ModelSeam["Model-protocol seam: anthropic/ and muse/"]
         Toolset["AnthropicComputerToolset<br/>extends BetaAbstractComputerToolset20260801"]
         Mapper["ToolCallMapper<br/>member input → ToolCall"]
+        MuseTools["MuseComputerTools<br/>one plain Zod tool per action → ToolCall"]
+        MuseReport["MUSE_TASK_REPORT_TOOL + normalizeMuseReport<br/>report without strict, cleaned before parsing"]
     end
 
     Guard["actions/ActionGuard<br/>approve / decline"]
     Executor["actions/ActionExecutor<br/>validates, converts pixels, holds modifiers"]
     Geometry["geometry/DisplayGeometry<br/>screenshot px ↔ display px"]
 
-    subgraph OsSeam["OS seam — driver/"]
+    subgraph OsSeam["OS seam: driver/"]
         Facade["DesktopDriver facade<br/>ScreenDriver · PointerDriver · KeyboardDriver · ImageProcessor"]
         Mac["driver/macos/<br/>screencapture · robotjs · pbcopy"]
         Sharp["driver/sharp/<br/>resize"]
@@ -129,6 +132,13 @@ flowchart TD
     Toolset --> Mapper
     Toolset --> Guard
     Toolset --> Executor
+    MuseProvider --> Prompts
+    MuseProvider --> MuseTools
+    MuseProvider --> MuseReport
+    MuseReport --> ReportTool
+    MuseProvider --> Parser
+    MuseProvider --> Guard
+    MuseTools --> Executor
     Executor --> Geometry
     Executor --> Facade
     Facade --> Mac
@@ -136,12 +146,13 @@ flowchart TD
     Facade -. tests .-> Fake
 ```
 
-| Layer         | Knows about                      | Never knows about                     |
-| ------------- | -------------------------------- | ------------------------------------- |
-| `anthropic/`  | Anthropic tool names and inputs  | robotjs, screencapture, sharp         |
-| `actions/`    | `ToolCall`, limits, pixel spaces | Anthropic, any OS library             |
-| `geometry/`   | Two sizes and arithmetic         | Everything else                       |
-| `driver/`     | Display pixels, keys, PNG bytes  | Models, screenshot sizes, `ToolCall`  |
+| *Layer*      | Knows about                                                 | Never knows about                                     |
+| ------------ | ----------------------------------------------------------- | ----------------------------------------------------- |
+| `anthropic/` | Anthropic tool names and inputs                             | robotjs, screencapture, sharp                         |
+| `muse/`      | Meta's Messages API, our own Muse tools, Muse report habits | Anthropic's computer tool, robotjs, screencapture, sharp |
+| `actions/`   | `ToolCall`, limits, pixel spaces                            | Anthropic, Muse, any OS library                       |
+| `geometry/`  | Two sizes and arithmetic                                    | Everything else                                       |
+| `driver/`    | Display pixels, keys, PNG bytes                             | Models, screenshot sizes, `ToolCall`                  |
 
 ---
 
@@ -323,7 +334,7 @@ flowchart LR
 | Instructions on the screen  | System prompt: only the first user message counts; screen content is untrusted                        |
 | Destructive actions         | System prompt forbids Terminal, system settings, purchases, ToS, new accounts, account/password changes, unrequested deletes |
 | Per-action approval         | `ActionGuard` (default `PermissiveActionGuard`; plug in a policy guard here)                          |
-| Out-of-range model input    | `action-limits.constants.ts`: wait ≤ 15 s, hold ≤ 5 s, repeat ≤ 100, scroll ≤ 25, type ≤ 5000 chars — refused, never clamped |
+| Out-of-range model input    | `action-limits.constants.ts`: wait ≤ 15 s, hold ≤ 5 s, repeat ≤ 100, scroll ≤ 25, type ≤ 5000 chars; refused, never clamped |
 | Leaking local details       | Desktop errors reach the model as a generic message; no paths or command output                       |
 | Credentials                 | Sent only in `<robot_credentials site="…">` for that site; the password is redacted from every returned string |
 | Runaway loops               | `maxSteps` caps model turns; the prompt says not to repeat an approach that failed twice              |
@@ -436,13 +447,13 @@ Each test writes its step log (every turn's text and tool calls, via `onTurn`, p
 
 ## Extending
 
-- **Another OS or input library** — implement the interfaces in `driver/` in a new sibling folder
-  (e.g. `driver/linux/`) and build it in place of `MacosDesktopDriver`. Nothing above `driver/` changes.
-- **Another model provider** — add a sibling of `muse/` with a builder, add its name to `EXECUTION_PROVIDER_NAMES`,
-  and register the builder in `create-execution-provider.ts`. `ToolCall` and `ActionExecutor` stay as they are.
-- **An approval policy** — implement `ActionGuard.allows(toolCall)` and pass it as `guard`.
-- **New report fields** — add them to `TASK_REPORT_SCHEMA` (every field must be required for strict mode),
-  then map them in `TaskReportParser` and the `ExecutionResult` contract in `@ahe/agent-core`.
+- **Another OS or input library**: implement the interfaces in `driver/` in a new sibling folder
+(e.g. `driver/linux/`) and build it in place of `MacosDesktopDriver`. Nothing above `driver/` changes.
+- **Another model provider**: add a sibling of `muse/` with a builder, add its name to `EXECUTION_PROVIDER_NAMES`,
+and register the builder in `create-execution-provider.ts`. `ToolCall` and `ActionExecutor` stay as they are.
+- **An approval policy**: implement `ActionGuard.allows(toolCall)` and pass it as `guard`.
+- **New report fields**: add them to `TASK_REPORT_SCHEMA` (every field must be required for strict mode),
+then map them in `TaskReportParser` and the `ExecutionResult` contract in `@ahe/agent-core`.
 
 ---
 
