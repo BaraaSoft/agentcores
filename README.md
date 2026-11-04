@@ -293,7 +293,6 @@ report. It also removes tokens and tracking codes from every saved link.
 - **One machine, one run.** A new run on the Mac pauses the current one first, so two runs never fight for
 the mouse.
 
-The bridge to integerate with HumanExperiences.IO sits behind a **privacy wall**. The bridge is not wired.
 
 ## Project structure
 
@@ -303,7 +302,7 @@ packages/
 ├── backend/       runs on your Mac (localhost:3088): the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
 ├── migrations/    migrations, applied by Docker on start
-└── web-ui/        the ui dashboard
+└── web-ui/        the ui dashboard (localhost:5173)
 ```
 
 <details>
