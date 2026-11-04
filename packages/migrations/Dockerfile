@@ -1,4 +1,4 @@
-# Dependencies for the dev migrations service. The source is bind-mounted by docker-compose-dev.yml,
+# Dependencies for the dev migrations service. The source is bind-mounted by compose.yaml,
 # so the service always sees the current entities and writes new migration files into the repo.
 FROM node:22-slim
 

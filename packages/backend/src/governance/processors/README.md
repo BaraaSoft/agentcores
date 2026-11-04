@@ -4,8 +4,8 @@ The BullMQ workers that move work through governance: the **Job processor** plan
 Task it finishes, and starts the next one; the **Task processor** runs one Task at a time on screen; the
 **Job evaluation processor** marks each finished Job out of 10 once its Unit of Work is evaluated. This
 document explains how Jobs and Tasks move: who queues what, when a Job may go on, when it must wait, and how
-it ends. When a Unit is opened and when it is evaluated is the orchestrator's job — see
-[orchestrator/tech-spec.md](../../orchestrator/tech-spec.md).
+it ends. When a Unit is opened and when it is evaluated is the orchestrator's job; see
+[orchestrator/README.md](../../orchestrator/README.md).
 
 - [Where they sit](#where-they-sit)
 - [The processors](#the-processors)
@@ -22,7 +22,7 @@ it ends. When a Unit is opened and when it is evaluated is the orchestrator's jo
 - [Folder layout](#folder-layout)
 
 Related: the Task loop step by step in [docs/tech-spec.md §5.4](../../../../../docs/tech-spec.md), and
-the reasoners these processors call in [reasoning/tech-spec.md](../../reasoning/tech-spec.md).
+the reasoners these processors call in [reasoning/README.md](../../reasoning/README.md).
 
 ---
 
@@ -62,7 +62,7 @@ flowchart LR
 ```
 
 The queues only carry work; they hold no rules. **Whether a Job may move on is decided by its Tasks in
-the database** — their status and whether Job reasoning has reviewed them — so the queue can deliver late,
+the database** (their status and whether Job reasoning has reviewed them), so the queue can deliver late,
 twice, or out of order without breaking it.
 
 ---
@@ -72,8 +72,8 @@ twice, or out of order without breaking it.
 | Processor | Queue | Payload | Concurrency | Queue retries | Calls |
 | --- | --- | --- | --- | --- | --- |
 | `JobExecutionProcessor` | `job-execution` | `{ workflowId, jobId }` | default | 3, exponential backoff from 60 s | `JobReasoningService.reviewJob` (after every finished Task), `planTasks` (first plan, and when the review asks) |
-| `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1** — one screen, one mouse | **none** — a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
-| `JobEvaluationProcessor` | `job-evaluation` | `{ workflowId, evaluationId }` | default | 3, exponential backoff from 5 s — a judgement throws on a bad answer, not a rate limit | `EvaluationReasoningService.judgeJob` |
+| `TaskExecutionProcessor` | `task-execution` | `{ workflowId, taskId }` | **1**: one screen, one mouse | **none**: a crashed Task may already have posted | `TaskReasoningService`, `ExecutionProvider` |
+| `JobEvaluationProcessor` | `job-evaluation` | `{ workflowId, evaluationId }` | default | 3, exponential backoff from 5 s; a judgement throws on a bad answer, not a rate limit | `EvaluationReasoningService.judgeJob` |
 
 Every processor extends `LoggedWorkerHost` (`queue/logged-worker-host.ts`), which logs each failed delivery
 with its error and whether the queue tries again. Without it, the error stays in Redis and a retry looks
@@ -87,9 +87,9 @@ evaluation the same way, with the evaluation's ID.
 
 ## The rule: a Job is its current Task
 
-A Job is **open** until it is closed with an outcome (`success`, `abandoned`, `failed` — see
-[How a Job ends](#how-a-job-ends)). While open it has no status column: its **current Task** — the
-lowest-sequence Task that is not finished (`complete`, `failed`, or `cancelled`) — decides what state the
+A Job is **open** until it is closed with an outcome (`success`, `abandoned`, `failed`; see
+[How a Job ends](#how-a-job-ends)). While open it has no status column: its **current Task**, the
+lowest-sequence Task that is not finished (`complete`, `failed`, or `cancelled`), decides what state the
 Job is in. One more condition comes first: a finished Task that Job reasoning has not reviewed yet
 (`reviewedAt` is null) holds the Job until it is reviewed.
 
@@ -115,15 +115,15 @@ The rule lives in the services:
   Unit has succeeded; `unordered` Jobs run alongside. When an ordered Job closes without success, the
   orchestrator closes the ordered Jobs after it as `abandoned` (`skipStepsAfterFailure`).
 
-Example — a Job whose plan was revised after Task 2 failed:
+Example: a Job whose plan was revised after Task 2 failed:
 
 | Sequence | Action | Status | Reviewed |
 | --- | --- | --- | --- |
 | 1 | Open r/AICompanion | `complete` | ✓ |
 | 2 | Post the launch link | `failed` (links not allowed) | ✓ |
-| 3 | Reply to the top thread | `cancelled` (dropped by the review) | — |
-| 4 | Post a text-only intro | **`pending`** ← current Task, so the Job is ready | — |
-| 5 | Reply to the top thread | `pending` | — |
+| 3 | Reply to the top thread | `cancelled` (dropped by the review) | no |
+| 4 | Post a text-only intro | **`pending`** ← current Task, so the Job is ready | no |
+| 5 | Reply to the top thread | `pending` | no |
 
 The review cancelled the old remaining plan (Task 3) and appended the new one (Tasks 4–5). Sequences only
 grow, so the history of what was planned and dropped stays readable.
@@ -168,7 +168,7 @@ decides whether to retry it differently, route around it, or stop.
 
 **Deferred and escalated are different waits.** A deferred Task waits for *time* and comes back on its
 own. An escalated Task waits for *the owner*: nothing changes until they answer, so it is never retried
-on a timer — that would repeat the same request and could repeat the step that needed a human.
+on a timer: that would repeat the same request and could repeat the step that needed a human.
 
 ---
 
@@ -180,8 +180,8 @@ A Job closes once, through `JobService.closeJob`, which records `outcomeStatus`,
 | Outcome | Meaning | Decided by | When |
 | --- | --- | --- | --- |
 | `success` | The objective was met | Job reasoning | The review's decision is `met` |
-| `abandoned` | **We decided to stop** — a strategic signal | Job reasoning | The review's decision is `abandon` |
-| `failed` | **We couldn't do it** — an execution signal | The system | `MAX_CONSECUTIVE_FAILURES` failed Tasks in a row, the plan is empty, `MAX_TASKS_PER_JOB` Tasks started ("Needs more Tasks: …"), or Job reasoning itself kept throwing (`MAX_REVIEWING_ATTEMPTS`) |
+| `abandoned` | **We decided to stop**: a strategic signal | Job reasoning | The review's decision is `abandon` |
+| `failed` | **We couldn't do it**: an execution signal | The system | `MAX_CONSECUTIVE_FAILURES` failed Tasks in a row, the plan is empty, `MAX_TASKS_PER_JOB` Tasks started ("Needs more Tasks: …"), or Job reasoning itself kept throwing (`MAX_REVIEWING_ATTEMPTS`) |
 
 Job reasoning never chooses `failed`; it can only stop by abandoning, and the prompt tells it not to
 abandon because Tasks keep failing. The Strategy planner sees each outcome when it writes the next Unit:
@@ -196,8 +196,8 @@ Hard guardrails (`job-execution.constants.ts`):
 | `MAX_REVIEWING_ATTEMPTS` | 6 | Job reasoning attempts in a row (queue retries included) that may throw; the next attempt closes the Job as failed without calling reasoning |
 
 `Job.reviewingAttempts` is incremented atomically before every Job reasoning call and reset once the plan
-is applied. Without it, a Job whose plan or review keeps throwing would stay startable — it has no Tasks,
-or an unreviewed one — and the orchestrator would pay for a reasoning call every pass, forever.
+is applied. Without it, a Job whose plan or review keeps throwing would stay startable (it has no Tasks,
+or an unreviewed one), and the orchestrator would pay for a reasoning call every pass, forever.
 
 **The Task budget is soft; the Task limit is hard.** Both live in `reasoning/job/job-reasoning.constants.ts`,
 and both prompts state them with the count of Tasks started so far.
@@ -209,7 +209,7 @@ and both prompts state them with the count of Tasks started so far.
 | `MAX_TASKS_PER_JOB` | 60 (3 × the budget) | hard | `add_task` refuses a Task past the room left under it. When planning is needed with 60 Tasks started, the Job closes as `failed` with the summary "Needs more Tasks: started all 60 Tasks a Job may run, and the objective is not met yet." |
 
 The hard limit only catches a runaway Job: one whose Tasks keep succeeding while the objective is never met.
-It reuses `failed` rather than a new outcome, because it is the same signal — "we couldn't do it" — and the
+It reuses `failed` rather than a new outcome, because it is the same signal ("we couldn't do it"), and the
 summary already says why. The Strategy planner is told to size Jobs to the budget and split bigger work into
 ordered Jobs.
 
@@ -248,13 +248,13 @@ flowchart TD
 
 - **Review, then plan only if needed.** Every finished Task gets one `reviewJob` call (`continue`,
   `revise`, `met`, `abandon`). Most reviews say `continue` and cost nothing more. Job reasoning sees each
-  Task's action, status, and compressed result or failure reason — never its steps.
+  Task's action, status, and compressed result or failure reason, never its steps.
 - **A plan that ran out is written again.** A `continue` review with no Task left would leave the Job open
   with nothing to run, and its Unit could never be evaluated. The processor plans what is left instead; an
   empty plan closes the Job as `failed`.
 - **Planning edits a draft.** `JobReasoningService.planTasks` gives the model `view_plan`, `add_task`,
   `update_task`, `remove_task`, `move_task`, and `finish_plan` over an in-memory copy of the remaining
-  plan (see the [reasoning spec](../../reasoning/tech-spec.md#job-review-and-planning)) and returns it.
+  plan (see the [reasoning spec](../../reasoning/README.md#job-review-and-planning)) and returns it.
   The tools refuse only what would pass the hard Task limit, bad positions, and empty actions; a bad call
   returns an error the model can fix. The returned plan
   replaces every Task not started yet in one write: an identical plan writes nothing; otherwise the
@@ -302,14 +302,14 @@ flowchart TD
 ## Job evaluation processor
 
 This is the agent marking its own homework. Once every Job of a Unit of Work has closed, the orchestrator
-moves the Unit to `evaluating`. When its wait is over — at once for `one_off` and `multi_version` work, 24 hours
-later for `continuous` work, so engagement has time to arrive — the orchestrator opens one evaluation per
+moves the Unit to `evaluating`. When its wait is over (at once for `one_off` and `multi_version` work, 24 hours
+later for `continuous` work, so engagement has time to arrive), the orchestrator opens one evaluation per
 Job and queues it. **Evaluating** then marks each Job out of 10 and stores one sentence on what was good and
 one on what was bad, for the planner to read before it writes the next Unit.
 
 ```mermaid
 flowchart TD
-    Due(["orchestrator: an evaluating Unit is due"]) --> Open["createEvaluation per closed Job<br/>(one per Job — unique on jobId)"]
+    Due(["orchestrator: an evaluating Unit is due"]) --> Open["createEvaluation per closed Job<br/>(one per Job, unique on jobId)"]
     Open --> Evaluate(["evaluate: { workflowId, evaluationId }"])
     Evaluate --> Verdict{"judgeJob"}
     Verdict -- scored --> Score["score 1–10 + whatGood + whatBad<br/>+ the objective vector"]
@@ -332,23 +332,23 @@ The right-hand column is the state the evaluation is left in.
 | 5 | `JobExecutionProcessor` | The evidence Job runs, exactly like any other Job | `awaiting_evidence` |
 | 6 | `JobExecutionProcessor.resumeEvaluation` | It closes; `resumeFromEvidence`, then one `evaluate` message | `evaluating` |
 | 7 | `JobEvaluationProcessor` | `judgeJob` again, evidence now in the prompt → `recordScore` | `scored` ✓ |
-| 8 | `OrchestratorService` | Every evaluation of the Unit is `scored` or `failed`: the Unit is `complete` | — |
+| 8 | `OrchestratorService` | Every evaluation of the Unit is `scored` or `failed`: the Unit is `complete` | none |
 
 **One kind of message on `job-evaluation`.** `{ workflowId, evaluationId }` says only *which* evaluation to
-work on — how far along it is lives in the row's `state`, which is why steps 3 and 7 are the same code path.
+work on; how far along it is lives in the row's `state`, which is why steps 3 and 7 are the same code path.
 Starting an evaluation is the orchestrator's job; waking one after its evidence Job closes stays with the Job
 processor, which is the one that sees the Job close.
 
 **Most evaluations never reach step 4.** `judgeJob` can search the web within its own call, so when the
 evaluator is unsure what good looks like for this kind of work it settles that there and then. Step 4 is
-only for what no search can reach — the work itself: a logged-in account, a file that was exported, a
+only for what no search can reach, the work itself: a logged-in account, a file that was exported, a
 project open in an editor. The Task that did the work recorded where it lives, so the errand can say what
 to open.
 
 **The errand carries its own standard.** When the mark turns on quality that has to be seen, the evaluation
 travels down as criteria: `requestEvidence` renders each `{ key, whatToExamine }` into the errand's
 objective, naming the key its reading must come back under. Planning and execution never learn there is a
-evaluation behind it — everything they need is in the objective, like any other Job.
+evaluation behind it; everything they need is in the objective, like any other Job.
 
 **Nothing marks an evidence Job out while it runs.** It is planned, executed, reviewed, and closed like
 any other Job, which is the point: the evaluator gets the full execution layer for free. The only way to
@@ -371,7 +371,7 @@ except evidence Jobs. A Job skipped because an earlier step failed never ran, so
 | Every transition names the state it expects | A message delivered twice changes nothing the second time |
 | `MAX_JUDGING_ATTEMPTS` | One unmarkable Job fails on its own and never holds its Unit in `evaluating` |
 
-**Only the objective is embedded, never the feedback** — searching over the feedback too would match a Job
+**Only the objective is embedded, never the feedback**: searching over the feedback too would match a Job
 simply because its failure text mentioned the same place. Embeddings come from `embedding/`, a small model
 running in this process: no API key, and nothing leaves the machine. Vectors are stored as a float array
 and cast to pgvector in the query, which keeps the column inside what TypeORM can generate migrations for.
@@ -507,7 +507,7 @@ finds nothing unreviewed) and queues the same current Task.
 
 ```text
 governance/processors/
-├── tech-spec.md                              ← this file
+├── README.md                                 ← this file
 ├── to-task-outcome.ts                        ← the Task view the reasoning layer may see
 ├── job-evaluation/
 │   ├── job-evaluation.module.ts
