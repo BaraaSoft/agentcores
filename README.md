@@ -326,10 +326,10 @@ Read the design documents for the details:
 
 | Document | What it explains |
 | --- | --- |
-| [Orchestrator](packages/backend/src/orchestrator/tech-spec.md) | Runs, work types, the scheduling pass, and when work is reviewed |
-| [Governance processors](packages/backend/src/governance/processors/tech-spec.md) | How Jobs and Tasks move, wait, fail, and recover |
-| [Reasoning](packages/backend/src/reasoning/tech-spec.md) | Every planner and the evaluator, their inputs, and their prompts |
-| [Execution](packages/execution/tech-spec.md) | The hands-on loop, the macOS driver, and the providers |
+| [Orchestrator](packages/backend/src/orchestrator/README.md) | Runs, work types, the scheduling pass, and when work is reviewed |
+| [Governance processors](packages/backend/src/governance/processors/README.md) | How Jobs and Tasks move, wait, fail, and recover |
+| [Reasoning](packages/backend/src/reasoning/README.md) | Every planner and the evaluator, their inputs, and their prompts |
+| [Execution](packages/execution/README.md) | The hands-on loop, the macOS driver, and the providers |
 
 </details>
 
