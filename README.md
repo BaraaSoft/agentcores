@@ -17,13 +17,13 @@
 
 ## What AHE is
 
-Most AI agents stop at advice. Others run one loop with a few tools, and they lose the thread after an hour.
-AHE is different. It is an **AI co-worker**. It takes ownership of a goal, and it carries the work for days or weeks.
+It is an **AI co-worker**. It takes ownership of a goal, and it carries the work for days or weeks.
 
-AHE has its own internal governance and orchestration system. The system breaks a goal into levels of work.
-AHE does each piece on a real Mac with the mouse and the keyboard, like a person. It self-improves. It learns
-from its own work: it keeps what worked, and it fixes what did not. It recovers from failures, gets past
-routine obstacles, and builds a knowledge base as it goes. It asks you only when a decision is yours to make.
+AHE has its own internal governance and orchestration system. The system breaks a goal into levels of work,
+so many AI agents can work as one co-worker and share what they learn. AHE does each piece on a real Mac with
+the mouse and the keyboard, like a person. It self-improves. It learns from its own work: it keeps what worked,
+and it fixes what did not. It recovers from failures, gets past routine obstacles, and builds a knowledge base
+as it goes.
 
 You do not prompt it step by step. You brief it once, like a colleague. Then you watch it work.
 
