@@ -465,7 +465,7 @@ so the Anthropic key is never sent to Meta. Prompts and schemas are the same for
 provider declares `canFetch`, the client exposes it, and the Strategy prompt's `<RESEARCH>` opening depends on it.
 With fetch, the model reads every address; without it, the model searches for each address, and the prompt
 never names `web_fetch`.
-`pnpm --filter @ahe/backend muse:smoke` checks every call shape against the live Muse models.
+`pnpm test:smoke` (`packages/backend/test`) checks every call shape against the live Muse models.
 
 **How a call works.** `completeStructured` calls `messages.create` with adaptive thinking and the method's
 zod schema as the JSON schema output format (`output_config.format`). The model thinks first, then must

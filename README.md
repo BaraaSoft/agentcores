@@ -28,13 +28,14 @@ as it goes.
 You do not prompt it step by step. You brief it once, like a colleague. Then you watch it work.
 
 > [!NOTE]
-> We built AHE for the Meta Hackathon. **Meta Muse runs every layer**: the planning, the judgement, and the
+> We built AHE for the Meta Hackathon. **Meta Muse can run every layer**: the planning, the judgement, and the
 > hands-on work on screen. One Meta API key is enough to run all of it.
 
 ## Demo
 
 One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
-it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
+it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up. This run used
+Claude on every layer. Each layer can also run on Muse.
 
 [![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://youtu.be/SmZx7uCVIyU)
 
@@ -202,7 +203,8 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
    pnpm install
    cp .env.example .env
    ```
-2. Open `.env`. Add your Meta key, and set every layer to Muse.
+2. Open `.env`, and add your Meta key. Create the key in the
+   [Meta Model API dashboard](https://dev.meta.ai/docs/authentication). Then set every layer to Muse.
    ```dotenv
    META_API_KEY=your-meta-api-key
 
@@ -211,6 +213,8 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
    REASONING_TASK_PROVIDER=muse
    EXECUTION_PROVIDER=muse
    ```
+   > **Tip:** For the most reliable screen control, keep Muse on the reasoning layers, and run execution on
+   > Claude. Set `EXECUTION_PROVIDER=anthropic`, and add your `ANTHROPIC_API_KEY`.
 3. Start the database and the queue. Leave this terminal open.
    ```bash
    pnpm compose:up
@@ -257,12 +261,13 @@ Each provider has a matching `_MODEL_ID` setting. We suggest `muse-wonder-1.0`
 | `pnpm dev:reset` | Clears every run, queue, and screenshot, and keeps your Strategies. Stop the backend first |
 | `pnpm test` | Runs the unit tests of every package |
 | `pnpm test:integration` | Runs the database tests against a real Postgres |
+| `pnpm test:smoke` | Calls the live Meta Model API with both Muse models. Needs `META_API_KEY` |
 | `pnpm typecheck` | Type-checks every package |
 
 The integration tests need an `ahe_test` database. Create it once:
 
 ```bash
-docker compose -f docker-compose-dev.yml exec postgres createdb -U ahe ahe_test
+docker compose -f compose.yaml exec postgres createdb -U ahe ahe_test
 ```
 
 The backend also serves two admin tools: the API docs at [localhost:3088/admin/docs](http://localhost:3088/admin/docs)
