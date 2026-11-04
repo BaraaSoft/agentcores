@@ -324,16 +324,16 @@ Read the design documents for the details:
 <br/>
 
 
-| Day | What AHE can now do |
+| Day | What we built |
 | --- | --- |
-| 4 Nov | Build on what earlier Jobs made, report what it did when a step runs out of time, and welcome visitors on a one-page website |
-| 3 Nov | Prove its self-review with a benchmark, run CI on every package, start with one command, and show each Job's work |
-| 2 Nov | Use the computer with Meta Muse, run and pause many runs in WorkHub, launch a Strategy from a form, and show the work live |
-| 1 Nov | Think with Meta Muse, research the brief on the web, aim for creative design, and show a dashboard |
-| 31 Oct | Work with skills, ask the owner when it is stuck, and set up its own database |
-| 30 Oct | Work step by step on screen, and run ongoing, one-off, and multi-version goals |
-| 28 Oct | Judge work it has to see, and find out what good work looks like |
-| 27 Oct | Review its own work and learn from it, and record where each Task was done |
+| 4 Nov | The landing page on GitHub Pages. Jobs reuse the files that earlier Jobs made. The screen agent reports its progress before it hits the step limit |
+| 3 Nov | The self-review benchmark (`pnpm eval`). CI with one check per package. One-command setup (`pnpm quickstart`). A screenshot of each Job's work on the Monitor board. Recovery after a backend crash. Muse batches its screen actions, 2.8 per turn |
+| 2 Nov | The Muse computer-use driver. WorkHub, to pause, resume, and run a Strategy again. The Create Strategy form. The live Monitor board, which also works from a phone |
+| 1 Nov | The dashboard. Muse Wonder and Muse Spark on every planner. Web research of the brief before each plan. A design skill for creative work |
+| 31 Oct | Skills for each kind of Task: design, social posts, and general. Owner questions that unblock a stuck Task. One-command database setup with migrations |
+| 30 Oct | The step-by-step Task loop on screen. One-off, multi-version, and continuous goals. One named idea for each round. A Job budget of 20 Tasks, with a hard limit of 60 |
+| 28 Oct | Visual checks that the screen agent rates on the real work. Web search for strong examples when no quality bar is set |
+| 27 Oct | The evaluator, which writes lessons for the next round and finds past reviews by meaning (pgvector). Each Task saves where its work lives: the link, the file, or the path in the app |
 
 Read the full log, with an example for each feature: [docs/hackathon-features-log.md](docs/hackathon-features-log.md).
 
