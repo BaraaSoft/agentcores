@@ -57,7 +57,7 @@ function pausedSummary(history: readonly StepRecord[]): string {
 }
 
 /**
- * Runs one Task: Task reasoning (Opus) plans a step, the execution layer (Sonnet/Haiku) carries it
+ * Runs one Task: Task reasoning (Opus or Muse Wonder) plans a step, the execution layer (Sonnet) carries it
  * out on screen, and the result goes back to reasoning, until the Task is done, escalated, deferred,
  * or failed. When it completes or fails, the Job goes back to Job reasoning for review, which decides
  * the next Task, so a Job's Tasks run one after another.
