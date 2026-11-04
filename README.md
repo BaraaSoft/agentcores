@@ -166,10 +166,10 @@ Each level picks its own model, so a fast model can plan every step and a strong
    ```bash
     git clone https://github.com/BaraaSoft/ahe-ai-coworker.git
     cd ahe-ai-coworker
-    corepack enable
    ```
-2. Run the quick start. Paste your Meta API key when it asks.
+2. Install the packages, then run the quick start. Paste your Meta API key when it asks.
    ```bash
+    pnpm install
     pnpm quickstart
    ```
 
