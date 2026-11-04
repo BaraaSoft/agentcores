@@ -293,8 +293,7 @@ report. It also removes tokens and tracking codes from every saved link.
 - **One machine, one run.** A new run on the Mac pauses the current one first, so two runs never fight for
 the mouse.
 
-The bridge to HumanExperiences memory sits behind a **privacy wall** that fails closed. The bridge is not wired
-yet, so no private memory reaches the agent today.
+The bridge to integerate with HumanExperiences.IO sits behind a **privacy wall**. The bridge is not wired.
 
 ## Project structure
 
@@ -355,10 +354,10 @@ Read the full log, with an example for each feature: [docs/hackathon-features-lo
 
 ## Roadmap
 
-- Connect the HumanExperiences.IO memory, behind the privacy wall.
+- Connect with HumanExperiences.IO so HumanExperiences users can operate their AHE from there.
 - Run several Macs at once, one Workflow on each.
 - Add more skills, for video editing and CAD engineering design.
-- Let the owner answer questions from the dashboard, Slack workspace and WhatsApp
+- Let the owner operate AHE from Slack workspaces and WhatsApp.
 
 ## License
 
