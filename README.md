@@ -74,8 +74,6 @@ by meaning.
 - **Recovery on its own.** It closes popups and reloads broken pages. It waits out rate limits. After a crash,
 it plans from what is already on the screen, so it never repeats a half-done step blindly.
 - **Its own lane.** Each Job and each Task knows which work belongs to later steps, and it leaves that work alone.
-- **One clear question when it must.** No login for a site? It parks the Task and asks you. You approve or
-reject once, and the work continues.
 
 ## The dashboard
 
