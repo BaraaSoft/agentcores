@@ -1,6 +1,8 @@
 ![AHE: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
-
-### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
+<div align="center">
+<h3>Give it a goal. It plans, acts on a real computer, and self-improves with every round.</h3>
+  <div></div>
+</div>
 
 <div align="center">
 
@@ -9,8 +11,9 @@
 </div>
 
 <p align="center">
-  <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#architecture">Architecture</a></b>
+  <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
 </p>
+
 
 ## What AHE is
 
@@ -33,7 +36,7 @@ You do not prompt it step by step. You brief it once, like a colleague. Then you
 One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
 
-[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://github.com/user-attachments/assets/f9614bda-a689-40fe-91d2-30fbc59fd7e6)
+[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://github.com/user-attachments/assets/e56fd87a-c89a-49f0-9ac4-a0e08016f3ec)
 
 
 ## A co-worker, not an assistant
@@ -355,4 +358,4 @@ Read the full log, with an example for each feature: [docs/hackathon-features-lo
 
 AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
 
-Built by [Baraa](https://github.com/BaraaSoft) for the Meta Hackathon, 2026.
+Built by [Baraa](https://github.com/BaraaSoft) Powered by Meta Muse, 2026.
