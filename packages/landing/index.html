@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AHE: an AI co-worker that runs long work on a real computer</title>
+    <meta
+      name="description"
+      content="AHE plans the work, operates a real Mac screen, evaluates its own work, and gets better every round. Built on Meta Muse. Open source."
+    />
+    <meta name="theme-color" content="#08090A" />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="preload" href="assets/inter.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AHE: an AI co-worker that gets better every round" />
+    <meta
+      property="og:description"
+      content="It plans the work, operates a real Mac screen, and self-improves: it keeps what worked and fixes what did not."
+    />
+    <meta property="og:url" content="https://baraasoft.github.io/ahe-autonomous-agent/" />
+    <meta property="og:image" content="https://baraasoft.github.io/ahe-autonomous-agent/assets/og-banner.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="512" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="brand">
+        <img class="brand__logo" src="assets/logo.svg" width="72" height="72" alt="" />
+        <div>
+          <p class="brand__name">AHE</p>
+          <p class="brand__expansion">Autonomous HumanExperiences</p>
+        </div>
+      </header>
+
+      <section class="intro">
+        <div class="intro__text">
+          <h1 class="headline">
+            An AI co-worker that runs long work on a real computer,
+            <span class="headline__soft">and gets better every round.</span>
+          </h1>
+          <p class="lede">
+            Many agents, one co-worker. They plan the work, carry out each Task on your real Mac screen,
+            evaluate their own work, and share what they learn, so the next round starts smarter.
+          </p>
+          <nav class="actions" aria-label="Links">
+            <a class="button button--primary" href="https://youtu.be/SmZx7uCVIyU">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M8 5.5v13l11-6.5z" /></svg>
+              Watch the demo
+            </a>
+            <a class="button" href="https://github.com/BaraaSoft/ahe-autonomous-agent">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+                <path
+                  fill="currentColor"
+                  d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"
+                />
+              </svg>
+              View on GitHub
+            </a>
+            <a class="button" href="https://github.com/BaraaSoft/ahe-autonomous-agent#how-it-works">How it works</a>
+          </nav>
+        </div>
+
+        <section class="quickstart" aria-labelledby="quickstart-title">
+          <h2 id="quickstart-title" class="quickstart__title">Run it on your Mac</h2>
+          <ol class="steps">
+            <li>
+              <span class="steps__label">Clone the repository.</span>
+              <code class="command">git clone https://github.com/BaraaSoft/ahe-autonomous-agent.git<br />cd ahe-autonomous-agent</code>
+            </li>
+            <li>
+              <span class="steps__label">Run the quick start, and paste your Meta API key when it asks.</span>
+              <code class="command">corepack enable<br />pnpm quickstart</code>
+            </li>
+            <li>
+              <span class="steps__label">
+                Open <a href="http://localhost:5173">localhost:5173</a>, and create your first strategy.
+              </span>
+            </li>
+          </ol>
+          <p class="quickstart__note">
+            Needs macOS, Docker Desktop, Node.js 22, and a
+            <a href="https://dev.meta.ai/docs/authentication">Meta API key</a>. When macOS asks, allow your terminal in
+            Accessibility and Screen Recording.
+          </p>
+        </section>
+      </section>
+
+      <footer class="footer">
+        <ol class="levels" aria-label="The levels of work">
+          <li class="level">Strategy</li>
+          <li class="level">Unit of Work</li>
+          <li class="level">Job</li>
+          <li class="level level--live">Task</li>
+        </ol>
+        <div class="credit">
+          <p class="credit__badge"><span class="credit__dot" aria-hidden="true"></span>Built on Meta Muse</p>
+          <p class="credit__line">Hands-on work on screen, on macOS · Open source · Meta Global AI Hackathon 2026</p>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

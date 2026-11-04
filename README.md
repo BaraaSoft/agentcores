@@ -11,7 +11,7 @@
 </div>
 
 <p align="center">
-  <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
+  <b><a href="https://baraasoft.github.io/ahe-autonomous-agent/">Website</a></b> · <b><a href="#demo">Demo</a></b> · <b><a href="#quick-start">Quick start</a></b> · <b><a href="#how-it-works">How it works</a></b> · <b><a href="#the-dashboard">The dashboard</a></b> · <b><a href="#safety">Safety</a></b> · <b><a href="#Project-structure">Project structure</a></b>
 </p>
 
 
@@ -338,7 +338,7 @@ Read the design documents for the details:
 
 | Day | What AHE can now do |
 | --- | --- |
-| 4 Nov | Build on what earlier Jobs made, and report what it did when a step runs out of time, so it never repeats finished work |
+| 4 Nov | Build on what earlier Jobs made, report what it did when a step runs out of time, and welcome visitors on a one-page website |
 | 3 Nov | Prove its self-review with a benchmark, run CI on every package, start with one command, and show each Job's work |
 | 2 Nov | Use the computer with Meta Muse, run and pause many runs in WorkHub, launch a Strategy from a form, and show the work live |
 | 1 Nov | Think with Meta Muse, research the brief on the web, aim for creative design, and show a dashboard |
