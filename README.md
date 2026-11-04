@@ -185,9 +185,10 @@ Each level picks its own model, so a fast model can plan every step and a strong
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
 both, restart the terminal, and run `pnpm quickstart` again. Each run skips the work that is already done.
 
-**Run each step by hand**
+<details>
+<summary><b>Run each step by hand</b></summary>
 
-  
+<br/>
 
 
 1. Install the packages, and create your `.env` file from the example.
@@ -220,6 +221,7 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
     This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
     embedding model, one time.
 
+</details>
 
 
 > [!WARNING]
@@ -292,9 +294,10 @@ packages/
 └── web-ui/        the ui dashboard (localhost:5173)
 ```
 
-**Engineering notes**: the rules we hold to, and the design documents
+<details>
+<summary><b>Engineering notes</b>: the rules we hold to, and the design documents</summary>
 
-  
+<br/>
 
 
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
@@ -316,11 +319,13 @@ Read the design documents for the details:
 | [Reasoning](packages/backend/src/reasoning/README.md) | Every planner and the evaluator, their inputs, and their prompts |
 | [Execution](packages/execution/README.md) | The hands-on loop, the macOS driver, and the providers |
 
+</details>
 
 
-**Built during Meta Global AI Hackathon 2026**: every feature, day by day
+<details>
+<summary><b>Built during Meta Global AI Hackathon 2026</b>: every feature, day by day</summary>
 
-  
+<br/>
 
 
 | Day | What AHE can now do |
@@ -335,6 +340,8 @@ Read the design documents for the details:
 | 27 Oct | Review its own work and learn from it, and record where each Task was done |
 
 Read the full log, with an example for each feature: [docs/hackathon-features-log.md](docs/hackathon-features-log.md).
+
+</details>
 
 
 
@@ -352,7 +359,9 @@ AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
 Built by [Baraa](https://github.com/BaraaSoft) Powered by Meta Muse, 2026.
 
 <details>
-<summary><strong>Troubleshooting guide</strong></summary>
+<summary><b>Troubleshooting guide</b>: fixes for common setup errors</summary>
+
+<br/>
 
 #### "AHE needs Node.js 22 or newer"
 
