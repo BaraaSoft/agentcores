@@ -21,6 +21,14 @@ why it matters, and where it lives in the code.
 
 ## 4 Nov 2026
 
+### AHE now has its own website
+
+A one-page site shows what AHE is, links to the demo video and the code, and gives the three steps to run it on a
+Mac. It follows the look of the project banner and fits on one screen of a laptop.
+
+- **Why it matters:** anyone can understand AHE and start it in under a minute, without reading the whole README.
+- **Where:** `packages/landing`, published by `.github/workflows/pages.yml` to GitHub Pages.
+
 ### A Job now builds on the work of the Jobs before it
 
 When a Job plans, it now sees what the finished Jobs of the same round made and where. For example, the posting
