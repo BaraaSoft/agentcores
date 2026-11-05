@@ -32,7 +32,9 @@ One run, from start to end. AHE plans a book launch, designs the graphic in Canv
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up. This run used
 Claude on every layer. Each layer can also run on Muse.
 
-![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)
+[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://www.youtube.com/watch?v=SmZx7uCVIyU)
+
+**Watch the demo:** https://www.youtube.com/watch?v=SmZx7uCVIyU
 
 No YouTube? [Play the demo on GitHub](https://github.com/user-attachments/assets/ca1138b0-b9ae-4669-8b00-6606a39df38c).
 
