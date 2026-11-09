@@ -31,7 +31,7 @@ You do not prompt it step by step. You brief it once, like a colleague. Then you
 One run, from start to end. AgentCores.AI plans a book launch, designs the graphic in Canva, marks its own work, and posts
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
 
-[![Watch the AgentCores.AI demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)]([.github/assets/agentcores-demo.mp4](https://github.com/user-attachments/assets/e6935fdd-6f6c-48c8-928a-4fbc207588c5))
+https://github.com/user-attachments/assets/e6935fdd-6f6c-48c8-928a-4fbc207588c5
 
 ## A co-worker, not an assistant
 
