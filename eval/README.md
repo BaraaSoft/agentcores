@@ -1,6 +1,6 @@
-# AHE evaluation
+# AgentCores.AI evaluation
 
-AHE self-improves only as well as it reviews its own work. This benchmark tests that reviewer: the real
+AgentCores.AI self-improves only as well as it reviews its own work. This benchmark tests that reviewer: the real
 evaluator, with the app's own prompt, schema, model, and retry rule.
 
 ## The cases
@@ -10,7 +10,7 @@ sees it in a real run. Every case runs 3 times.
 
 - **Pairs.** The same Job done well and done weakly, for example a call booked on the wrong day. The strong
   work must score higher.
-- **Screenshots.** A real Canva graphic that AHE made in an earlier run. With its own brief, it must score 7
+- **Screenshots.** A real Canva graphic that AgentCores.AI made in an earlier run. With its own brief, it must score 7
   or more. Under a different brief, with a summary that overclaims, it must score 4 or less.
 - **Evidence.** Results that the record cannot show yet, such as likes on a post one minute old. The
   evaluator must ask to read the live result, not guess.

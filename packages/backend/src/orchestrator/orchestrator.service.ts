@@ -1,4 +1,4 @@
-import type { StrategyWorkType } from '@ahe/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Queue } from 'bullmq';
@@ -38,7 +38,7 @@ import type { SchedulingResult } from './types/scheduling-result';
 type NextUnitOfWork = 'opened' | 'open' | 'waiting' | 'done';
 
 /**
- * The AHE runtime's control plane. A Strategy is a reusable goal and each Workflow is one run of it.
+ * The AgentCores.AI runtime's control plane. A Strategy is a reusable goal and each Workflow is one run of it.
  * Every minute it moves each running Workflow forward one step — settles the open Unit of Work,
  * evaluates the Units of Work that are due, opens the next one when the work type's stop rule allows,
  * or marks the run `done` — and starts the Jobs that are ready, within the Workflow's Job limit. It is

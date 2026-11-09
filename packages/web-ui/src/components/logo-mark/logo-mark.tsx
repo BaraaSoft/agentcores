@@ -7,7 +7,7 @@ export interface LogoMarkProps {
 
 const DEFAULT_SIZE = 40;
 
-/** The AHE mark: stacked layers for the levels of work, on a Meta blue tile. */
+/** The AgentCores.AI mark: stacked layers for the levels of work, on a Meta blue tile. */
 export function LogoMark({ size = DEFAULT_SIZE }: LogoMarkProps) {
   const theme = useTheme();
   const id = useId();
@@ -16,7 +16,7 @@ export function LogoMark({ size = DEFAULT_SIZE }: LogoMarkProps) {
   const lift = `${id}-lift`;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" role="img" aria-label="AHE">
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" role="img" aria-label="AgentCores.AI">
       <defs>
         <linearGradient id={tile} x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor={theme.color.accentStrong} />

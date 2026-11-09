@@ -1,4 +1,4 @@
-import type { AccountCredentials } from '@ahe/agent-core';
+import type { AccountCredentials } from '@agentcores/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

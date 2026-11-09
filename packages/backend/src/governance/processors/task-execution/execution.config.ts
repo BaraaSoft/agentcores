@@ -1,4 +1,4 @@
-import { EXECUTION_PROVIDER_NAMES, type ExecutionProviderName } from '@ahe/execution';
+import { EXECUTION_PROVIDER_NAMES, type ExecutionProviderName } from '@agentcores/execution';
 import { registerAs } from '@nestjs/config';
 
 /** The model each provider runs when `EXECUTION_MODEL_ID` is not set. */

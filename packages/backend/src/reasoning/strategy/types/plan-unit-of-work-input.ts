@@ -1,4 +1,4 @@
-import type { StrategyWorkType } from '@ahe/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 import type { JobEvaluation } from '../../evaluation/types/job-evaluation';
 import type { EarlierRun } from './earlier-run';
 import type { EarlierUnitOfWork } from './earlier-unit-of-work';

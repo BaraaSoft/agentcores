@@ -1,4 +1,4 @@
-import type { TaskSkillType } from '@ahe/agent-core';
+import type { TaskSkillType } from '@agentcores/agent-core';
 
 /**
  * One Task in a Job's plan, before it runs: the action and the skill it runs with.

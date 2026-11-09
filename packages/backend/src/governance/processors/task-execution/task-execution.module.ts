@@ -1,5 +1,5 @@
-import type { ExecutionProvider } from '@ahe/agent-core';
-import { createExecutionProvider } from '@ahe/execution';
+import type { ExecutionProvider } from '@agentcores/agent-core';
+import { createExecutionProvider } from '@agentcores/execution';
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, type ConfigType } from '@nestjs/config';
 import { IdentityModule } from '../../../identity/identity.module';
@@ -18,7 +18,7 @@ const executionLogger = new Logger('Execution');
 
 /**
  * Task level of governance: the worker that loops Task reasoning against the execution layer.
- * This is the only module that knows about `@ahe/execution`. It is its own module, not part of
+ * This is the only module that knows about `@agentcores/execution`. It is its own module, not part of
  * `GovernanceModule`, because it needs `ReportingModule`, which itself imports `GovernanceModule`.
  */
 @Module({

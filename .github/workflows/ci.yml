@@ -24,8 +24,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ahe/agent-core typecheck
-      - run: pnpm --filter @ahe/agent-core build
+      - run: pnpm --filter @agentcores/agent-core typecheck
+      - run: pnpm --filter @agentcores/agent-core build
 
   backend-unit:
     name: backend · unit tests
@@ -41,8 +41,8 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxtst6
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:libs
-      - run: pnpm --filter @ahe/backend typecheck
-      - run: pnpm --filter @ahe/backend test
+      - run: pnpm --filter @agentcores/backend typecheck
+      - run: pnpm --filter @agentcores/backend test
 
   backend-integration:
     name: backend · database integration tests
@@ -72,7 +72,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:libs
-      - run: pnpm --filter @ahe/backend test:integration
+      - run: pnpm --filter @agentcores/backend test:integration
 
   execution:
     name: execution · unit tests
@@ -85,9 +85,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ahe/agent-core build
-      - run: pnpm --filter @ahe/execution typecheck
-      - run: pnpm --filter @ahe/execution test
+      - run: pnpm --filter @agentcores/agent-core build
+      - run: pnpm --filter @agentcores/execution typecheck
+      - run: pnpm --filter @agentcores/execution test
 
   smoke:
     name: smoke · live Meta Model API
@@ -105,7 +105,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxtst6
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:libs
-      - run: pnpm --filter @ahe/backend test:smoke
+      - run: pnpm --filter @agentcores/backend test:smoke
 
   migrations:
     name: migrations · typecheck
@@ -119,7 +119,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:libs
-      - run: pnpm --filter @ahe/migrations typecheck
+      - run: pnpm --filter @agentcores/migrations typecheck
 
   web-ui:
     name: web-ui · typecheck and build
@@ -132,4 +132,4 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ahe/web-ui build
+      - run: pnpm --filter @agentcores/web-ui build

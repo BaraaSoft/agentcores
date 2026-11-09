@@ -1,4 +1,4 @@
-import type { ToolCall } from '@ahe/agent-core';
+import type { ToolCall } from '@agentcores/agent-core';
 
 /**
  * Approves or refuses each ToolCall before it touches the desktop.

@@ -1,4 +1,4 @@
-import { JOB_ORDER_TYPES } from '@ahe/agent-core';
+import { JOB_ORDER_TYPES } from '@agentcores/agent-core';
 import * as z from 'zod/v4';
 
 const PLANNED_JOB = z.object({

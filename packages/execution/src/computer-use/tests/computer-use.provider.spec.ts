@@ -1,4 +1,4 @@
-import type { ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionTask } from '@agentcores/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { BetaContentBlock, BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { PermissiveActionGuard } from '../../actions/permissive-action-guard';

@@ -1,4 +1,4 @@
-# Local infrastructure for AHE.
+# Local infrastructure for AgentCores.AI.
 # (5432 / 6379) so both stacks can run side by side.
 # The backend runs on the host (`pnpm dev`), not here: the agent must control the Mac's own screen.
 services:
@@ -36,7 +36,7 @@ services:
     build:
       context: .
       dockerfile: packages/migrations/Dockerfile
-    command: sh -c "pnpm --filter @ahe/agent-core build && pnpm --filter @ahe/migrations migrate:sync"
+    command: sh -c "pnpm --filter @agentcores/agent-core build && pnpm --filter @agentcores/migrations migrate:sync"
     environment:
       DATABASE_URL: postgres://ahe:ahe@postgres:5432/ahe
     volumes:

@@ -1,4 +1,4 @@
-import type { GoldStandards, StrategyEvaluation, StrategyWorkType } from '@ahe/agent-core';
+import type { GoldStandards, StrategyEvaluation, StrategyWorkType } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { UnitOfWorkEntity } from './unit-of-work.entity';

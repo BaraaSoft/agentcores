@@ -1,5 +1,5 @@
-import { JOB_ORDER_TYPES, JOB_OUTCOME_STATUSES } from '@ahe/agent-core';
-import type { JobOrderType, JobOutcomeStatus } from '@ahe/agent-core';
+import { JOB_ORDER_TYPES, JOB_OUTCOME_STATUSES } from '@agentcores/agent-core';
+import type { JobOrderType, JobOutcomeStatus } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { JobEntity } from '../../../../governance/entities/job.entity';
 import type { JobEvaluationEntity } from '../../../../governance/entities/job-evaluation.entity';

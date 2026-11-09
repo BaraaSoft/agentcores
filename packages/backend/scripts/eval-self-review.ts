@@ -6,7 +6,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { JobOutcomeStatus, Screenshot, TaskStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus, Screenshot, TaskStatus } from '@agentcores/agent-core';
 import { MAX_JUDGING_ATTEMPTS } from '../src/governance/processors/job-evaluation/job-evaluation.constants';
 import { MAX_JOB_SCORE, MIN_JOB_SCORE } from '../src/reasoning/evaluation/evaluation-reasoning.constants';
 import { EvaluationReasoningService } from '../src/reasoning/evaluation/evaluation-reasoning.service';

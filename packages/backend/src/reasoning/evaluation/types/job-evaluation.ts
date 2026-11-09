@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus } from '@agentcores/agent-core';
 
 /**
  * One scored Job as the Strategy planner reads it when it looks for Jobs like the ones it is about

@@ -1,4 +1,4 @@
-import type { TaskSkillType } from '@ahe/agent-core';
+import type { TaskSkillType } from '@agentcores/agent-core';
 import { DEFAULT_MAX_EXECUTION_STEPS, REQUIRED_TASK_SKILL_SECTIONS } from './task-skill.constants';
 import type { TaskSkill } from './task-skill';
 import type { TaskSkillSection } from './task-skill-sections';

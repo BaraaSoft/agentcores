@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus, TaskStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus, TaskStatus } from '@agentcores/agent-core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { describeWithDatabase } from '../../../database/tests/test-database.config';

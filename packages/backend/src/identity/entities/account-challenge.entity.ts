@@ -1,4 +1,4 @@
-import type { BlockerKind } from '@ahe/agent-core';
+import type { BlockerKind } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 /**

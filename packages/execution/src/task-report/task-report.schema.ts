@@ -1,4 +1,4 @@
-import { BLOCKER_KINDS, EXECUTION_STATUSES } from '@ahe/agent-core';
+import { BLOCKER_KINDS, EXECUTION_STATUSES } from '@agentcores/agent-core';
 import * as z from 'zod/v4';
 
 /**

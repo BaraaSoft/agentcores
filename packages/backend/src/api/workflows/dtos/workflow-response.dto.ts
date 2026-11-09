@@ -1,5 +1,5 @@
-import { WORKFLOW_STATES } from '@ahe/agent-core';
-import type { WorkflowResources, WorkflowState } from '@ahe/agent-core';
+import { WORKFLOW_STATES } from '@agentcores/agent-core';
+import type { WorkflowResources, WorkflowState } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { WorkflowEntity } from '../../../workflow/entities/workflow.entity';
 

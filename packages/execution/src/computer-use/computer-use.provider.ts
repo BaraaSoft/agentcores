@@ -1,4 +1,4 @@
-import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@ahe/agent-core';
+import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@agentcores/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta';
 import { ActionExecutor } from '../actions/action-executor';
@@ -123,7 +123,7 @@ export class ComputerUseProvider implements ExecutionProvider {
     if (!canControlInput || !canCaptureScreen) {
       throw new Error(
         `Desktop permissions missing (Accessibility: ${canControlInput}, Screen Recording: ${canCaptureScreen}). ` +
-          'Grant them to the Node process, e.g. with `pnpm --filter @ahe/execution check:desktop`.',
+          'Grant them to the Node process, e.g. with `pnpm --filter @agentcores/execution check:desktop`.',
       );
     }
   }

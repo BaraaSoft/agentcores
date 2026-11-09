@@ -1,5 +1,5 @@
 {
-  "name": "@ahe/backend",
+  "name": "@agentcores/backend",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -18,8 +18,8 @@
     "eval:self-review": "ts-node scripts/eval-self-review.ts"
   },
   "dependencies": {
-    "@ahe/agent-core": "workspace:*",
-    "@ahe/execution": "workspace:*",
+    "@agentcores/agent-core": "workspace:*",
+    "@agentcores/execution": "workspace:*",
     "@anthropic-ai/sdk": "^0.133.0",
     "@bull-board/api": "^6.20.7",
     "@bull-board/express": "^6.20.7",

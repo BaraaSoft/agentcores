@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus, Screenshot } from '@ahe/agent-core';
+import type { JobOutcomeStatus, Screenshot } from '@agentcores/agent-core';
 import type { TaskOutcome } from '../../job/types/task-outcome';
 import type { GatheredEvidence } from './gathered-evidence';
 

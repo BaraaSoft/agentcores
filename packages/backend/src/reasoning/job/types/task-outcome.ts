@@ -1,4 +1,4 @@
-import type { TaskResult, TaskStatus } from '@ahe/agent-core';
+import type { TaskResult, TaskStatus } from '@agentcores/agent-core';
 
 /**
  * How one Task of a Job ended, as the Job level sees it: the action, its final status, the

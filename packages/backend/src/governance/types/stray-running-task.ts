@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus, UnitOfWorkState, WorkflowState } from '@ahe/agent-core';
+import type { JobOutcomeStatus, UnitOfWorkState, WorkflowState } from '@agentcores/agent-core';
 
 /**
  * A `running` Task whose work is not running: its Job is closed, its Unit of Work or Workflow is not

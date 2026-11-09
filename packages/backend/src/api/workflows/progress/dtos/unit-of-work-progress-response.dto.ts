@@ -1,5 +1,5 @@
-import { UNIT_OF_WORK_STATES, UNIT_OF_WORK_STATUSES } from '@ahe/agent-core';
-import type { UnitOfWorkState, UnitOfWorkStatus } from '@ahe/agent-core';
+import { UNIT_OF_WORK_STATES, UNIT_OF_WORK_STATUSES } from '@agentcores/agent-core';
+import type { UnitOfWorkState, UnitOfWorkStatus } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { UnitOfWorkEntity } from '../../../../governance/entities/unit-of-work.entity';
 import { JobProgressResponseDto } from './job-progress-response.dto';

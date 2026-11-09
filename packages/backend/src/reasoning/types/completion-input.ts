@@ -1,4 +1,4 @@
-import type { Screenshot } from '@ahe/agent-core';
+import type { Screenshot } from '@agentcores/agent-core';
 import type * as z from 'zod/v4';
 
 /**

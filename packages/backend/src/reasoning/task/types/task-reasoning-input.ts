@@ -1,4 +1,4 @@
-import type { TaskSkillType } from '@ahe/agent-core';
+import type { TaskSkillType } from '@agentcores/agent-core';
 import type { TaskOutcome } from '../../job/types/task-outcome';
 import type { StepRecord } from './step-record';
 

@@ -1,4 +1,4 @@
-import type { UnitOfWorkState } from '@ahe/agent-core';
+import type { UnitOfWorkState } from '@agentcores/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';

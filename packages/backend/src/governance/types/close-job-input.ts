@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus } from '@agentcores/agent-core';
 
 /**
  * Closes an open Job with how it ended.

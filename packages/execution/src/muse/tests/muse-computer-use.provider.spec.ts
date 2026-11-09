@@ -1,4 +1,4 @@
-import type { ExecutionTask, ToolCall } from '@ahe/agent-core';
+import type { ExecutionTask, ToolCall } from '@agentcores/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { ActionGuard } from '../../actions/action-guard';
 import { PermissiveActionGuard } from '../../actions/permissive-action-guard';

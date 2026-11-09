@@ -9,7 +9,7 @@ import { DisplayGeometry } from '../geometry/display-geometry';
  * permissions, then takes one screenshot at the size the model will see and saves it for a visual check.
  * It sends no mouse or keyboard input.
  *
- * Usage: `pnpm --filter @ahe/execution check:desktop`
+ * Usage: `pnpm --filter @agentcores/execution check:desktop`
  */
 async function main(): Promise<void> {
   const desktop = new MacosDesktopDriver();

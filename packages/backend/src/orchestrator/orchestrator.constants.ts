@@ -1,4 +1,4 @@
-import type { StrategyWorkType } from '@ahe/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 
 /** How often the orchestrator runs its scheduling pass. */
 export const SCHEDULING_INTERVAL_MS = 60_000;

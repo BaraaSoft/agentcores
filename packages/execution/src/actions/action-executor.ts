@@ -1,4 +1,4 @@
-import type { ToolCall } from '@ahe/agent-core';
+import type { ToolCall } from '@agentcores/agent-core';
 import type { DesktopDriver } from '../driver/desktop-driver';
 import type { Point } from '../driver/types/point';
 import type { DisplayGeometry } from '../geometry/display-geometry';

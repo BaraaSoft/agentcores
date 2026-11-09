@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus } from '@ahe/agent-core';
+import type { JobOutcomeStatus } from '@agentcores/agent-core';
 import type { TaskOutcome } from '../../job/types/task-outcome';
 
 /**

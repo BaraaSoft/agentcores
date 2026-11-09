@@ -1,4 +1,4 @@
-import type { JobOrderType } from '@ahe/agent-core';
+import type { JobOrderType } from '@agentcores/agent-core';
 
 /**
  * A Job the planner proposes for a new Unit of Work. An `ordered` Job waits for the ordered Jobs listed

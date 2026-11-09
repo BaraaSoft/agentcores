@@ -9,7 +9,7 @@ const ADMIN_PREFIX = '/admin' as const;
 const DEFAULT_PORT = 3088;
 
 /**
- * Starts the AHE backend: the control API, the admin tools (Swagger + Bull Board),
+ * Starts the AgentCores.AI backend: the control API, the admin tools (Swagger + Bull Board),
  * and the BullMQ workers that plan and run Units, Jobs, and Tasks, all in one process on the Mac Mini.
  */
 async function bootstrap(): Promise<void> {
@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
     basicAuth({
       users: { [process.env.ADMIN_USERNAME ?? 'admin']: process.env.ADMIN_PASSWORD ?? 'ahe@local' },
       challenge: true,
-      realm: 'AHE Admin',
+      realm: 'AgentCores.AI Admin',
     }),
   );
   app.setGlobalPrefix(API_PREFIX, { exclude: ['/admin/*path'] });

@@ -1,4 +1,4 @@
-import { TASK_SKILL_TYPES } from '@ahe/agent-core';
+import { TASK_SKILL_TYPES } from '@agentcores/agent-core';
 import { ToolsetFactory } from '../../tools/toolset.factory';
 import type { ToolLoopInput } from '../../types/tool-loop-input';
 import type { JobReasoningModelClient } from '../job-reasoning-model.client';

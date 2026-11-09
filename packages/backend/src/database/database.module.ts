@@ -4,7 +4,7 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 /**
  * Connects to Postgres. Entities register themselves through each module's
- * `TypeOrmModule.forFeature()`. Schema changes go through `@ahe/migrations` only.
+ * `TypeOrmModule.forFeature()`. Schema changes go through `@agentcores/migrations` only.
  */
 @Module({
   imports: [

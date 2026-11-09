@@ -1,4 +1,4 @@
-import type { ExecutionProvider, ExecutionResult } from '@ahe/agent-core';
+import type { ExecutionProvider, ExecutionResult } from '@agentcores/agent-core';
 import { InjectQueue, Processor } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';

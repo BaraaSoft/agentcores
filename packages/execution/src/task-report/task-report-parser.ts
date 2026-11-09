@@ -1,4 +1,4 @@
-import type { ExecutionBlocker, ExecutionResult } from '@ahe/agent-core';
+import type { ExecutionBlocker, ExecutionResult } from '@agentcores/agent-core';
 import { cleanLocationPath } from '../utils/clean-location-path';
 import { redactSecrets } from '../utils/redact-secrets';
 import { TASK_REPORT_SCHEMA } from './task-report.schema';

@@ -1,4 +1,4 @@
-import type { Screenshot, TaskStatus } from '@ahe/agent-core';
+import type { Screenshot, TaskStatus } from '@agentcores/agent-core';
 import { InjectQueue, Processor } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { MemoryRetrievalService } from '../../../memory/memory-retrieval.service';

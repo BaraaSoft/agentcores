@@ -1,4 +1,4 @@
-import type { ExecutionBlocker } from '@ahe/agent-core';
+import type { ExecutionBlocker } from '@agentcores/agent-core';
 
 /**
  * A gate the execution layer reported for an account during a Task.

@@ -1,4 +1,4 @@
-import type { ExecutionProvider } from '@ahe/agent-core';
+import type { ExecutionProvider } from '@agentcores/agent-core';
 import type { ComputerUseProviderOptions } from './computer-use-provider-options';
 import { createComputerUseProvider } from './create-computer-use-provider';
 import type { ExecutionProviderOptions } from './execution-provider-options';

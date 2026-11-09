@@ -1,4 +1,4 @@
-import type { WorkflowState } from '@ahe/agent-core';
+import type { WorkflowState } from '@agentcores/agent-core';
 
 /**
  * Moves a Workflow to a new lifecycle state.

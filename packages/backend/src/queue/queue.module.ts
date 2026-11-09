@@ -15,7 +15,7 @@ import { registerQueues } from './register-queues';
 const DEFAULT_REDIS_PORT = 6380;
 
 /**
- * Sets up the Redis connection, registers every AHE queue with its job options (see
+ * Sets up the Redis connection, registers every AgentCores.AI queue with its job options (see
  * `QUEUE_JOB_OPTIONS`), and mounts the Bull Board dashboard at `/admin/queues`.
  * Feature modules register the queues they inject with `registerQueues` too.
  */

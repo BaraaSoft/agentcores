@@ -1,5 +1,5 @@
-import { TASK_SKILL_TYPES, TASK_STATUSES } from '@ahe/agent-core';
-import type { TaskSkillType, TaskStatus } from '@ahe/agent-core';
+import { TASK_SKILL_TYPES, TASK_STATUSES } from '@agentcores/agent-core';
+import type { TaskSkillType, TaskStatus } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { TaskEntity } from '../../../../governance/entities/task.entity';
 

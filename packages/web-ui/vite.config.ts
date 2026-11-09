@@ -7,7 +7,7 @@ const DEV_PORT = 5173;
 const BACKEND_URL = 'http://localhost:3088';
 
 export default defineConfig({
-  plugins: [react({ jsxImportSource: '@emotion/react' }), networkBanner({ title: 'AHE dashboard', path: ROUTE_PATHS.monitor })],
+  plugins: [react({ jsxImportSource: '@emotion/react' }), networkBanner({ title: 'AgentCores.AI dashboard', path: ROUTE_PATHS.monitor })],
   server: {
     host: true,
     port: DEV_PORT,

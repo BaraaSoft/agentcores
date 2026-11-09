@@ -1,5 +1,5 @@
 {
-  "name": "@ahe/execution",
+  "name": "@agentcores/execution",
   "version": "0.0.1",
   "private": true,
   "main": "./dist/index.js",
@@ -13,7 +13,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ahe/agent-core": "workspace:*",
+    "@agentcores/agent-core": "workspace:*",
     "@anthropic-ai/sdk": "^0.133.0",
     "robotjs": "^0.9.1",
     "sharp": "^0.35.5",

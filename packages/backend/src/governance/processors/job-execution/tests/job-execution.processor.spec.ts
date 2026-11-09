@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@ahe/agent-core';
+import type { TaskStatus } from '@agentcores/agent-core';
 import type { Job, Queue } from 'bullmq';
 import type { MemoryRetrievalService } from '../../../../memory/memory-retrieval.service';
 import type { JobEvaluationJobData } from '../../../../queue/types/job-evaluation-job-data';

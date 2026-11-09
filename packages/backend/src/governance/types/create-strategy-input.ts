@@ -1,4 +1,4 @@
-import type { StrategyWorkType } from '@ahe/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 
 /**
  * Data for opening a new Strategy, as the owner defines it.

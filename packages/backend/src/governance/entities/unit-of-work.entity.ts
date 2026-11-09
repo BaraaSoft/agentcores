@@ -1,4 +1,4 @@
-import type { UnitOfWorkState, UnitOfWorkStatus } from '@ahe/agent-core';
+import type { UnitOfWorkState, UnitOfWorkStatus } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { WorkflowEntity } from '../../workflow/entities/workflow.entity';
 import { JobEntity } from './job.entity';

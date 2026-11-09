@@ -1,4 +1,4 @@
-import type { Screenshot } from '@ahe/agent-core';
+import type { Screenshot } from '@agentcores/agent-core';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

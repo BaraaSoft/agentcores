@@ -1,4 +1,4 @@
-import type { ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionTask } from '@agentcores/agent-core';
 import { buildTaskPrompt } from '../execution.prompts';
 
 const TASK: ExecutionTask = {

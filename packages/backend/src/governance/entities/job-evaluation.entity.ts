@@ -1,4 +1,4 @@
-import type { JobEvaluationState } from '@ahe/agent-core';
+import type { JobEvaluationState } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { JobEntity } from './job.entity';
 

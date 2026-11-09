@@ -1,4 +1,4 @@
-import { TASK_SKILL_TYPES } from '@ahe/agent-core';
+import { TASK_SKILL_TYPES } from '@agentcores/agent-core';
 import * as z from 'zod/v4';
 import { ReasoningToolError } from '../../reasoning-tool.error';
 import type { ReasoningTool } from '../../types/reasoning-tool';

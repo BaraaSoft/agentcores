@@ -13,7 +13,7 @@ import { RunSteps } from '../../components/workhub-components/run-steps/run-step
 import { StrategyOptionList } from '../../components/workhub-components/strategy-option-list/strategy-option-list';
 import { ROUTE_PATHS } from '../../routes/route-paths';
 import { useWorkHubStore } from '../../state/workhub-store';
-import { AHE_MACHINE, EMPTY_STRATEGY_DRAFT } from '../create-strategy/model/strategy-draft';
+import { DEFAULT_MACHINE, EMPTY_STRATEGY_DRAFT } from '../create-strategy/model/strategy-draft';
 import { presentRunSteps } from './model/present-run-steps';
 import { presentStrategyOptions } from './model/present-strategy-options';
 import { workflowToPause } from './model/workflow-to-pause';
@@ -49,7 +49,7 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
   const pausedName = nameOf(workflows.find((workflow) => workflow.id === run?.pausedWorkflowId)?.strategyId);
   const presented = run === null || runStrategyOf === undefined ? null : presentRunSteps(run, pausedName, runStrategyOf.workType);
   const isBusy = presented?.isInProgress ?? false;
-  const toPause = run === null ? workflowToPause(workflows, strategies, AHE_MACHINE, null) : null;
+  const toPause = run === null ? workflowToPause(workflows, strategies, DEFAULT_MACHINE, null) : null;
 
   useEffect(() => {
     if (strategyId !== null && options.some((option) => option.id === strategyId)) return;
@@ -61,7 +61,7 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
     clearRun();
   };
   const submit = () => {
-    if (strategyId !== null) void runStrategy(strategyId, { machineId: AHE_MACHINE, resources: RESOURCES });
+    if (strategyId !== null) void runStrategy(strategyId, { machineId: DEFAULT_MACHINE, resources: RESOURCES });
   };
 
   if (options.length === 0) {
@@ -111,7 +111,7 @@ export function RunStrategyView({ onReveal, onOpenMonitor }: RunStrategyViewProp
       <TextField
         id="workhub-machine"
         label="Machine"
-        value={AHE_MACHINE}
+        value={DEFAULT_MACHINE}
         onChange={() => undefined}
         hint="Your co-worker works on one machine for now."
         isDisabled

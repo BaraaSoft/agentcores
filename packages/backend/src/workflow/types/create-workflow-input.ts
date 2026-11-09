@@ -1,4 +1,4 @@
-import type { WorkflowResources } from '@ahe/agent-core';
+import type { WorkflowResources } from '@agentcores/agent-core';
 
 /**
  * Data needed to create a Workflow: the Strategy it runs, and the machine it runs on.

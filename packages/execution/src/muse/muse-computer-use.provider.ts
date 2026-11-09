@@ -1,4 +1,4 @@
-import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@ahe/agent-core';
+import type { ExecutionProvider, ExecutionResult, ExecutionTask, Screenshot } from '@agentcores/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
 import { ActionExecutor } from '../actions/action-executor';
 import type { ActionOutcome } from '../actions/action-outcome';
@@ -211,7 +211,7 @@ export class MuseComputerUseProvider implements ExecutionProvider {
     if (!canControlInput || !canCaptureScreen) {
       throw new Error(
         `Desktop permissions missing (Accessibility: ${canControlInput}, Screen Recording: ${canCaptureScreen}). ` +
-          'Grant them to the Node process, e.g. with `pnpm --filter @ahe/execution check:desktop`.',
+          'Grant them to the Node process, e.g. with `pnpm --filter @agentcores/execution check:desktop`.',
       );
     }
   }

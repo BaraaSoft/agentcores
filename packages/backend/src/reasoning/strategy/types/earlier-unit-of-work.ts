@@ -1,4 +1,4 @@
-import type { JobOrderType, JobOutcomeStatus, UnitOfWorkStatus } from '@ahe/agent-core';
+import type { JobOrderType, JobOutcomeStatus, UnitOfWorkStatus } from '@agentcores/agent-core';
 
 /**
  * One Job of an earlier Unit of Work, as the planner reads it: what it tried, how it ended, and how it was

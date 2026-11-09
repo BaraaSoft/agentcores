@@ -1,4 +1,4 @@
-import type { TaskResult } from '@ahe/agent-core';
+import type { TaskResult } from '@agentcores/agent-core';
 
 /**
  * Marks a Task complete with its result and where it was performed.

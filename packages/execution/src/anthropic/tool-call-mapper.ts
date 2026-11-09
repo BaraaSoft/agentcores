@@ -1,4 +1,4 @@
-import type { ToolCall } from '@ahe/agent-core';
+import type { ToolCall } from '@agentcores/agent-core';
 import type {
   BetaComputerHoldKeyInput,
   BetaComputerKeyInput,

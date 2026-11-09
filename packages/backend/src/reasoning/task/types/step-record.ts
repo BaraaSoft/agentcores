@@ -1,4 +1,4 @@
-import type { ExecutionResult, ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionResult, ExecutionTask } from '@agentcores/agent-core';
 import type { PlannedStep } from './planned-step';
 
 /**

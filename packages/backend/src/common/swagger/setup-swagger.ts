@@ -8,8 +8,8 @@ const SWAGGER_PATH = 'admin/docs' as const;
  */
 export function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
-    .setTitle('AHE API')
-    .setDescription('Control API for Autonomous HumanExperiences workflows')
+    .setTitle('AgentCores.AI API')
+    .setDescription('Control API for AgentCores.AI workflows')
     .setVersion('0.0.1')
     .build();
   SwaggerModule.setup(SWAGGER_PATH, app, SwaggerModule.createDocument(app, config));

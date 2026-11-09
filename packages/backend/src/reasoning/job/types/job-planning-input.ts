@@ -1,4 +1,4 @@
-import type { Screenshot } from '@ahe/agent-core';
+import type { Screenshot } from '@agentcores/agent-core';
 import type { FinishedSiblingJob } from './finished-sibling-job';
 import type { OpenSiblingJob } from './open-sibling-job';
 import type { PlannedTask } from './planned-task';

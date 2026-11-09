@@ -1,4 +1,4 @@
-import type { AccountCredentials, ExecutionProvider, ExecutionResult } from '@ahe/agent-core';
+import type { AccountCredentials, ExecutionProvider, ExecutionResult } from '@agentcores/agent-core';
 import type { Job, Queue } from 'bullmq';
 import type { IdentityService } from '../../../../identity/identity.service';
 import type { MemoryRetrievalService } from '../../../../memory/memory-retrieval.service';

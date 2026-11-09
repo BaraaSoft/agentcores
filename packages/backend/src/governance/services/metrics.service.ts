@@ -1,4 +1,4 @@
-import type { UnitMeasurement } from '@ahe/agent-core';
+import type { UnitMeasurement } from '@agentcores/agent-core';
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

@@ -1,4 +1,4 @@
-import type { ToolCall } from '@ahe/agent-core';
+import type { ToolCall } from '@agentcores/agent-core';
 import type Anthropic from '@anthropic-ai/sdk';
 import * as z from 'zod/v4';
 import { ActionRefusedError } from '../actions/action-refused.error';

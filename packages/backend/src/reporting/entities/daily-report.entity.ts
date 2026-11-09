@@ -1,4 +1,4 @@
-import type { UnitMeasurement } from '@ahe/agent-core';
+import type { UnitMeasurement } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 /**

@@ -1,4 +1,4 @@
-import type { WorkflowResources, WorkflowState } from '@ahe/agent-core';
+import type { WorkflowResources, WorkflowState } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { StrategyEntity } from '../../governance/entities/strategy.entity';
 

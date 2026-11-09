@@ -1,4 +1,4 @@
-import type { StrategyWorkType, UnitOfWorkStatus } from '@ahe/agent-core';
+import type { StrategyWorkType, UnitOfWorkStatus } from '@agentcores/agent-core';
 import { Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { JobEvaluationService } from '../../governance/services/job-evaluation.service';

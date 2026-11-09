@@ -1,4 +1,4 @@
-import type { TaskSkillType } from '@ahe/agent-core';
+import type { TaskSkillType } from '@agentcores/agent-core';
 import { renderTaskOutcome, renderTaskOutcomes } from '../task-outcome.prompts';
 import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB, TASKS_ADDED_PER_REVISION } from './job-reasoning.constants';
 import type { JobPlanningInput } from './types/job-planning-input';

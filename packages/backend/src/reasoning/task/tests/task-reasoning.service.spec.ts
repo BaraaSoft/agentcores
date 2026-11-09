@@ -1,4 +1,4 @@
-import type { ExecutionResult } from '@ahe/agent-core';
+import type { ExecutionResult } from '@agentcores/agent-core';
 import { PLANNED_STEP_SCHEMA } from '../schemas/planned-step.schema';
 import { CREATIVE_DESIGN_SKILL, GENERAL_SKILL, renderTaskSkillPrompt } from '../skills';
 import type { TaskReasoningModelClient } from '../task-reasoning-model.client';

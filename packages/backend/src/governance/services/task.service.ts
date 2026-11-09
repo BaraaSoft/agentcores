@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@ahe/agent-core';
+import type { TaskStatus } from '@agentcores/agent-core';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, IsNull, Repository } from 'typeorm';

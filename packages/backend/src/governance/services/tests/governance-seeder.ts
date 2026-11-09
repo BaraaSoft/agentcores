@@ -1,4 +1,4 @@
-import type { JobOutcomeStatus, StrategyWorkType, TaskStatus, WorkflowResources } from '@ahe/agent-core';
+import type { JobOutcomeStatus, StrategyWorkType, TaskStatus, WorkflowResources } from '@agentcores/agent-core';
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { WorkflowEntity } from '../../../workflow/entities/workflow.entity';

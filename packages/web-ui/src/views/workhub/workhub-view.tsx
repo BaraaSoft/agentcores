@@ -17,7 +17,7 @@ import { WorkflowCard } from '../../components/workhub-components/workflow-card/
 import { ROUTE_PATHS } from '../../routes/route-paths';
 import { useMonitorStore } from '../../state/monitor-store';
 import { useWorkHubStore } from '../../state/workhub-store';
-import { AHE_MACHINE } from '../create-strategy/model/strategy-draft';
+import { DEFAULT_MACHINE } from '../create-strategy/model/strategy-draft';
 import { presentWorkflowCards } from './model/present-workflow-cards';
 import { filterWorkflowCards, type WorkflowFilter } from './model/workflow-filter';
 import { workflowToPause } from './model/workflow-to-pause';
@@ -146,7 +146,7 @@ export function WorkHubView() {
   );
 
   const toPauseFor = (workflowId: string) => {
-    const machineId = workflows.find((workflow) => workflow.id === workflowId)?.machineId ?? AHE_MACHINE;
+    const machineId = workflows.find((workflow) => workflow.id === workflowId)?.machineId ?? DEFAULT_MACHINE;
     return workflowToPause(workflows, strategies, machineId, workflowId);
   };
   const requestResume = (workflowId: string) => {
@@ -241,7 +241,7 @@ export function WorkHubView() {
               hint={`${workflows.length} run${workflows.length === 1 ? '' : 's'} · ${doneCount} done`}
               icon={Target}
             />
-            <HubMetric label="Machine" value={1} hint={AHE_MACHINE} icon={Laptop} />
+            <HubMetric label="Machine" value={1} hint={DEFAULT_MACHINE} icon={Laptop} />
           </Metrics>
           <Toolbar>
             <ListHeading>Workflows</ListHeading>

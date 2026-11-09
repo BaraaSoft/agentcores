@@ -4,7 +4,7 @@ import { WorkflowEntity } from './entities/workflow.entity';
 import { WorkflowService } from './workflow.service';
 
 /**
- * Workflow persistence. A leaf module: depends on no other AHE module. Its routes live in `ApiModule`.
+ * Workflow persistence. A leaf module: depends on no other AgentCores.AI module. Its routes live in `ApiModule`.
  */
 @Module({
   imports: [TypeOrmModule.forFeature([WorkflowEntity])],

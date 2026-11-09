@@ -1,5 +1,5 @@
-import { STRATEGY_WORK_TYPES } from '@ahe/agent-core';
-import type { StrategyWorkType } from '@ahe/agent-core';
+import { STRATEGY_WORK_TYPES } from '@agentcores/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { StrategyEntity } from '../../../governance/entities/strategy.entity';
 

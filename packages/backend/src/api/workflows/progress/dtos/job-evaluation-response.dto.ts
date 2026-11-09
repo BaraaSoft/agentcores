@@ -1,5 +1,5 @@
-import { JOB_EVALUATION_STATES } from '@ahe/agent-core';
-import type { JobEvaluationState } from '@ahe/agent-core';
+import { JOB_EVALUATION_STATES } from '@agentcores/agent-core';
+import type { JobEvaluationState } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { JobEvaluationEntity } from '../../../../governance/entities/job-evaluation.entity';
 

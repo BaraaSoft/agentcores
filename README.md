@@ -1,4 +1,4 @@
-![AHE: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
+![AgentCores.AI: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
 
 ### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
 
@@ -8,14 +8,14 @@
 
 
 
-**[Website](https://baraasoft.github.io/ahe-ai-coworker/)** · **[Demo](#demo)** · **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Project structure](#Project-structure)**
+**[Website](https://agentcores.ai)** · **[Demo](#demo)** · **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Project structure](#Project-structure)**
 
-## What AHE is
+## What AgentCores.AI is
 
 It is an **AI co-worker**. It takes ownership of a goal, and it carries the work for days or weeks.
 
-AHE has its own internal governance and orchestration system. The system breaks a goal into levels of work,
-so many AI agents can work as one co-worker and share what they learn. AHE does each piece on a real Mac with
+AgentCores.AI has its own internal governance and orchestration system. The system breaks a goal into levels of work,
+so many AI agents can work as one co-worker and share what they learn. AgentCores.AI does each piece on a real Mac with
 the mouse and the keyboard, like a person. It self-improves. It learns from its own work: it keeps what worked,
 and it fixes what did not. It recovers from failures, gets past routine obstacles, and builds a knowledge base
 as it goes.
@@ -24,20 +24,16 @@ You do not prompt it step by step. You brief it once, like a colleague. Then you
 
 ## Demo
 
-One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
+One run, from start to end. AgentCores.AI plans a book launch, designs the graphic in Canva, marks its own work, and posts
 it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
 
-[![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://www.youtube.com/watch?v=SmZx7uCVIyU)
-
-**Watch the demo:** https://www.youtube.com/watch?v=SmZx7uCVIyU
-
-No YouTube? [Play the demo on GitHub](https://github.com/user-attachments/assets/ca1138b0-b9ae-4669-8b00-6606a39df38c).
+[![Watch the AgentCores.AI demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](.github/assets/agentcores-demo.mp4)
 
 ## A co-worker, not an assistant
 
 An assistant waits for your next prompt. A co-worker owns a piece of the work, and its judgement grows over time.
 
-| | A typical agent | AHE |
+| | A typical agent | AgentCores.AI |
 | --- | --- | --- |
 | Scope | One prompt, one loop | One goal that runs for days or weeks |
 | Memory of the work | The chat window | A knowledge base of every round, Job, Task, and lesson |
@@ -48,28 +44,28 @@ An assistant waits for your next prompt. A co-worker owns a piece of the work, a
 
 ## What it can do
 
-**Governance, not just execution.** AHE splits a goal into four levels: Strategy, Unit of Work, Job, and Task.
+**Governance, not just execution.** AgentCores.AI splits a goal into four levels: Strategy, Unit of Work, Job, and Task.
 Each level plans on its own and reads only a short summary of the level below. This keeps long autonomy cheap
 and clear, even after hundreds of steps. Many agents work as one co-worker and share what they learn.
 
 **Self-improvement is the core.** After every round, an evaluator reviews each Job against real evidence: the
-actual output and the actual numbers, opened on the real screen. When the evidence is missing, AHE sends a real
+actual output and the actual numbers, opened on the real screen. When the evidence is missing, AgentCores.AI sends a real
 Job to get it, for example to open the analytics dashboard and read this week's sign-ups. The lessons feed the
-next round: keep what worked, fix what did not. A new run of the same goal reads the last three runs, and AHE
+next round: keep what worked, fix what did not. A new run of the same goal reads the last three runs, and AgentCores.AI
 finds similar past work by meaning. In [our benchmark](eval/), it never ranked weak work above strong work.
 
-**Any app on the Mac.** AHE operates macOS with the mouse, the keyboard, and screenshots, like a person. It works  
+**Any app on the Mac.** AgentCores.AI operates macOS with the mouse, the keyboard, and screenshots, like a person. It works  
 in Canva, spreadsheets, the browser, or anything else on the screen. It recovers on its own from popups, broken pages,  
 rate limits, and crashes.
 
-**Safety by design.** Hard walls block system settings, purchases, and account changes. AHE reports a CAPTCHA
+**Safety by design.** Hard walls block system settings, purchases, and account changes. AgentCores.AI reports a CAPTCHA
 and never solves it. It types a login only on that login's own site.
 
 ## The dashboard
 
 The dashboard is where you brief your co-worker and watch it work. It is dark, glassy, and live.
 
-The screenshots below use sample data. The Canva graphic inside the Job panel is real: AHE designed it in an earlier run.
+The screenshots below use sample data. The Canva graphic inside the Job panel is real: AgentCores.AI designed it in an earlier run.
 
 ### Watch the work, live
 
@@ -79,7 +75,7 @@ The **Monitor** page draws the whole run as a live board in four lanes: Strategy
 Tasks. The green card runs now, and a light flows along its line. The bar on top sums up the run: the rounds,
 the Jobs at work, the Tasks done, and the best result. The board updates every 2 seconds.
 
-AHE uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints the Wi-Fi address and a QR code.
+AgentCores.AI uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints the Wi-Fi address and a QR code.
 
 ### See what it made, and what it learned
 
@@ -90,7 +86,7 @@ the agent's own review: what worked, and what to fix. Click the screenshot to se
 
 ### Brief it like a colleague
 
-![The Create strategy page with a goal for an AHE logo](.github/assets/create-strategy.png)
+![The Create strategy page with a goal for a logo](.github/assets/create-strategy.png)
 
 1. Open **Create strategy**.
 2. Write a short name and the outcome you want, one step per line.
@@ -104,7 +100,7 @@ the agent's own review: what worked, and what to fix. Click the screenshot to se
 A Strategy is a reusable goal. Each Workflow is one run of it: running, paused, or done. **WorkHub** lists every
 run. Pause one, resume it, or open it in Monitor. To start a goal again from round 1, pick it in **Run again**.
 The fresh run still learns from the earlier runs.  
-One Mac runs one Workflow at a time, so AHE pauses the current run first.
+One Mac runs one Workflow at a time, so AgentCores.AI pauses the current run first.
 
 ## How it works
 
@@ -151,7 +147,7 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 ### What you need
 
-- **A Mac with macOS.** AHE controls this Mac's own screen. Use a Mac that the agent can have while it works.
+- **A Mac with macOS.** AgentCores.AI controls this Mac's own screen. Use a Mac that the agent can have while it works.
 - **Docker Desktop**
 - **Node.js 22** and **pnpm 10**. Run `corepack enable` to get pnpm.
 - **Xcode Command Line Tools**, for the native mouse and keyboard module. Run `xcode-select --install`.
@@ -161,8 +157,8 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 1. Clone the repository.
    ```bash
-    git clone https://github.com/BaraaSoft/ahe-ai-coworker.git
-    cd ahe-ai-coworker
+    git clone https://github.com/BaraaSoft/agentcores.git
+    cd agentcores
    ```
 2. Install the packages, then run the quick start. Paste your Meta API key when it asks.
    ```bash
@@ -172,7 +168,7 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
     It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
     layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
-    permissions and launches AHE.
+    permissions and launches AgentCores.AI.
 3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy.
 
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
@@ -202,11 +198,11 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
     This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
 4. In a new terminal, give the agent the screen.
    ```bash
-    pnpm --filter @ahe/execution check:desktop
+    pnpm --filter @agentcores/execution check:desktop
    ```
 
     The check saves one screenshot, and it sends no mouse or keyboard input.
-5. Launch AHE.
+5. Launch AgentCores.AI.
    ```bash
     pnpm dev:start
    ```
@@ -218,7 +214,7 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
 
 
 > [!WARNING]
-> AHE uses the real mouse and keyboard. Do not use the Mac while a Task runs. Pause the run from the dashboard
+> AgentCores.AI uses the real mouse and keyboard. Do not use the Mac while a Task runs. Pause the run from the dashboard
 > first, and the agent stops after its current step.
 
 ### Choose the models
@@ -265,7 +261,7 @@ and the queues at [localhost:3088/admin/queues](http://localhost:3088/admin/queu
 
 <br/>
 
-#### "AHE needs Node.js 22 or newer"
+#### "AgentCores.AI needs Node.js 22 or newer"
 
 The scripts run with the Node that pnpm uses, and that can differ from the `node` in your terminal. Compare
 the two:
@@ -326,17 +322,17 @@ If you still see the error, reinstall so the pin takes effect: `pnpm install`. T
 
 The safety rules live in the structure, not in a filter at the end.
 
-- **The screen is untrusted.** Only the instruction counts. AHE never follows text it finds on a web page, in a
+- **The screen is untrusted.** Only the instruction counts. AgentCores.AI never follows text it finds on a web page, in a
 message, or in a notification.
 - **Hard walls.** It never opens Terminal, changes system settings, makes purchases, accepts terms, creates
 accounts, or changes passwords.
-- **Gates it never passes.** A CAPTCHA, a verification code, or an account warning stops the Task. AHE reports
+- **Gates it never passes.** A CAPTCHA, a verification code, or an account warning stops the Task. AgentCores.AI reports
 it, and a planner decides what happens next.
-- **Owner escalation.** Some decisions belong to you, such as a login it does not have. AHE parks the Task and  
+- **Owner escalation.** Some decisions belong to you, such as a login it does not have. AgentCores.AI parks the Task and  
 asks you. (coming soon)
 - **Guardrails on effort.** Three failed Tasks in a row close a Job. A Job plans around a budget of 20 Tasks,
 and it stops at a hard limit of 60.
-- **Credentials stay where they belong.** AHE types a login only on its own site, and never repeats it in a
+- **Credentials stay where they belong.** AgentCores.AI types a login only on its own site, and never repeats it in a
 report. It also removes tokens and tracking codes from every saved link.
 - **One machine, one run.** A new run on the Mac pauses the current one first, so two runs never fight for
 the mouse.
@@ -373,13 +369,13 @@ and latency.
 
 ## Roadmap
 
-- Connect with HumanExperiences.IO so HumanExperiences users can operate their AHE from there.
+- Connect with HumanExperiences.IO so HumanExperiences users can operate their AgentCores.AI from there.
 - Run several Macs at once, one Workflow on each.
 - Add more skills, for video editing and CAD engineering design.
-- Let the owner operate AHE from Slack workspaces and WhatsApp.
+- Let the owner operate AgentCores.AI from Slack workspaces and WhatsApp.
 
 ## License
 
-AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
+AgentCores.AI is open source under the [GNU Affero General Public License v3.0](LICENSE).
 
-Follow [@baraaabuzaid](https://x.com/baraaabuzaid) on X for updates on AHE.
+Follow [@baraaabuzaid](https://x.com/baraaabuzaid) on X for updates on AgentCores.AI.

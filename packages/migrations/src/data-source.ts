@@ -14,7 +14,7 @@ const ENTITY_GLOB = path.join(__dirname, '../../backend/src/**/*.entity.ts');
 const MIGRATION_GLOB = path.join(__dirname, '../migrations/main/*.ts');
 
 /**
- * The main AHE database. Used by the TypeORM CLI (`migration:generate`, `migration:run`)
+ * The main AgentCores.AI database. Used by the TypeORM CLI (`migration:generate`, `migration:run`)
  * and by `run.ts` at deploy time.
  */
 export const AppDataSource = new DataSource({

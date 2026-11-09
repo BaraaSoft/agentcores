@@ -1,4 +1,4 @@
-import type { ToolCall } from '@ahe/agent-core';
+import type { ToolCall } from '@agentcores/agent-core';
 import type { BetaToolUseBlock } from '@anthropic-ai/sdk/resources/beta';
 import { ActionExecutor } from '../../actions/action-executor';
 import type { ActionGuard } from '../../actions/action-guard';

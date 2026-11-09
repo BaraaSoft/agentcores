@@ -1,4 +1,4 @@
-import type { TaskResult, TaskSkillType, TaskStatus } from '@ahe/agent-core';
+import type { TaskResult, TaskSkillType, TaskStatus } from '@agentcores/agent-core';
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { JobEntity } from './job.entity';
 

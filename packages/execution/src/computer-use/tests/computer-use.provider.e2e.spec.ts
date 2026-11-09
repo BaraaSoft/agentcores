@@ -1,4 +1,4 @@
-import type { ExecutionResult, ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionResult, ExecutionTask } from '@agentcores/agent-core';
 import { config } from 'dotenv';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -22,7 +22,7 @@ config({ path: join(__dirname, '../../../../../.env'), quiet: true });
 const PROVIDER: ExecutionProviderName = process.env.EXECUTION_PROVIDER === 'muse' ? 'muse' : 'anthropic';
 const API_KEY = (PROVIDER === 'muse' ? process.env.META_API_KEY : process.env.ANTHROPIC_API_KEY) ?? '';
 const MODEL_ID = process.env.EXECUTION_MODEL_ID ?? (PROVIDER === 'muse' ? 'muse-wonder-1.0' : 'claude-sonnet-5-5');
-const BROWSER = process.env.AHE_E2E_BROWSER ?? 'Safari';
+const BROWSER = process.env.AGENTCORES_E2E_BROWSER ?? 'Safari';
 const MAX_STEPS = 30;
 const LOG_DIRECTORY = join(tmpdir(), 'ahe-e2e');
 

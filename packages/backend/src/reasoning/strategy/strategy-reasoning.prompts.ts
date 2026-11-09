@@ -1,4 +1,4 @@
-import type { StrategyWorkType } from '@ahe/agent-core';
+import type { StrategyWorkType } from '@agentcores/agent-core';
 import type { JobEvaluation } from '../evaluation/types/job-evaluation';
 import { MAX_TASKS_PER_JOB, TASK_BUDGET_PER_JOB } from '../job/job-reasoning.constants';
 import {

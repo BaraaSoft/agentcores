@@ -1,5 +1,5 @@
-import { WORKFLOW_STATES } from '@ahe/agent-core';
-import type { WorkflowState } from '@ahe/agent-core';
+import { WORKFLOW_STATES } from '@agentcores/agent-core';
+import type { WorkflowState } from '@agentcores/agent-core';
 import { ApiProperty } from '@nestjs/swagger';
 import { StrategyResponseDto } from '../../../strategies/dtos/strategy-response.dto';
 import { UnitOfWorkProgressResponseDto } from './unit-of-work-progress-response.dto';

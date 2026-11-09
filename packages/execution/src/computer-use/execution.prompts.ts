@@ -1,4 +1,4 @@
-import type { ExecutionScope, ExecutionTask } from '@ahe/agent-core';
+import type { ExecutionScope, ExecutionTask } from '@agentcores/agent-core';
 import type { SystemPromptInput } from './types/system-prompt-input';
 
 /**
