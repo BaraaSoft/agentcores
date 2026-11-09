@@ -23,3 +23,9 @@ coverage/
 .cursor/
 .probe/
 documents/
+
+# closed design documents
+packages/backend/src/orchestrator/README.md
+packages/backend/src/governance/processors/README.md
+packages/backend/src/reasoning/README.md
+packages/execution/README.md
