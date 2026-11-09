@@ -4,7 +4,7 @@
 
 
 
-![Built on Meta Muse](https://img.shields.io/badge/built%20on-Meta%20Muse-0081FB?style=flat-square)  ![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)  ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)  ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)  ![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)  ![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
+![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)  ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)  ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)  ![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)  ![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
 
 
 
@@ -22,15 +22,10 @@ as it goes.
 
 You do not prompt it step by step. You brief it once, like a colleague. Then you watch it work.
 
-> [!NOTE]
-> We built AHE for the Meta Hackathon. **Meta Muse can run every layer**: the planning, the judgement, and the
-> hands-on work on screen. One Meta API key is enough to run all of it.
-
 ## Demo
 
 One run, from start to end. AHE plans a book launch, designs the graphic in Canva, marks its own work, and posts
-it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up. This run used
-Claude on every layer. Each layer can also run on Muse.
+it on X. The dashboard is on the left, and the Mac screen is on the right. Both are sped up.
 
 [![Watch the AHE demo: the dashboard and the Mac screen, side by side](.github/assets/demo-thumbnail.png)](https://www.youtube.com/watch?v=SmZx7uCVIyU)
 
@@ -384,29 +379,6 @@ Read the design documents for the details:
 </details>
 
 
-<details>
-<summary><b>Built during Meta Global AI Hackathon 2026</b>: every feature, day by day</summary>
-
-<br/>
-
-
-| Day | What we built |
-| --- | --- |
-| 4 Nov | The landing page on GitHub Pages. Jobs reuse the files that earlier Jobs made. The screen agent reports its progress before it hits the step limit |
-| 3 Nov | The self-review benchmark (`pnpm eval`). CI with one check per package. One-command setup (`pnpm quickstart`). A screenshot of each Job's work on the Monitor board. Recovery after a backend crash. Muse batches its screen actions, 2.8 per turn |
-| 2 Nov | The Muse computer-use driver. WorkHub, to pause, resume, and run a Strategy again. The Create Strategy form. The live Monitor board, which also works from a phone |
-| 1 Nov | The dashboard. Muse Wonder and Muse Spark on every planner. Web research of the brief before each plan. A design skill for creative work |
-| 31 Oct | Skills for each kind of Task: design, social posts, and general. Owner questions that unblock a stuck Task. One-command database setup with migrations |
-| 30 Oct | The step-by-step Task loop on screen. One-off, multi-version, and continuous goals. One named idea for each round. A Job budget of 20 Tasks, with a hard limit of 60 |
-| 28 Oct | Visual checks that the screen agent rates on the real work. Web search for strong examples when no quality bar is set |
-| 27 Oct | The evaluator, which writes lessons for the next round and finds past reviews by meaning (pgvector). Each Task saves where its work lives: the link, the file, or the path in the app |
-
-Read the full log, with an example for each feature: [docs/hackathon-features-log.md](docs/hackathon-features-log.md).
-
-</details>
-
-
-
 ## Roadmap
 
 - Connect with HumanExperiences.IO so HumanExperiences users can operate their AHE from there.
@@ -418,4 +390,4 @@ Read the full log, with an example for each feature: [docs/hackathon-features-lo
 
 AHE is open source under the [GNU Affero General Public License v3.0](LICENSE).
 
-Built by [Baraa](https://github.com/BaraaSoft) Powered by Meta Muse, 2026.
+Follow [@baraaabuzaid](https://x.com/baraaabuzaid) on X for updates on AHE.
