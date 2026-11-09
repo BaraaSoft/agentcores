@@ -226,14 +226,15 @@ both, restart the terminal, and run `pnpm quickstart` again. Each run skips the 
 Each layer reads its own setting in `.env`. Set a provider to `muse` or `anthropic`, and mix them if you like.
 The Anthropic provider uses `ANTHROPIC_API_KEY`.
 
-| Setting | What it runs | Muse default |
+| Setting | What it runs | Suggested model |
 | --- | --- | --- |
-| `REASONING_STRATEGY_PROVIDER` | Plans each round, and reviews the work | `muse-wonder-1.0` |
-| `REASONING_JOB_PROVIDER` | Plans and reviews the Tasks of each Job | `muse-wonder-1.0` |
-| `REASONING_TASK_PROVIDER` | Plans every step, the hot path | `muse-wonder-1.0` |
-| `EXECUTION_PROVIDER` | Sees the screen, clicks, and types | `muse-wonder-1.0` |
+| `REASONING_STRATEGY_PROVIDER` | Plans each round, and reviews the work | `claude-opus-5-5` |
+| `REASONING_JOB_PROVIDER` | Plans and reviews the Tasks of each Job | `claude-opus-5-5` |
+| `REASONING_TASK_PROVIDER` | Plans every step, the hot path | `claude-opus-5-5` |
+| `EXECUTION_PROVIDER` | Sees the screen, clicks, and types | `claude-sonnet-5-5` |
 
-Each provider has a matching `_MODEL_ID` setting. We suggest `muse-wonder-1.0`
+Each provider has a matching `_MODEL_ID` setting. Leave it empty to use the suggested model. On Muse, every
+layer defaults to `muse-wonder-1.0`.
 
 ### Useful commands
 
