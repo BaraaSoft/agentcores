@@ -4,6 +4,8 @@
 
 ![AgentCores.AI: an AI co-worker that runs long work on a real computer, and gets better every round](.github/assets/banner.png)
 
+<div align="center">
+
 ### Give it a goal. It plans, acts on a real computer, and self-improves with every round.
 
 
@@ -12,7 +14,13 @@
 
 
 
-**[Website](https://agentcores.ai)** · **[Demo](#demo)** · **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Project structure](#Project-structure)**
+**[Website](https://agentcores.ai)** · **[Demo](#demo)** · **[Quick start](#quick-start)** · **[How it works](#how-it-works)** · **[The dashboard](#the-dashboard)** · **[Safety](#safety)** · **[Project structure](#project-structure)**
+
+<br />
+
+<img src="packages/web-ui/src/assets/agentcore_logo.svg" width="96" height="96" alt="AgentCores.AI logo" />
+
+</div>
 
 ## What AgentCores.AI is
 
