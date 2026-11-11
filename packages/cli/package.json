@@ -1,0 +1,92 @@
+{
+  "name": "agentcores",
+  "version": "0.1.0",
+  "description": "AgentCores.AI: an AI co-worker that runs long work on a real Mac, and self-improves with every round.",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://agentcores.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BaraaSoft/agentcores.git",
+    "directory": "packages/cli"
+  },
+  "bugs": "https://github.com/BaraaSoft/agentcores/issues",
+  "keywords": [
+    "ai",
+    "agent",
+    "computer-use",
+    "automation",
+    "macos",
+    "co-worker"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "agentcores": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "jest --passWithNoTests",
+    "prepublishOnly": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@bull-board/api": "^6.20.7",
+    "@bull-board/express": "^6.20.7",
+    "@bull-board/nestjs": "^6.20.7",
+    "@huggingface/transformers": "^4.3.1",
+    "@nestjs/bullmq": "^11.0.4",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.2.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "bullmq": "^5.67.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "express-basic-auth": "^1.2.1",
+    "pg": "^8.18.0",
+    "reflect-metadata": "^0.2.2",
+    "robotjs": "^0.9.1",
+    "rxjs": "^7.8.1",
+    "sharp": "^0.35.5",
+    "typeorm": "^0.3.28",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@agentcores/agent-core": "workspace:*",
+    "@agentcores/backend": "workspace:*",
+    "@agentcores/execution": "workspace:*",
+    "@agentcores/migrations": "workspace:*",
+    "@agentcores/web-ui": "workspace:*",
+    "@clack/prompts": "^1.9.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.7",
+    "esbuild": "^0.28.2",
+    "jest": "^30.0.0",
+    "picocolors": "^1.1.1",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "testEnvironment": "node"
+  }
+}

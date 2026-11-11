@@ -1,0 +1,33 @@
+# Postgres and Redis for AgentCores.AI, written by `agentcores init` and `agentcores up`.
+# The ports differ from the repository's own compose.yaml, so both can run side by side.
+# Both listen on 127.0.0.1 only, so other machines on the network cannot reach them.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: agentcores
+      POSTGRES_PASSWORD: agentcores
+      POSTGRES_DB: agentcores
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentcores -d agentcores"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6381:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped

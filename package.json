@@ -1,5 +1,5 @@
 {
-  "name": "agentcores",
+  "name": "agentcores-monorepo",
   "private": true,
   "packageManager": "pnpm@10.4.1",
   "scripts": {
@@ -7,7 +7,6 @@
     "build:libs": "pnpm --filter @agentcores/agent-core --filter @agentcores/execution build",
     "dev:backend": "pnpm build:libs && pnpm --filter @agentcores/backend start:dev",
     "dev:reset": "bash scripts/reset-dev.sh",
-    "quickstart": "bash scripts/quickstart.sh",
     "eval": "pnpm build:libs && pnpm --filter @agentcores/backend eval:self-review",
     "dev:start": "concurrently --kill-others --names backend,web --prefix-colors \"#0081FB.bold,#4CB782.bold\" \"pnpm dev:backend\" \"wait-on --timeout 180000 tcp:localhost:3088 && pnpm dev:web\"",
     "dev:web": "pnpm --filter @agentcores/web-ui dev",

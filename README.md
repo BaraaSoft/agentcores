@@ -160,40 +160,46 @@ Each level picks its own model, so a fast model can plan every step and a strong
 ### What you need
 
 - **A Mac with macOS.** AgentCores.AI controls this Mac's own screen. Use a Mac that the agent can have while it works.
-- **Docker Desktop**
-- **Node.js 22** and **pnpm 10**. Run `corepack enable` to get pnpm.
-- **Xcode Command Line Tools**, for the native mouse and keyboard module. Run `xcode-select --install`.
-- **A Meta API key** for Muse. An Anthropic key also works, if you want Claude.
+- **[Docker Desktop](https://www.docker.com/products/docker-desktop)**, running. It holds the database and the queue.
+- **[Node.js 22](https://nodejs.org)** or newer.
+- **An Anthropic API key**, for Claude. A Meta API key for Muse also works.
 
 ### Run it
 
-1. Clone the repository.
+1. Set it up. This checks Docker, starts the database, and asks for your API key.
    ```bash
-    git clone https://github.com/BaraaSoft/agentcores.git
-    cd agentcores
+    npx agentcores init
    ```
-2. Install the packages, then run the quick start. Paste your Meta API key when it asks.
+2. Start it. The dashboard opens in your browser at [http://localhost:3088](http://localhost:3088).
    ```bash
-    pnpm install
-    pnpm quickstart
+    npx agentcores up
    ```
-
-    It checks your Mac, Node.js, pnpm, and Docker, and installs the packages. It writes `.env` with Muse on every
-    layer, starts Postgres and Redis in Docker, and applies the migrations. Then it checks the screen
-    permissions and launches AgentCores.AI.
-3. Open [http://localhost:5173](http://localhost:5173), and create your first strategy.
+3. Create your first strategy.
 
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
-both, restart the terminal, and run `pnpm quickstart` again. Each run skips the work that is already done.
+both, quit and reopen the terminal, and run `npx agentcores init` again.
+
+| Command | What it does |
+| --- | --- |
+| `npx agentcores init` | Checks Docker and the permissions, resets the containers, migrates the database, asks for keys |
+| `npx agentcores up` | Starts AgentCores.AI in the background, and opens the dashboard |
+| `npx agentcores down` | Stops AgentCores.AI and its database. Your data stays |
+| `npx agentcores status` | Shows what runs |
+| `npx agentcores logs` | Follows the backend log |
+
+Your settings, data, and logs live in `~/.agentcores`. Edit `~/.agentcores/.env` to change the models.
 
 <details>
-<summary><b>Run each step by hand</b></summary>
+<summary><b>Run from source</b>: for contributors</summary>
 
 <br/>
 
 
-1. Install the packages, and create your `.env` file from the example.
+1. Clone the repository, install the packages, and create your `.env` file from the example. You also need
+   pnpm 10 (`corepack enable`) and the Xcode Command Line Tools (`xcode-select --install`).
    ```bash
+    git clone https://github.com/BaraaSoft/agentcores.git
+    cd agentcores
     pnpm install
     cp .env.example .env
    ```
@@ -314,7 +320,7 @@ VS Code terminal, that app is Cursor or VS Code. Otherwise it is Terminal or iTe
 2. Turn the app on in **Accessibility** and in **Screen & System Audio Recording**. If it is not in the list,
    add it with **+**.
 3. Quit the app with Cmd+Q, and open it again. A new tab is not enough.
-4. Run `pnpm quickstart` again.
+4. Run `npx agentcores init` again.
 
 #### "Cannot find module '../bin/napi-v6/darwin/x64/onnxruntime_binding.node'"
 
@@ -354,6 +360,7 @@ the mouse.
 ```text
 packages/
 ├── agent-core/    shared domain types and contracts
+├── cli/           the `npx agentcores` command, published to npm as `agentcores`
 ├── backend/       runs on your Mac (localhost:3088): the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
 ├── migrations/    migrations, applied by Docker on start

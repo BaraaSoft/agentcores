@@ -67,23 +67,20 @@
           <h2 id="quickstart-title" class="quickstart__title">Run it on your Mac</h2>
           <ol class="steps">
             <li>
-              <span class="steps__label">Clone the repository.</span>
-              <code class="command">git clone https://github.com/BaraaSoft/agentcores.git<br />cd agentcores</code>
+              <span class="steps__label">Set it up. Paste your API key when it asks.</span>
+              <code class="command">npx agentcores init</code>
             </li>
             <li>
-              <span class="steps__label">Install the packages, then run the quick start. Paste your Meta API key when it asks.</span>
-              <code class="command">pnpm install<br />pnpm quickstart</code>
+              <span class="steps__label">Start it. The dashboard opens in your browser.</span>
+              <code class="command">npx agentcores up</code>
             </li>
             <li>
-              <span class="steps__label">
-                Open <a href="http://localhost:5173">localhost:5173</a>, and create your first strategy.
-              </span>
+              <span class="steps__label">Create your first strategy. Stop it any time with <code>npx agentcores down</code>.</span>
             </li>
           </ol>
           <p class="quickstart__note">
-            Needs macOS, Docker Desktop, Node.js 22, pnpm (no pnpm? run <code>corepack enable</code>), and a
-            <a href="https://dev.meta.ai/docs/authentication">Meta API key</a>. When macOS asks, allow your terminal in
-            Accessibility and Screen Recording.
+            Needs macOS, <a href="https://www.docker.com/products/docker-desktop">Docker Desktop</a>, Node.js 22, and an
+            Anthropic or Meta API key. When macOS asks, allow your terminal in Accessibility and Screen Recording.
           </p>
         </section>
       </section>
