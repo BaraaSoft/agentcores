@@ -1,20 +1,14 @@
+import {
+  DEFAULT_MODEL_PROVIDER,
+  MODEL_PROVIDER_INFO,
+  MODEL_PROVIDERS,
+  type ModelProvider,
+  parseModelProvider,
+  PROVIDER_SETTINGS,
+} from '@agentcores/agent-core';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { BACKEND_PORT, POSTGRES_PORT, REDIS_PORT } from './paths';
-
-export type Provider = 'anthropic' | 'muse';
-
-export const PROVIDER_KEYS: Record<Provider, string> = {
-  anthropic: 'ANTHROPIC_API_KEY',
-  muse: 'META_API_KEY',
-};
-
-const PROVIDER_SETTINGS = [
-  'REASONING_STRATEGY_PROVIDER',
-  'REASONING_JOB_PROVIDER',
-  'REASONING_TASK_PROVIDER',
-  'EXECUTION_PROVIDER',
-] as const;
 
 /** The first `.env`. The backend reads it from the home folder, because the CLI starts the backend there. */
 export function defaultEnv(): string {
@@ -31,11 +25,10 @@ REDIS_HOST=localhost
 REDIS_PORT=${REDIS_PORT}
 
 # Set the key of each provider you pick below.
-ANTHROPIC_API_KEY=
-META_API_KEY=
+${MODEL_PROVIDERS.map((name) => `${MODEL_PROVIDER_INFO[name].apiKeyEnv}=`).join('\n')}
 
-# anthropic or muse. Leave a *_MODEL_ID empty for the provider's default model.
-${PROVIDER_SETTINGS.map((key) => `${key}=anthropic`).join('\n')}
+# ${MODEL_PROVIDERS.join(' or ')}. Leave a *_MODEL_ID empty for the provider's default model.
+${PROVIDER_SETTINGS.map((key) => `${key}=${DEFAULT_MODEL_PROVIDER}`).join('\n')}
 REASONING_STRATEGY_MODEL_ID=
 REASONING_JOB_MODEL_ID=
 REASONING_TASK_MODEL_ID=
@@ -76,19 +69,17 @@ export function setEnvValues(text: string, values: Readonly<Record<string, strin
 }
 
 /** The providers that `.env` uses, so the CLI asks only for the keys it needs. */
-export function providersInUse(values: ReadonlyMap<string, string>): Provider[] {
-  const used = new Set<Provider>();
-  for (const key of PROVIDER_SETTINGS) used.add(values.get(key) === 'muse' ? 'muse' : 'anthropic');
-  return [...used];
+export function providersInUse(values: ReadonlyMap<string, string>): ModelProvider[] {
+  return [...new Set(PROVIDER_SETTINGS.map((key) => parseModelProvider(key, values.get(key))))];
 }
 
 export function missingKeys(values: ReadonlyMap<string, string>): string[] {
   return providersInUse(values)
-    .map((provider) => PROVIDER_KEYS[provider])
+    .map((provider) => MODEL_PROVIDER_INFO[provider].apiKeyEnv)
     .filter((key) => !values.get(key));
 }
 
-export function useProviderEverywhere(provider: Provider): Record<string, string> {
+export function useProviderEverywhere(provider: ModelProvider): Record<string, string> {
   return Object.fromEntries(PROVIDER_SETTINGS.map((key) => [key, provider]));
 }
 

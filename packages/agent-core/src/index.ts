@@ -1,3 +1,8 @@
+export { MODEL_PROVIDERS, DEFAULT_MODEL_PROVIDER, MODEL_PROVIDER_INFO } from './config/model-provider';
+export type { ModelProvider, ModelProviderInfo } from './config/model-provider';
+export { PROVIDER_SETTINGS, parseModelProvider } from './config/provider-settings';
+export type { ProviderSetting } from './config/provider-settings';
+
 export { WORKFLOW_STATES } from './workflow/workflow-state';
 export type { WorkflowState } from './workflow/workflow-state';
 export type { WorkflowResources } from './workflow/workflow-resources';

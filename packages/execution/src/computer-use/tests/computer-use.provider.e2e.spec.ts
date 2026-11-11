@@ -1,10 +1,9 @@
-import type { ExecutionResult, ExecutionTask } from '@agentcores/agent-core';
+import { MODEL_PROVIDER_INFO, parseModelProvider, type ExecutionResult, type ExecutionTask } from '@agentcores/agent-core';
 import { config } from 'dotenv';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createExecutionProvider } from '../../create-execution-provider';
-import type { ExecutionProviderName } from '../../types/execution-provider-name';
 import type { ExecutionTurn } from '../types/execution-turn';
 import { FixtureServer } from './fixtures/fixture-server';
 
@@ -19,9 +18,9 @@ import { FixtureServer } from './fixtures/fixture-server';
 
 config({ path: join(__dirname, '../../../../../.env'), quiet: true });
 
-const PROVIDER: ExecutionProviderName = process.env.EXECUTION_PROVIDER === 'muse' ? 'muse' : 'anthropic';
-const API_KEY = (PROVIDER === 'muse' ? process.env.META_API_KEY : process.env.ANTHROPIC_API_KEY) ?? '';
-const MODEL_ID = process.env.EXECUTION_MODEL_ID ?? (PROVIDER === 'muse' ? 'muse-wonder-1.0' : 'claude-sonnet-5-5');
+const PROVIDER = parseModelProvider('EXECUTION_PROVIDER', process.env.EXECUTION_PROVIDER);
+const API_KEY = process.env[MODEL_PROVIDER_INFO[PROVIDER].apiKeyEnv] ?? '';
+const MODEL_ID = process.env.EXECUTION_MODEL_ID || MODEL_PROVIDER_INFO[PROVIDER].defaultModelIds.execution;
 const BROWSER = process.env.AGENTCORES_E2E_BROWSER ?? 'Safari';
 const MAX_STEPS = 30;
 const LOG_DIRECTORY = join(tmpdir(), 'ahe-e2e');

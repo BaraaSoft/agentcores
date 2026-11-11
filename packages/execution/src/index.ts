@@ -1,7 +1,5 @@
 export { createExecutionProvider } from './create-execution-provider';
 export type { ExecutionProviderOptions } from './execution-provider-options';
-export type { ExecutionProviderName } from './types/execution-provider-name';
-export { EXECUTION_PROVIDER_NAMES } from './execution-provider-names';
 export { createComputerUseProvider } from './create-computer-use-provider';
 export type { ComputerUseProviderOptions } from './computer-use-provider-options';
 export { createMuseComputerUseProvider } from './muse/create-muse-computer-use-provider';

@@ -1,11 +1,10 @@
-import type { ExecutionProvider } from '@agentcores/agent-core';
+import type { ExecutionProvider, ModelProvider } from '@agentcores/agent-core';
 import type { ComputerUseProviderOptions } from './computer-use-provider-options';
 import { createComputerUseProvider } from './create-computer-use-provider';
 import type { ExecutionProviderOptions } from './execution-provider-options';
 import { createMuseComputerUseProvider } from './muse/create-muse-computer-use-provider';
-import type { ExecutionProviderName } from './types/execution-provider-name';
 
-const BUILDERS: Record<ExecutionProviderName, (options: ComputerUseProviderOptions) => ExecutionProvider> = {
+const BUILDERS: Record<ModelProvider, (options: ComputerUseProviderOptions) => ExecutionProvider> = {
   anthropic: createComputerUseProvider,
   muse: createMuseComputerUseProvider,
 };

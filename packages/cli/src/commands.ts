@@ -1,10 +1,11 @@
+import { DEFAULT_MODEL_PROVIDER, MODEL_PROVIDER_INFO, MODEL_PROVIDERS, type ModelProvider } from '@agentcores/agent-core';
 import * as p from '@clack/prompts';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import pc from 'picocolors';
 import { runningPid, startBackend, stopBackend, waitUntilReady } from './backend-process';
 import { composeDown, composeStatus, composeUp, ensureDocker } from './docker';
-import { EnvFile, missingKeys, Provider, useProviderEverywhere } from './env-file';
+import { EnvFile, missingKeys, useProviderEverywhere } from './env-file';
 import { DASHBOARD_URL, HOME, HOME_FILES } from './paths';
 import { ensurePermissions, terminalName } from './permissions';
 import { ensureMac, migrate, prepareHome } from './setup';
@@ -34,12 +35,13 @@ function cancelled<T>(value: T | symbol): value is symbol {
 /** Asks for the API keys that `.env` needs and does not have yet. */
 async function ensureApiKeys(env: EnvFile, created: boolean): Promise<void> {
   if (created) {
-    const provider = await p.select<Provider>({
+    const provider = await p.select<ModelProvider>({
       message: 'Which models should AgentCores.AI use?',
-      options: [
-        { value: 'anthropic', label: 'Anthropic Claude', hint: 'recommended: Opus plans, Sonnet works on the screen' },
-        { value: 'muse', label: 'Meta Muse' },
-      ],
+      options: MODEL_PROVIDERS.map((value) => {
+        const { label, defaultModelIds } = MODEL_PROVIDER_INFO[value];
+        const models = `${defaultModelIds.reasoning} plans, ${defaultModelIds.execution} works on the screen`;
+        return { value, label, hint: value === DEFAULT_MODEL_PROVIDER ? `recommended: ${models}` : models };
+      }),
     });
     if (cancelled(provider)) return;
     env.set(useProviderEverywhere(provider));

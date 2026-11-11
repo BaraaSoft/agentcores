@@ -5,7 +5,7 @@ export type BoxTone = 'error' | 'success' | 'info';
 const BLUE = (text: string): string => (pc.isColorSupported ? `\x1b[38;2;0;129;251m${text}\x1b[39m` : text);
 const TONES: Record<BoxTone, { paint: (text: string) => string; mark: string }> = {
   error: { paint: pc.red, mark: '✖' },
-  success: { paint: pc.green, mark: '✔' },
+  success: { paint: pc.green, mark: '🐙 ✔' },
   info: { paint: BLUE, mark: '●' },
 };
 
