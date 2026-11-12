@@ -1,10 +1,20 @@
 name: Publish to npm
 
-# Push a tag such as v0.1.0 to publish `agentcores` to npm. The tag must match the version in
+# Publishes `agentcores` to npm. `release.yml` calls it after release-please creates a release.
+# Pushing a tag such as v0.1.0 by hand also runs it. Either way, the tag must match the version in
 # packages/cli/package.json. Needs the NPM_TOKEN secret: an npm automation token with publish rights.
 on:
   push:
     tags: ['v*']
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag to publish, for example v0.1.0
+        required: true
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: true
 
 permissions:
   contents: read
@@ -14,8 +24,12 @@ jobs:
   publish:
     name: Publish agentcores
     runs-on: macos-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -25,7 +39,7 @@ jobs:
       - name: Check that the tag matches the package version
         run: |
           VERSION=$(node -p "require('./packages/cli/package.json').version")
-          [ "v$VERSION" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match version $VERSION"; exit 1; }
+          [ "v$VERSION" = "$TAG" ] || { echo "Tag $TAG does not match version $VERSION"; exit 1; }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:libs
       - run: pnpm --filter @agentcores/backend --filter @agentcores/web-ui build

@@ -1,0 +1,45 @@
+name: Release
+
+# On every push to main, release-please reads the new commit messages (feat:, fix:, and so on).
+# It opens or updates one "chore(main): release x.y.z" pull request with the next version and the changelog.
+# Merging that pull request creates the tag and the GitHub Release, and then publishes to npm.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: Open or update the release pull request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: Publish to npm
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
