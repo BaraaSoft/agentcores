@@ -13,10 +13,20 @@
   "keywords": [
     "ai",
     "agent",
+    "ai-agent",
+    "autonomous-agent",
+    "agentic",
     "computer-use",
+    "computer-use-agent",
+    "desktop-automation",
     "automation",
+    "self-improving",
+    "llm",
+    "claude",
+    "anthropic",
     "macos",
-    "co-worker"
+    "co-worker",
+    "cli"
   ],
   "os": [
     "darwin"

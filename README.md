@@ -87,8 +87,8 @@ The **Monitor** page draws the whole run as a live board in four lanes: Strategy
 Tasks. The green card runs now, and a light flows along its line. The bar on top sums up the run: the rounds,
 the Jobs at work, the Tasks done, and the best result. The board updates every 2 seconds.
 
-AgentCores.AI uses the Mac's own screen, so watch from your phone. `npx agentcores up` prints the Wi-Fi address
-to open on a phone on the same network.
+AgentCores.AI uses the Mac's own screen, so watch from another laptop or a phone. `npx agentcores up` prints the
+Wi-Fi address to open on a device on the same network.
 
 ### See what it made, and what it learned
 

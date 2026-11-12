@@ -122,7 +122,7 @@ export async function up(): Promise<void> {
   console.log(runningBox(started));
 }
 
-/** The Mac's address on the local network, so a phone on the same Wi-Fi can open the dashboard. */
+/** The Mac's address on the local network, so another device on the same Wi-Fi can open the dashboard. */
 function networkUrl(): string | null {
   const address = Object.values(networkInterfaces())
     .flat()
@@ -131,10 +131,10 @@ function networkUrl(): string | null {
 }
 
 function runningBox(pid: number): string {
-  const phone = networkUrl();
+  const lanUrl = networkUrl();
   return box('success', 'AgentCores.AI is running', [
     `Dashboard   ${link(DASHBOARD_URL)}`,
-    ...(phone ? [`On a phone  ${link(phone)}  (same Wi-Fi)`] : []),
+    ...(lanUrl ? [`On Wi-Fi    ${link(lanUrl)}  (another laptop or a phone)`] : []),
     `Logs        ${command('npx agentcores logs')}`,
     `Stop        ${command('npx agentcores down')}`,
     '',
