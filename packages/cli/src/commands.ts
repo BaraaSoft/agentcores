@@ -2,11 +2,12 @@ import { DEFAULT_MODEL_PROVIDER, MODEL_PROVIDER_INFO, MODEL_PROVIDERS, type Mode
 import * as p from '@clack/prompts';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import pc from 'picocolors';
 import { runningPid, startBackend, stopBackend, waitUntilReady } from './backend-process';
 import { composeDown, composeStatus, composeUp, ensureDocker } from './docker';
 import { EnvFile, missingKeys, useProviderEverywhere } from './env-file';
-import { DASHBOARD_URL, HOME, HOME_FILES } from './paths';
+import { BACKEND_PORT, DASHBOARD_URL, HOME, HOME_FILES } from './paths';
 import { ensurePermissions, terminalName } from './permissions';
 import { ensureMac, migrate, prepareHome } from './setup';
 import { openUrl, succeeds } from './shell';
@@ -121,9 +122,19 @@ export async function up(): Promise<void> {
   console.log(runningBox(started));
 }
 
+/** The Mac's address on the local network, so a phone on the same Wi-Fi can open the dashboard. */
+function networkUrl(): string | null {
+  const address = Object.values(networkInterfaces())
+    .flat()
+    .find((entry) => entry?.family === 'IPv4' && !entry.internal);
+  return address ? `http://${address.address}:${BACKEND_PORT}` : null;
+}
+
 function runningBox(pid: number): string {
+  const phone = networkUrl();
   return box('success', 'AgentCores.AI is running', [
     `Dashboard   ${link(DASHBOARD_URL)}`,
+    ...(phone ? [`On a phone  ${link(phone)}  (same Wi-Fi)`] : []),
     `Logs        ${command('npx agentcores logs')}`,
     `Stop        ${command('npx agentcores down')}`,
     '',

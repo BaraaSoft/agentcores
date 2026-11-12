@@ -10,7 +10,7 @@
 
 
 
-![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)  ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)  ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)  ![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?style=flat-square&logo=pnpm&logoColor=white)  ![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
+![Runs on macOS](https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white)  ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)  ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)  ![npm](https://img.shields.io/npm/v/agentcores?style=flat-square&logo=npm&logoColor=white&label=npm&color=CB3837)  ![License AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square)
 
 
 
@@ -87,7 +87,8 @@ The **Monitor** page draws the whole run as a live board in four lanes: Strategy
 Tasks. The green card runs now, and a light flows along its line. The bar on top sums up the run: the rounds,
 the Jobs at work, the Tasks done, and the best result. The board updates every 2 seconds.
 
-AgentCores.AI uses the Mac's own screen, so watch from your phone. `pnpm dev:start` prints the Wi-Fi address and a QR code.
+AgentCores.AI uses the Mac's own screen, so watch from your phone. `npx agentcores up` prints the Wi-Fi address
+to open on a phone on the same network.
 
 ### See what it made, and what it learned
 
@@ -159,7 +160,8 @@ Each level picks its own model, so a fast model can plan every step and a strong
 
 ### What you need
 
-- **A Mac with macOS.** AgentCores.AI controls this Mac's own screen. Use a Mac that the agent can have while it works.
+- **A Mac with Apple silicon.** AgentCores.AI controls this Mac's own screen. Use a Mac that the agent can have while
+  it works.
 - **[Docker Desktop](https://www.docker.com/products/docker-desktop)**, running. It holds the database and the queue.
 - **[Node.js 22](https://nodejs.org)** or newer.
 - **An Anthropic API key**, for Claude. A Meta API key for Muse also works.
@@ -189,47 +191,6 @@ both, quit and reopen the terminal, and run `npx agentcores init` again.
 
 Your settings, data, and logs live in `~/.agentcores`. Edit `~/.agentcores/.env` to change the models.
 
-<details>
-<summary><b>Run from source</b>: for contributors</summary>
-
-<br/>
-
-
-1. Clone the repository, install the packages, and create your `.env` file from the example. You also need
-   pnpm 10 (`corepack enable`) and the Xcode Command Line Tools (`xcode-select --install`).
-   ```bash
-    git clone https://github.com/BaraaSoft/agentcores.git
-    cd agentcores
-    pnpm install
-    cp .env.example .env
-   ```
-2. Open `.env`, and add your Meta key. Create the key in the
-
-   [Meta Model API dashboard](https://dev.meta.ai/docs/authentication). Then set every layer to Muse.
-   > **Tip:** For the most reliable screen control, keep Muse on the reasoning layers, and run execution on
-   > Claude. Set `EXECUTION_PROVIDER=anthropic`, and add your `ANTHROPIC_API_KEY`.
-3. Start the database and the queue. Leave this terminal open.
-   ```bash
-    pnpm compose:up
-   ```
-
-    This starts Postgres with pgvector on port 5433 and Redis on port 6380. Then it applies every migration.
-4. In a new terminal, give the agent the screen.
-   ```bash
-    pnpm --filter @agentcores/execution check:desktop
-   ```
-
-    The check saves one screenshot, and it sends no mouse or keyboard input.
-5. Launch AgentCores.AI.
-   ```bash
-    pnpm dev:start
-   ```
-
-    This starts the backend on port 3088 and the dashboard on port 5173. The first start also downloads a small
-    embedding model, one time.
-
-</details>
-
 
 > [!WARNING]
 > AgentCores.AI uses the real mouse and keyboard. Do not use the Mac while a Task runs. Pause the run from the dashboard
@@ -237,8 +198,9 @@ Your settings, data, and logs live in `~/.agentcores`. Edit `~/.agentcores/.env`
 
 ### Choose the models
 
-Each layer reads its own setting in `.env`. Set a provider to `muse` or `anthropic`, and mix them if you like.
-The Anthropic provider uses `ANTHROPIC_API_KEY`.
+`npx agentcores init` asks which provider to use, and sets it on every layer. To mix them, edit
+`~/.agentcores/.env`. Set a provider to `anthropic` or `muse`, then run `npx agentcores down` and
+`npx agentcores up`. The Anthropic provider uses `ANTHROPIC_API_KEY`, and Muse uses `META_API_KEY`.
 
 | Setting | What it runs | Suggested model |
 | --- | --- | --- |
@@ -250,27 +212,10 @@ The Anthropic provider uses `ANTHROPIC_API_KEY`.
 Each provider has a matching `_MODEL_ID` setting. Leave it empty to use the suggested model. On Muse, every
 layer defaults to `muse-wonder-1.0`.
 
-### Useful commands
+### The queue dashboard
 
-| Command | What it does |
-| --- | --- |
-| `pnpm dev:start` | Starts the backend and the dashboard together |
-| `pnpm compose:down` | Stops Postgres and Redis |
-| `pnpm dev:reset` | Clears every run, queue, and screenshot, and keeps your Strategies. Stop the backend first |
-| `pnpm test` | Runs the unit tests of every package |
-| `pnpm test:integration` | Runs the database tests against a real Postgres |
-| `pnpm test:smoke` | Calls the live Meta Model API with both Muse models. Needs `META_API_KEY` |
-| `pnpm typecheck` | Type-checks every package |
-
-The integration tests need an `ahe_test` database. Create it once:
-
-```bash
-docker compose -f compose.yaml exec postgres createdb -U ahe ahe_test
-```
-
-The backend also serves two admin tools: the API docs at [localhost:3088/admin/docs](http://localhost:3088/admin/docs)
-and the queues at [localhost:3088/admin/queues](http://localhost:3088/admin/queues). The login comes from
-`ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`.
+The backend shows its queues at [localhost:3088/admin/queues](http://localhost:3088/admin/queues). The login is
+`ADMIN_USERNAME` and `ADMIN_PASSWORD` in `~/.agentcores/.env`. `npx agentcores init` writes a random password there.
 
 ## Troubleshooting
 
@@ -279,17 +224,15 @@ and the queues at [localhost:3088/admin/queues](http://localhost:3088/admin/queu
 
 <br/>
 
+#### "AgentCores.AI needs Docker"
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop).
+2. Open it, and wait until it says "Engine running".
+3. Run the command again.
+
 #### "AgentCores.AI needs Node.js 22 or newer"
 
-The scripts run with the Node that pnpm uses, and that can differ from the `node` in your terminal. Compare
-the two:
-
-```bash
-node -v             # the Node in your terminal
-pnpm exec node -v   # the Node your scripts get
-```
-
-If either one is below 22, switch to Node 22 with the tool you already use, then get pnpm again on top of it:
+Check your version with `node -v`. Then switch to Node 22 with the tool you already use:
 
 | You use | Switch to Node 22 |
 | --- | --- |
@@ -299,19 +242,9 @@ If either one is below 22, switch to Node 22 with the tool you already use, then
 | fnm | `fnm install 22 && fnm default 22` |
 | Volta | `volta install node@22` |
 
-```bash
-corepack enable                          # gives you the pnpm version in package.json (10.4.1)
-corepack prepare pnpm@10.4.1 --activate
-```
+Open a new terminal, and check that `node -v` shows 22 or newer.
 
-With Volta, run `volta install pnpm@10.4.1` instead. Volta keeps each tool on the Node it was installed
-with, so pnpm stays on the old Node until you reinstall it.
-
-Open a new terminal, and check that `pnpm exec node -v` shows 22 and `pnpm -v` shows 10.4.1. If it still
-shows an old version, run `which -a pnpm`. A pnpm installed earlier with `npm install -g pnpm` or Homebrew
-may come first on your `PATH`. Remove it with `npm uninstall -g pnpm` or `brew uninstall pnpm`.
-
-#### "Screen Recording: MISSING" or "Accessibility (input): MISSING"
+#### "macOS has not given your terminal control of this Mac"
 
 macOS gives these permissions to the app that runs the terminal, not to the terminal tab. In the Cursor or
 VS Code terminal, that app is Cursor or VS Code. Otherwise it is Terminal or iTerm.
@@ -322,17 +255,15 @@ VS Code terminal, that app is Cursor or VS Code. Otherwise it is Terminal or iTe
 3. Quit the app with Cmd+Q, and open it again. A new tab is not enough.
 4. Run `npx agentcores init` again.
 
-#### "Cannot find module '../bin/napi-v6/darwin/x64/onnxruntime_binding.node'"
+#### "A port that AgentCores.AI needs is in use"
 
-This happens on Intel Macs. `onnxruntime-node` 1.24 and later ship no Intel Mac binary, so the local
-embedding model cannot load. The root `package.json` pins the last release that has one:
+AgentCores.AI uses port 3088 for the dashboard, 5434 for Postgres, and 6381 for Redis. The message shows a
+command that finds the program on the port. Stop that program, then run the command again.
 
-```json
-"pnpm": { "overrides": { "onnxruntime-node": "1.23.2" } }
-```
+#### The backend stops while it starts
 
-If you still see the error, reinstall so the pin takes effect: `pnpm install`. Then check that
-`node_modules/.pnpm/onnxruntime-node@1.23.2/node_modules/onnxruntime-node/bin/napi-v6/darwin/x64` exists.
+Run `npx agentcores logs` to see the reason. A missing or wrong API key is the most common one. Fix it in
+`~/.agentcores/.env`, then run `npx agentcores up` again.
 
 </details>
 
@@ -363,8 +294,8 @@ packages/
 ├── cli/           the `npx agentcores` command, published to npm as `agentcores`
 ├── backend/       runs on your Mac (localhost:3088): the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
-├── migrations/    migrations, applied by Docker on start
-└── web-ui/        the ui dashboard (localhost:5173)
+├── migrations/    migrations, applied by `npx agentcores init` and `up`
+└── web-ui/        the dashboard, which the backend serves on localhost:3088
 ```
 
 <details>
