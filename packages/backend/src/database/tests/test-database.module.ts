@@ -31,7 +31,14 @@ export class TestDatabaseModule {
           inject: [testDatabaseConfig.KEY],
           useFactory: (config: ConfigType<typeof testDatabaseConfig>) => {
             if (config.url === null) throw new Error('TEST_DATABASE_URL is not set');
-            return { type: 'postgres', url: config.url, schema: options.schema, entities, synchronize: false };
+            return {
+              type: 'postgres',
+              url: config.url,
+              schema: options.schema,
+              entities,
+              synchronize: false,
+              uuidExtension: 'pgcrypto',
+            };
           },
           dataSourceFactory: async (dataSourceOptions?: DataSourceOptions) => {
             const dataSource = await new DataSource(dataSourceOptions!).initialize();

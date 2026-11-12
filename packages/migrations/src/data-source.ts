@@ -22,4 +22,5 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   entities: [ENTITY_GLOB],
   migrations: [MIGRATION_GLOB],
+  uuidExtension: 'pgcrypto',
 });

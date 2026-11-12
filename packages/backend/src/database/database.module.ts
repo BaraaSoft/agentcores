@@ -15,6 +15,10 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
         url: config.getOrThrow<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: false,
+        // `gen_random_uuid()` for the primary keys. Postgres 13 and newer have it in core, so the
+        // backend installs no extension: `@agentcores/migrations` creates `vector`, the only one needed.
+        uuidExtension: 'pgcrypto',
+        installExtensions: false,
       }),
     }),
   ],

@@ -11,6 +11,7 @@ async function main(): Promise<void> {
     type: 'postgres',
     url: process.env.DATABASE_URL,
     migrations: [join(__dirname, 'migrations', '*.js')],
+    uuidExtension: 'pgcrypto',
   });
   await dataSource.initialize();
   const applied = await dataSource.runMigrations();
