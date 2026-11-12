@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/BaraaSoft/agentcores/compare/v0.1.1...v0.1.2) (2026-11-12)
+
+
+### Bug fixes
+
+* update banner images for landing page and GitHub assets ([ba4c9ac](https://github.com/BaraaSoft/agentcores/commit/ba4c9acc9ae49a5de0107e9e3d13589b8b8c8f36))
+
 ## [0.1.1](https://github.com/BaraaSoft/agentcores/compare/v0.1.0...v0.1.1) (2026-11-12)
 
 
