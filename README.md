@@ -386,13 +386,6 @@ and latency.
 </details>
 
 
-## Roadmap
-
-- Connect with HumanExperiences.IO so HumanExperiences users can operate their AgentCores.AI from there.
-- Run several Macs at once, one Workflow on each.
-- Add more skills, for video editing and CAD engineering design.
-- Let the owner operate AgentCores.AI from Slack workspaces and WhatsApp.
-
 ## License
 
 AgentCores.AI is open source under the [GNU Affero General Public License v3.0](LICENSE).
