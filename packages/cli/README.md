@@ -8,8 +8,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/agentcores"><img src="https://img.shields.io/npm/v/agentcores?style=flat-square&logo=npm&logoColor=white&label=npm&color=CB3837" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/agentcores"><img src="https://img.shields.io/npm/dm/agentcores?style=flat-square&label=downloads&color=CB3837" alt="npm downloads" /></a>
-  <a href="https://github.com/BaraaSoft/agentcores"><img src="https://img.shields.io/github/stars/BaraaSoft/agentcores?style=flat-square&logo=github&label=stars&color=111111" alt="GitHub stars" /></a>
   <img src="https://img.shields.io/badge/runs%20on-macOS-111111?style=flat-square&logo=apple&logoColor=white" alt="Runs on macOS" />
   <img src="https://img.shields.io/badge/Node.js-22-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22" />
   <a href="https://github.com/BaraaSoft/agentcores/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-8A8F98?style=flat-square" alt="License AGPL-3.0" /></a>
