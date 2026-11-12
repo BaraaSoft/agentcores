@@ -61,7 +61,7 @@ export async function startBackend(): Promise<number> {
     cwd: HOME,
     detached: true,
     stdio: ['ignore', log, log],
-    env: { ...process.env, NODE_ENV: 'production', DASHBOARD_DIR: BUNDLE_FILES.dashboard },
+    env: { ...process.env, NODE_ENV: 'production', DASHBOARD_DIR: BUNDLE_FILES.dashboard, AGENTCORES_HOME: HOME },
   });
   closeSync(log);
   child.unref();

@@ -164,6 +164,11 @@ Each level picks its own model, so a fast model can plan every step and a strong
   it works.
 - **[Docker Desktop](https://www.docker.com/products/docker-desktop)**, running. It holds the database and the queue.
 - **[Node.js 22](https://nodejs.org)** or newer.
+- **Apple's command line tools.** AgentCores.AI drives the mouse and the keyboard through a native module, and npm
+  builds that module on your Mac while it installs. Run this once, and accept the dialog:
+  ```bash
+  xcode-select --install
+  ```
 - **An Anthropic API key**, for Claude. A Meta API key for Muse also works.
 
 ### Run it
@@ -188,6 +193,7 @@ both, quit and reopen the terminal, and run `npx agentcores init` again.
 | `npx agentcores down` | Stops AgentCores.AI and its database. Your data stays |
 | `npx agentcores status` | Shows what runs |
 | `npx agentcores logs` | Follows the backend log |
+| `npx agentcores open` | Opens your AgentCores.AI folder in Finder: the screenshots, the settings, and the log |
 
 Your settings, data, and logs live in `~/.agentcores`. Edit `~/.agentcores/.env` to change the models.
 
@@ -229,6 +235,18 @@ The backend shows its queues at [localhost:3088/admin/queues](http://localhost:3
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop).
 2. Open it, and wait until it says "Engine running".
 3. Run the command again.
+
+#### The install stops with `node-gyp`, `gyp ERR!`, or "no Xcode or CLT version detected"
+
+AgentCores.AI drives the mouse and the keyboard through a native module, and npm builds it on your Mac. That
+build needs Apple's command line tools.
+
+1. Run `xcode-select --install`, and accept the dialog. It takes a few minutes.
+2. Check that it worked: `xcode-select -p` prints a path.
+3. Run `npx agentcores init` again.
+
+If you already have the full Xcode app and the build still fails, point the tools at it with
+`sudo xcode-select --switch /Applications/Xcode.app`, then try again.
 
 #### "AgentCores.AI needs Node.js 22 or newer"
 

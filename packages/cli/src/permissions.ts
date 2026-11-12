@@ -1,5 +1,5 @@
 import * as robot from 'robotjs';
-import { openUrl } from './shell';
+import { openPath } from './shell';
 import { CliError, command } from './ui';
 
 const SETTINGS = {
@@ -52,11 +52,11 @@ export function ensurePermissions(options: { prompt: boolean; retry: string }): 
   const names: string[] = [];
   if (!granted.accessibility) {
     names.push('Accessibility');
-    openUrl(SETTINGS.accessibility);
+    openPath(SETTINGS.accessibility);
   }
   if (!granted.screenRecording) {
     names.push('Screen Recording');
-    openUrl(SETTINGS.screenRecording);
+    openPath(SETTINGS.screenRecording);
   }
 
   throw new CliError(`macOS has not given ${app} control of this Mac`, [

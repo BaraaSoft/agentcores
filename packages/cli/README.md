@@ -35,6 +35,9 @@ That is all. The dashboard opens at [http://localhost:3088](http://localhost:308
 You need a Mac with Apple silicon, [Docker Desktop](https://www.docker.com/products/docker-desktop),
 [Node.js 22](https://nodejs.org) or newer, and an Anthropic API key. A Meta API key for Muse also works.
 
+If you have never built a native module on this Mac, run `xcode-select --install` first. AgentCores.AI drives
+the mouse and the keyboard through a native module, and npm builds it on your Mac while it installs.
+
 ## What AgentCores.AI is
 
 AgentCores.AI is an **AI co-worker**. It takes ownership of a goal, and it carries the work for days or weeks.
@@ -132,6 +135,7 @@ and clicks and types. Each layer picks its own model.
 | `npx agentcores down` | Stops AgentCores.AI and its database. Your data stays |
 | `npx agentcores status` | Shows what runs |
 | `npx agentcores logs` | Follows the backend log |
+| `npx agentcores open` | Opens your AgentCores.AI folder in Finder: the screenshots, the settings, and the log |
 
 The first time, macOS asks you to allow your terminal app in **Accessibility** and **Screen Recording**. Allow
 both, quit and reopen the terminal, and run `npx agentcores init` again.
@@ -174,8 +178,8 @@ only, so other computers on your network cannot reach them.
 <summary><b>Where is my data?</b></summary>
 <br />
 <b>On your Mac, and nowhere else.</b> Your goals, runs, lessons, screenshots, settings, and logs live in
-<code>~/.agentcores</code> and in the local database. AgentCores.AI has no account, no cloud, and no
-telemetry. The only data that leaves your Mac is what the agent sends to the model provider that you
+<code>~/.agentcores</code> and in the local database. Run <code>npx agentcores open</code> to see the folder.
+AgentCores.AI has no account, no cloud, and no telemetry. The only data that leaves your Mac is what the agent sends to the model provider that you
 choose, with your own API key.
 </details>
 
@@ -193,6 +197,22 @@ laptop or a phone. <code>npx agentcores up</code> prints the address to open on 
 </details>
 
 ## Troubleshooting
+
+<details>
+<summary><b>The install stops with <code>node-gyp</code> or "no Xcode or CLT version detected"</b></summary>
+<br />
+
+AgentCores.AI drives the mouse and the keyboard through a native module, and npm builds it on your Mac. That
+build needs Apple's command line tools.
+
+1. Run `xcode-select --install`, and accept the dialog. It takes a few minutes.
+2. Check that it worked: `xcode-select -p` prints a path.
+3. Run `npx agentcores init` again.
+
+If you have the full Xcode app and the build still fails, point the tools at it with
+`sudo xcode-select --switch /Applications/Xcode.app`, then try again.
+
+</details>
 
 <details>
 <summary><b>"AgentCores.AI needs Docker"</b></summary>

@@ -10,7 +10,7 @@ import { EnvFile, missingKeys, useProviderEverywhere } from './env-file';
 import { BACKEND_PORT, DASHBOARD_URL, HOME, HOME_FILES } from './paths';
 import { ensurePermissions, terminalName } from './permissions';
 import { ensureMac, migrate, prepareHome } from './setup';
-import { openUrl, succeeds } from './shell';
+import { openPath, succeeds } from './shell';
 import { box, CliError, command, link } from './ui';
 
 /** Runs one step behind a spinner. The spinner turns red when the step fails, and the error goes up. */
@@ -102,7 +102,7 @@ export async function up(): Promise<void> {
 
   const pid = runningPid();
   if (pid !== null) {
-    openUrl(DASHBOARD_URL);
+    openPath(DASHBOARD_URL);
     p.outro('It already runs.');
     console.log(runningBox(pid));
     return;
@@ -117,7 +117,7 @@ export async function up(): Promise<void> {
     await waitUntilReady(newPid);
     return newPid;
   });
-  openUrl(DASHBOARD_URL);
+  openPath(DASHBOARD_URL);
   p.outro('Opened the dashboard in your browser.');
   console.log(runningBox(started));
 }
@@ -162,6 +162,19 @@ export async function status(): Promise<void> {
   } else {
     console.log(`Docker     ${pc.dim('not running')}`);
   }
+}
+
+/** Opens the home folder in Finder, so the owner can reach the screenshots, the settings, and the log. */
+export function open(): void {
+  if (!existsSync(HOME)) {
+    throw new CliError('AgentCores.AI is not set up yet', [`Run ${command('npx agentcores init')} first.`]);
+  }
+  openPath(HOME);
+  console.log(`Opened ${link(HOME)} in Finder.\n`);
+  console.log(pc.dim('  temp/         the screenshots of the work, one folder per Job'));
+  console.log(pc.dim('  .env          your settings and API keys'));
+  console.log(pc.dim('  backend.log   the backend log'));
+  console.log(pc.dim('  data/         the Postgres and Redis files'));
 }
 
 export function logs(): void {

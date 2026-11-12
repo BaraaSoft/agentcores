@@ -9,6 +9,8 @@ export const HOME_FILES = {
   compose: join(HOME, 'compose.yaml'),
   pid: join(HOME, 'backend.pid'),
   log: join(HOME, 'backend.log'),
+  /** The screenshots of the agent's work. The backend writes them, through `AGENTCORES_HOME`. */
+  temp: join(HOME, 'temp'),
 } as const;
 
 /** The files the build puts next to `cli.js` in `dist/`. */

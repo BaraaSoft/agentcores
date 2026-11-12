@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wipes the local dev run state so the next run starts fresh: every BullMQ queue, and every table
-# except the Strategies (and the migrations record), and the temporary screenshots in .data/temp.
+# except the Strategies (and the migrations record), and the temporary screenshots in ~/.agentcores/temp.
 # Each Strategy loses its evaluation, so it reads as a goal that never ran.
 # Works only through the compose.yaml containers, so it can never touch a remote database.
 set -euo pipefail
@@ -37,8 +37,9 @@ END
 UPDATE strategies SET evaluation = NULL;
 SQL
 
-echo "Deleting the temporary files (.data/temp)..."
-rm -rf .data/temp
+TEMP_DIR="${AGENTCORES_HOME:-$HOME/.agentcores}/temp"
+echo "Deleting the temporary files (${TEMP_DIR})..."
+rm -rf "${TEMP_DIR}"
 
 STRATEGIES=$("${COMPOSE[@]}" exec -T postgres psql -U ahe -d ahe -Atc 'SELECT count(*) FROM strategies')
 echo "Done. Kept ${STRATEGIES} Strategies, with no runs. Run one from the WorkHub to start a fresh Workflow."

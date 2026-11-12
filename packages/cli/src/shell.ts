@@ -26,6 +26,7 @@ export function lastLines(text: string, count = 8): string[] {
   return text.trimEnd().split('\n').slice(-count);
 }
 
-export function openUrl(url: string): void {
-  spawnSync('open', [url], { stdio: 'ignore' });
+/** Opens a URL, a file, or a folder, the three things the macOS `open` command accepts. */
+export function openPath(target: string): void {
+  spawnSync('open', [target], { stdio: 'ignore' });
 }

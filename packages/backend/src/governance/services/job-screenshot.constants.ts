@@ -1,10 +1,13 @@
-import { resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 /**
- * Temporary files of the running app, at `.data/temp` in the repository root. The same five levels up
- * from `src/governance/services` and `dist/governance/services` reach the root. Git ignores `.data/`.
+ * Temporary files of the running app, at `~/.agentcores/temp`. The same folder in development and in
+ * the published package, so the screenshots never land inside an install folder that npx can clear.
+ * `AGENTCORES_HOME` moves it: the CLI passes its own home folder when it starts the backend. It is read
+ * when this file loads, so it must be a real environment variable, not a line in `.env`.
  */
-export const TEMP_DATA_DIR = resolve(__dirname, '../../../../../.data/temp');
+export const TEMP_DATA_DIR = join(process.env.AGENTCORES_HOME ?? join(homedir(), '.agentcores'), 'temp');
 
 /** Injection token for the folder `JobScreenshotService` writes to; defaults to `TEMP_DATA_DIR`. */
 export const TEMP_DATA_DIR_TOKEN = Symbol('TEMP_DATA_DIR');

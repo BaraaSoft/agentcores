@@ -1,9 +1,9 @@
 import pc from 'picocolors';
 import { version } from '../package.json';
-import { down, init, logs, status, up } from './commands';
+import { down, init, logs, open, status, up } from './commands';
 import { box, brand, CliError, command } from './ui';
 
-const COMMANDS: Record<string, () => Promise<void> | void> = { init, up, down, status, logs };
+const COMMANDS: Record<string, () => Promise<void> | void> = { init, up, down, status, logs, open };
 
 const HELP = `${brand()} ${pc.dim(`v${version}`)}  An AI co-worker that runs long work on a real Mac.
 
@@ -14,6 +14,7 @@ Usage: ${command('npx agentcores <command>')}
   ${command('down')}     Stop AgentCores.AI and its database. Your data stays.
   ${command('status')}   Show what runs
   ${command('logs')}     Follow the backend log
+  ${command('open')}     Open your AgentCores.AI folder in Finder: the screenshots, the settings, and the log
 
 Website: https://agentcores.ai`;
 
