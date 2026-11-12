@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/BaraaSoft/agentcores/compare/v0.1.0...v0.1.1) (2026-11-12)
+
+
+### Bug fixes
+
+* publish to npm with trusted publishing instead of a token & update npm readme ([4af09bb](https://github.com/BaraaSoft/agentcores/commit/4af09bb618246091568fcdc565ea0a62b35fe36e))
+
 ## 0.1.0 (2026-11-12)
 
 
