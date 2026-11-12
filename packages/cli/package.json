@@ -1,6 +1,6 @@
 {
   "name": "agentcores",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "AgentCores.AI: an AI co-worker that runs long work on a real Mac, and self-improves with every round.",
   "license": "AGPL-3.0-only",
   "homepage": "https://agentcores.ai",
