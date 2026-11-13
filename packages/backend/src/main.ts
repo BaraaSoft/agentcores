@@ -4,10 +4,9 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import basicAuth = require('express-basic-auth');
 import { AppModule } from './app.module';
 import { serveDashboard } from './common/dashboard/serve-dashboard';
+import { ADMIN_PREFIX, API_PREFIX } from './common/routes.constants';
 import { setupSwagger } from './common/swagger/setup-swagger';
 
-const API_PREFIX = 'api' as const;
-const ADMIN_PREFIX = '/admin' as const;
 const DEFAULT_PORT = 3088;
 
 /**
@@ -24,7 +23,7 @@ async function bootstrap(): Promise<void> {
       realm: 'AgentCores.AI Admin',
     }),
   );
-  app.setGlobalPrefix(API_PREFIX, { exclude: ['/admin/*path'] });
+  app.setGlobalPrefix(API_PREFIX, { exclude: [`${ADMIN_PREFIX}/*path`] });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   if (process.env.NODE_ENV !== 'production') {
     setupSwagger(app);
