@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/BaraaSoft/agentcores/compare/v0.1.2...v0.1.3) (2026-11-12)
+
+
+### Bug fixes
+
+* enhance README and CLI documentation for native module installation and add new command to open AgentCores.AI folder in Finder ([6dfe6fa](https://github.com/BaraaSoft/agentcores/commit/6dfe6fa5f381cee69c17d9820453fdb4003fd163))
+* switch UUID generation to use `gen_random_uuid()` and update database configurations ([8554078](https://github.com/BaraaSoft/agentcores/commit/85540789607f54a218ef14a122b4b5449c8e5ade))
+
 ## [0.1.2](https://github.com/BaraaSoft/agentcores/compare/v0.1.1...v0.1.2) (2026-11-12)
 
 
