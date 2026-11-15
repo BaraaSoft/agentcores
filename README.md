@@ -309,7 +309,7 @@ the mouse.
 ```text
 packages/
 ├── agent-core/    shared domain types and contracts
-├── cli/           the `npx agentcores` command, published to npm as `agentcores`
+├── cli/           the `npx agentcores` commands 
 ├── backend/       runs on your Mac (localhost:3088): the API, the reasoning layer, the queues, and the orchestrator
 ├── execution/     the hands-on agent: the macOS driver, and the Muse and Claude providers
 ├── migrations/    migrations, applied by `npx agentcores init` and `up`
