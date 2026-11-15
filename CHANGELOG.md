@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/BaraaSoft/agentcores/compare/v0.1.3...v0.1.4) (2026-11-13)
+
+
+### Bug fixes
+
+* centralize route prefixes and enhance dashboard serving logic ([8dfe225](https://github.com/BaraaSoft/agentcores/commit/8dfe2251ea3e6e4d4eecad57afc5095e2a4a75d5))
+
 ## [0.1.3](https://github.com/BaraaSoft/agentcores/compare/v0.1.2...v0.1.3) (2026-11-12)
 
 

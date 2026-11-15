@@ -64,7 +64,7 @@ and clear, even after hundreds of steps. Many agents work as one co-worker and s
 actual output and the actual numbers, opened on the real screen. When the evidence is missing, AgentCores.AI sends a real
 Job to get it, for example to open the analytics dashboard and read this week's sign-ups. The lessons feed the
 next round: keep what worked, fix what did not. A new run of the same goal reads the last three runs, and AgentCores.AI
-finds similar past work by meaning. In [our benchmark](eval/), it never ranked weak work above strong work.
+finds similar past work by meaning. In our benchmark, it never ranked weak work above strong work.
 
 **Any app on the Mac.** AgentCores.AI operates macOS with the mouse, the keyboard, and screenshots, like a person. It works  
 in Canva, spreadsheets, the browser, or anything else on the screen. It recovers on its own from popups, broken pages,  
