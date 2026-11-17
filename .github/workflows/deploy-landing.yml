@@ -1,0 +1,54 @@
+name: Deploy landing
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - packages/landing/**
+      - .github/workflows/deploy-landing.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-landing
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: landing · deploy to Vercel production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_LANDING_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Only the landing package: the Vercel CLI is its pinned devDependency, so deploys stay reproducible.
+      - name: Install the Vercel CLI
+        run: pnpm install --frozen-lockfile --filter @agentcores/landing
+
+      - name: Pull the Vercel project settings
+        run: pnpm exec vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/landing
+
+      # Builds on the runner into packages/landing/.vercel/output; Vercel receives only that output.
+      - name: Build
+        run: pnpm exec vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/landing
+
+      - name: Deploy the prebuilt output
+        run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/landing

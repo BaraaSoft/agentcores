@@ -1,0 +1,9 @@
+{
+  "name": "@agentcores/landing",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The agentcores.ai landing page: static files in public/, deployed to Vercel by .github/workflows/deploy-landing.yml.",
+  "devDependencies": {
+    "vercel": "65.16.0"
+  }
+}

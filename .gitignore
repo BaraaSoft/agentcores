@@ -12,6 +12,9 @@ coverage/
 .env.*
 !.env.example
 
+# Vercel project link and build output
+.vercel/
+
 # Docker volumes
 .docker-data/
 
