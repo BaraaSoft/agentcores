@@ -325,10 +325,11 @@ packages/
 - **The database is the source of truth.** Queues only carry work. A message that arrives late, twice, or out of
 order changes nothing.
 - **Every state change checks the state it expects.** A Task delivered twice runs once.
-- **Reasoning is stateless.** Each reasoner reads its inputs from the database, decides, and returns JSON.
+- **Session-agnostic, with managed context.** No agent keeps a chat session. Each call builds its context fresh.
+A restart in the middle of a run loses nothing, and AgentCores.AI manages the context as a run gets longer.
 - **Tests at every level.** 479 automated tests: 277 backend unit tests, 69 database integration tests, and
 133 execution tests. An end-to-end suite also runs the real desktop with a real model.
-- **A benchmark for the self-review.** [`eval/`](eval/) runs the real evaluator on pairs of strong and weak
+- **A benchmark for the self-review.** It runs the real evaluator on pairs of strong and weak
 work, on screenshots of real visual work, and on Jobs that need live evidence. It reports ranking accuracy, evidence requests, valid output,
 and latency.
 
