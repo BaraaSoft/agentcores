@@ -70,7 +70,7 @@ An assistant waits for your next prompt. A co-worker owns a piece of the work, a
 ## What it can do
 
 - **Your data stays on your Mac.** The database, the queue, the screenshots, and the logs live on your
-  machine. AgentCores.AI has no account, no cloud, and no telemetry. You bring your own API key.
+  machine. AgentCores.AI has no account and no cloud. You bring your own API key.
 - **It works in any app on your Mac.** It uses Canva, spreadsheets, the browser, or anything else on the
   screen. It recovers on its own from popups, broken pages, rate limits, and crashes.
 - **It self-improves.** An evaluator reviews each piece of work against the real output and the real numbers.
@@ -177,10 +177,10 @@ only, so other computers on your network cannot reach them.
 <details>
 <summary><b>Where is my data?</b></summary>
 <br />
-<b>On your Mac, and nowhere else.</b> Your goals, runs, lessons, screenshots, settings, and logs live in
+<b>On your Mac.</b> Your goals, runs, lessons, screenshots, settings, and logs live in
 <code>~/.agentcores</code> and in the local database. Run <code>npx agentcores open</code> to see the folder.
-AgentCores.AI has no account, no cloud, and no telemetry. The only data that leaves your Mac is what the agent sends to the model provider that you
-choose, with your own API key.
+AgentCores.AI has no account and no cloud. Your goals, screenshots, and results leave your Mac only when the agent sends
+them to the model provider that you choose, with your own API key.
 </details>
 
 <details>

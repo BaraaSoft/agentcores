@@ -4,7 +4,7 @@ import type { StatusTone } from '../../../components/monitoring-components/types
 import type { NodePresentation } from './node-presentation';
 
 const SKILLS: Record<TaskProgress['skillType'], { readonly icon: LucideIcon; readonly label: string }> = {
-  general: { icon: MousePointerClick, label: 'computer use' },
+  general: { icon: MousePointerClick, label: 'machine use' },
   creative_design: { icon: Palette, label: 'creative design' },
   social_post: { icon: Send, label: 'social post' },
 };
