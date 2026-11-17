@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/BaraaSoft/agentcores/compare/v0.1.4...v0.1.5) (2026-11-17)
+
+
+### Bug fixes
+
+* README and update skill label in present-task.ts ([ad176f6](https://github.com/BaraaSoft/agentcores/commit/ad176f60afdcc8fd47786ead71184b3510dc03a3))
+* update CLI command description in README for clarity ([e29cf9a](https://github.com/BaraaSoft/agentcores/commit/e29cf9aa18c8f5d3c7548c8f353527f842c870a0))
+
 ## [0.1.4](https://github.com/BaraaSoft/agentcores/compare/v0.1.3...v0.1.4) (2026-11-13)
 
 
